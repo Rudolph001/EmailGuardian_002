@@ -324,7 +324,10 @@ def get_high_risk_events(limit=100):
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
                    status, is_whitelisted, follow_up
             FROM events
-            WHERE ml_score > 0.7 AND is_whitelisted = 0
+            WHERE ml_score > 0.7 
+            AND is_whitelisted = 0 
+            AND status != 'closed'
+            AND follow_up = 0
             ORDER BY ml_score DESC, datetime(_time) DESC
             LIMIT ?
         """, (limit * 2,))  # Get more events to filter through
@@ -366,14 +369,16 @@ def get_rule_triggered_events(limit=100):
     """Get events that have actually triggered configured rules, keyword matches, or are not whitelisted"""
     from rules import get_rules, apply_rules_to_event, check_keyword_matches
 
-    # Get recent events to check against rules (excluding whitelisted)
+    # Get recent events to check against rules (excluding whitelisted, closed, and follow-up)
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
                    status, is_whitelisted, follow_up
             FROM events
-            WHERE is_whitelisted = 0
+            WHERE is_whitelisted = 0 
+            AND status != 'closed'
+            AND follow_up = 0
             ORDER BY datetime(_time) DESC
             LIMIT ?
         """, (limit * 2,))  # Get more events to filter through
