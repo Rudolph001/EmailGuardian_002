@@ -210,10 +210,22 @@ footer {
 .dropdown-menu {
     border: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+    z-index: 1050 !important;
+    position: absolute !important;
 }
 
 .dropdown-item:hover {
     background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Ensure dropdowns are always visible */
+.navbar .dropdown-menu {
+    z-index: 1060 !important;
+    margin-top: 0;
+}
+
+.dropdown {
+    position: relative;
 }
 
 /* Utility classes for common layouts */
