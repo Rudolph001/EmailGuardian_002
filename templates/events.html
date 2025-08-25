@@ -256,29 +256,32 @@
                                                         </button>
                                                     </form>
                                                 {% elif request.args.get('filter') == 'follow_up' %}
-                                                    <!-- Generate Email button for follow-up events -->
-                                                    <a href="mailto:{{ event.sender }}?subject=Follow-up: {{ event.subject | urlencode }}&body=Hi,%0D%0A%0D%0AI am following up on your email regarding '{{ event.subject | urlencode }}'.%0D%0A%0D%0APlease let me know if you need any assistance.%0D%0A%0D%0ABest regards" 
-                                                       class="btn btn-sm btn-info" title="Generate Email"
-                                                       onclick="setTimeout(() => { 
-                                                           if(confirm('Mark this email as sent?')) {
-                                                               document.getElementById('markSentForm{{ event.id }}').submit();
-                                                           }
-                                                       }, 1000);">
-                                                        <i class="fas fa-envelope"></i> Generate Email
-                                                    </a>
+                                                    <div class="btn-group" role="group">
+                                                        {% if not event.email_sent %}
+                                                            <!-- Generate Email button for follow-up events -->
+                                                            <a href="mailto:{{ event.sender }}?subject=Follow-up: {{ event.subject | urlencode }}&body=Hi,%0D%0A%0D%0AI am following up on your email regarding '{{ event.subject | urlencode }}'.%0D%0A%0D%0APlease let me know if you need any assistance.%0D%0A%0D%0ABest regards" 
+                                                               class="btn btn-sm btn-info" title="Generate Email"
+                                                               onclick="setTimeout(() => { 
+                                                                   if(confirm('Mark this email as sent?')) {
+                                                                       document.getElementById('markSentForm{{ event.id }}').submit();
+                                                                   }
+                                                               }, 1000);">
+                                                                <i class="fas fa-envelope me-1"></i>Generate Email
+                                                            </a>
 
-                                                    <!-- Hidden form to mark email as sent -->
-                                                    <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" 
-                                                          id="markSentForm{{ event.id }}" style="display: none;">
-                                                        <input type="hidden" name="action" value="mark_email_sent">
-                                                        <input type="hidden" name="redirect_to" value="events">
-                                                    </form>
-
-                                                    {% if event.email_sent %}
-                                                        <span class="badge bg-info ms-1" title="Email sent on {{ event.email_sent_date }}">
-                                                            <i class="fas fa-paper-plane me-1"></i>Email Sent
-                                                        </span>
-                                                    {% endif %}
+                                                            <!-- Hidden form to mark email as sent -->
+                                                            <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" 
+                                                                  id="markSentForm{{ event.id }}" style="display: none;">
+                                                                <input type="hidden" name="action" value="mark_email_sent">
+                                                                <input type="hidden" name="redirect_to" value="events">
+                                                            </form>
+                                                        {% else %}
+                                                            <!-- Show email sent status -->
+                                                            <span class="badge bg-success" title="Email sent on {{ event.email_sent_date }}">
+                                                                <i class="fas fa-paper-plane me-1"></i>Email Sent
+                                                            </span>
+                                                        {% endif %}
+                                                    </div>
                                                 {% endif %}
                                             </div>
                                         </td>
