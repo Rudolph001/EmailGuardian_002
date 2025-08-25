@@ -550,6 +550,72 @@ def update_event_status(event_id):
     else:
         return redirect(url_for("event_detail", event_id=event_id))
 
+@app.route("/batch_update_events", methods=["POST"])
+def batch_update_events():
+    """Batch update multiple events"""
+    try:
+        event_ids_str = request.form.get("event_ids", "")
+        action = request.form.get("action")
+        redirect_to = request.form.get("redirect_to", "events")
+
+        if not event_ids_str or not action:
+            flash("Invalid batch update request", "error")
+            return redirect(url_for("index"))
+
+        event_ids = [int(id.strip()) for id in event_ids_str.split(",") if id.strip()]
+        
+        if not event_ids:
+            flash("No events selected for batch update", "error")
+            return redirect(url_for("index"))
+
+        from models import update_event_status as update_status
+        from datetime import datetime
+
+        success_count = 0
+        
+        for event_id in event_ids:
+            try:
+                if action == "whitelist":
+                    if update_status(event_id, is_whitelisted=True):
+                        success_count += 1
+                
+                elif action == "follow_up":
+                    follow_up_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    if update_status(event_id, follow_up=True, follow_up_date=follow_up_date):
+                        success_count += 1
+                
+                elif action == "clear":
+                    if update_status(event_id, status="closed", closed_by="admin"):
+                        success_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error updating event {event_id} in batch: {e}")
+                continue
+
+        # Provide feedback
+        total_events = len(event_ids)
+        if success_count == total_events:
+            action_names = {
+                'whitelist': 'whitelisted',
+                'follow_up': 'marked for follow-up',
+                'clear': 'cleared and moved to closed'
+            }
+            flash(f"Successfully {action_names[action]} {success_count} event{'s' if success_count > 1 else ''}", "success")
+        elif success_count > 0:
+            flash(f"Partially successful: {success_count}/{total_events} events updated", "warning")
+        else:
+            flash(f"Failed to update any of the {total_events} selected events", "error")
+
+    except Exception as e:
+        logger.error(f"Batch update failed: {e}")
+        flash(f"Batch update failed: {str(e)}", "error")
+
+    # Handle different redirect destinations
+    if redirect_to == "index":
+        return redirect(url_for("index"))
+    else:
+        return redirect(url_for("events"))
+
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_dashboard():
     message = None

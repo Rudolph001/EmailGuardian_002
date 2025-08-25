@@ -137,20 +137,49 @@
             </div>
             <div class="card-body">
                 {% if recent_events %}
+                    <!-- Batch Actions Bar -->
+                    <div id="batchActionsBar" class="alert alert-info mb-3" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span id="selectedCount">0 events selected</span>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-warning btn-sm" onclick="batchAction('follow_up')">
+                                    <i class="fas fa-flag me-1"></i>Follow-up
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="batchAction('clear')">
+                                    <i class="fas fa-times me-1"></i>Clear
+                                </button>
+                                <button type="button" class="btn btn-success btn-sm" onclick="batchAction('whitelist')">
+                                    <i class="fas fa-check-circle me-1"></i>Whitelist
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">
+                                    <i class="fas fa-times-circle me-1"></i>Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                    </th>
                                     <th>Time</th>
                                     <th>Sender</th>
                                     <th>Subject</th>
                                     <th>Risk Score</th>
+                                    <th>Status</th>
                                     <th>Type</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for event in recent_events %}
                                     <tr>
+                                        <td>
+                                            <input type="checkbox" class="event-checkbox" value="{{ event.id }}" onchange="updateBatchActions()">
+                                        </td>
                                         <td>
                                             <small class="text-muted">{{ event._time }}</small>
                                         </td>
@@ -160,34 +189,137 @@
                                             </a>
                                         </td>
                                         <td>
-                                            <span class="text-truncate d-inline-block" style="max-width: 300px;">
+                                            <span class="text-truncate d-inline-block" style="max-width: 250px;" 
+                                                  title="{{ event.subject or 'No subject' }}">
                                                 {{ event.subject or 'No subject' }}
                                             </span>
                                         </td>
                                         <td>
                                             {% if event.ml_score %}
                                                 {% set score = event.ml_score %}
-                                                <span class="badge bg-{{ 'danger' if score > 0.7 else 'warning' if score > 0.3 else 'success' }}">
-                                                    {{ "%.2f"|format(score) }}
+                                                <div class="d-flex align-items-center">
+                                                    <span class="badge bg-{{ 'danger' if score > 0.7 else 'warning' if score > 0.3 else 'success' }} me-2">
+                                                        {{ "%.2f"|format(score) }}
+                                                    </span>
+                                                    <div class="progress" style="width: 60px; height: 8px;">
+                                                        <div class="progress-bar bg-{{ 'danger' if score > 0.7 else 'warning' if score > 0.3 else 'success' }}" 
+                                                             style="width: {{ (score * 100)|round }}%"></div>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">Not scored</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if event.is_whitelisted %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check-circle me-1"></i>Whitelisted
+                                                </span>
+                                            {% elif event.follow_up %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-flag me-1"></i>Follow-up
+                                                </span>
+                                            {% elif event.status == 'closed' %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-archive me-1"></i>Closed
                                                 </span>
                                             {% else %}
-                                                <span class="text-muted">-</span>
+                                                <span class="badge bg-primary">
+                                                    <i class="fas fa-folder-open me-1"></i>Open
+                                                </span>
                                             {% endif %}
                                         </td>
                                         <td>
                                             {% if event.is_internal_to_external %}
                                                 <span class="badge bg-warning">
-                                                    <i class="fas fa-exchange-alt me-1"></i>Int→Ext
+                                                    <i class="fas fa-exchange-alt me-1"></i>Internal → External
                                                 </span>
                                             {% else %}
-                                                <span class="badge bg-secondary">Internal</span>
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-building me-1"></i>Internal
+                                                </span>
                                             {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('event_detail', event_id=event.id) }}" 
+                                               class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye me-1"></i>View
+                                            </a>
                                         </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Batch Update Form (hidden) -->
+                    <form id="batchUpdateForm" method="POST" action="{{ url_for('batch_update_events') }}" style="display: none;">
+                        <input type="hidden" name="event_ids" id="batchEventIds">
+                        <input type="hidden" name="action" id="batchAction">
+                        <input type="hidden" name="redirect_to" value="index">
+                    </form>
+
+                    <script>
+                    function toggleSelectAll() {
+                        const selectAll = document.getElementById('selectAll');
+                        const checkboxes = document.querySelectorAll('.event-checkbox');
+
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = selectAll.checked;
+                        });
+
+                        updateBatchActions();
+                    }
+
+                    function updateBatchActions() {
+                        const checkboxes = document.querySelectorAll('.event-checkbox:checked');
+                        const batchBar = document.getElementById('batchActionsBar');
+                        const selectedCount = document.getElementById('selectedCount');
+
+                        if (checkboxes.length > 0) {
+                            batchBar.style.display = 'block';
+                            selectedCount.textContent = `${checkboxes.length} event${checkboxes.length > 1 ? 's' : ''} selected`;
+                        } else {
+                            batchBar.style.display = 'none';
+                        }
+
+                        // Update select all checkbox state
+                        const allCheckboxes = document.querySelectorAll('.event-checkbox');
+                        const selectAll = document.getElementById('selectAll');
+                        selectAll.checked = checkboxes.length === allCheckboxes.length;
+                        selectAll.indeterminate = checkboxes.length > 0 && checkboxes.length < allCheckboxes.length;
+                    }
+
+                    function clearSelection() {
+                        document.querySelectorAll('.event-checkbox').forEach(checkbox => {
+                            checkbox.checked = false;
+                        });
+                        document.getElementById('selectAll').checked = false;
+                        updateBatchActions();
+                    }
+
+                    function batchAction(action) {
+                        const checkboxes = document.querySelectorAll('.event-checkbox:checked');
+                        const eventIds = Array.from(checkboxes).map(cb => cb.value);
+
+                        if (eventIds.length === 0) {
+                            alert('Please select at least one event.');
+                            return;
+                        }
+
+                        const actionNames = {
+                            'follow_up': 'mark for follow-up',
+                            'clear': 'clear (move to closed)',
+                            'whitelist': 'whitelist'
+                        };
+
+                        if (confirm(`Are you sure you want to ${actionNames[action]} ${eventIds.length} event${eventIds.length > 1 ? 's' : ''}?`)) {
+                            document.getElementById('batchEventIds').value = eventIds.join(',');
+                            document.getElementById('batchAction').value = action;
+                            document.getElementById('batchUpdateForm').submit();
+                        }
+                    }
+                    </script>
                 {% else %}
                     <div class="text-center py-4">
                         <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
