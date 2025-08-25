@@ -128,11 +128,16 @@ def events():
             from models import get_remaining_events
             events_list = get_remaining_events(100)
 
+        # Get closure reasons for the close modal
+        from models import get_closure_reasons
+        closure_reasons = get_closure_reasons()
+        
         return render_template("events.html", 
                              events=events_list,
                              query=query,
                              page=page,
-                             filter_type=filter_type)
+                             filter_type=filter_type,
+                             get_closure_reasons=lambda: closure_reasons)
     except Exception as e:
         logger.error(f"Error loading events: {e}")
         flash("Error loading events", "error")
@@ -171,6 +176,10 @@ def event_detail(event_id):
             logger.error(f"Error checking keyword matches for event {event_id}: {e}")
             keyword_matches = []
 
+        # Get closure reasons for the close modal
+        from models import get_closure_reasons
+        closure_reasons = get_closure_reasons()
+
         return render_template("event_detail.html",
                              event=event_data['event'],
                              recipients=event_data['recipients'],
@@ -178,7 +187,8 @@ def event_detail(event_id):
                              policies=event_data['policies'],
                              actions=actions,
                              whitelist_matches=whitelist_matches,
-                             keyword_matches=keyword_matches)
+                             keyword_matches=keyword_matches,
+                             closure_reasons=closure_reasons)
     except Exception as e:
         logger.error(f"Error loading event {event_id}: {e}")
         flash("Error loading event details", "error")
@@ -673,7 +683,13 @@ def update_event_status(event_id):
                 flash("Failed to clear event", "error")
 
         elif action == "close":
-            if update_status(event_id, status="closed", closed_by="admin"):
+            closure_reason = request.form.get("closure_reason", "").strip()
+            closure_notes = request.form.get("closure_notes", "").strip()
+            closure_reference = request.form.get("closure_reference", "").strip()
+            
+            if update_status(event_id, status="closed", closed_by="admin", 
+                           closure_reason=closure_reason, closure_notes=closure_notes,
+                           closure_reference=closure_reference):
                 flash("Event closed successfully", "success")
             else:
                 flash("Failed to close event", "error")
@@ -770,12 +786,52 @@ def batch_update_events():
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_dashboard():
+    from models import (get_closure_reasons, add_closure_reason, 
+                       update_closure_reason, delete_closure_reason, clear_database)
+    
     message = None
-    if request.method == 'POST' and request.form.get('action') == 'clear_db':
-        from models import clear_database
-        clear_database()
-        message = 'Database cleared successfully.'
-    return render_template('admin.html', message=message)
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'clear_db':
+            clear_database()
+            message = 'Database cleared successfully.'
+            
+        elif action == 'add_reason':
+            reason = request.form.get('reason', '').strip()
+            requires_reference = request.form.get('requires_reference') == 'on'
+            
+            if reason:
+                if add_closure_reason(reason, requires_reference):
+                    flash(f"Closure reason '{reason}' added successfully", "success")
+                else:
+                    flash(f"Closure reason '{reason}' already exists", "warning")
+            else:
+                flash("Reason is required", "error")
+                
+        elif action == 'edit_reason':
+            reason_id = int(request.form.get('reason_id'))
+            reason = request.form.get('reason', '').strip()
+            requires_reference = request.form.get('requires_reference') == 'on'
+            enabled = request.form.get('enabled') == 'on'
+            
+            if update_closure_reason(reason_id, reason, requires_reference, enabled):
+                flash(f"Closure reason updated successfully", "success")
+            else:
+                flash("Failed to update closure reason", "error")
+                
+        elif action == 'delete_reason':
+            reason_id = int(request.form.get('reason_id'))
+            if delete_closure_reason(reason_id):
+                flash("Closure reason deleted successfully", "success")
+            else:
+                flash("Failed to delete closure reason", "error")
+        
+        return redirect(url_for('admin_dashboard'))
+    
+    closure_reasons = get_closure_reasons()
+    return render_template('admin.html', message=message, closure_reasons=closure_reasons)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

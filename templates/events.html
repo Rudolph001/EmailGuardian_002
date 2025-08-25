@@ -283,6 +283,12 @@
                                                         {% endif %}
                                                     </div>
                                                 {% endif %}
+                                                
+                                                <!-- Close button -->
+                                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" 
+                                                        onclick="showCloseModal({{ event.id }})">
+                                                    <i class="fas fa-lock"></i> Close
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -324,4 +330,102 @@
         </div>
     </div>
 </div>
+
+<!-- Close Event Modal -->
+<div class="modal fade" id="closeEventModal" tabindex="-1" aria-labelledby="closeEventModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="closeEventModalLabel">Close Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="close_event_form" method="POST">
+                <input type="hidden" name="action" value="close">
+                <input type="hidden" name="redirect_to" value="events">
+                <input type="hidden" id="close_event_id" name="event_id">
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="closure_reason" class="form-label">Closure Reason *</label>
+                        <select class="form-select" id="closure_reason" name="closure_reason" onchange="toggleReferenceField()" required>
+                            <option value="">Select reason...</option>
+                            {% for reason in get_closure_reasons() %}
+                            {% if reason.enabled %}
+                            <option value="{{ reason.reason }}" data-requires-reference="{{ reason.requires_reference }}">
+                                {{ reason.reason }}
+                            </option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="reference_field" style="display: none;">
+                        <label for="closure_reference" class="form-label">Reference/Escalation Number *</label>
+                        <input type="text" class="form-control" id="closure_reference" name="closure_reference" 
+                               placeholder="Enter reference or escalation number">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="closure_notes" class="form-label">Notes *</label>
+                        <textarea class="form-control" id="closure_notes" name="closure_notes" rows="4" 
+                                  placeholder="Enter closure notes..." required></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-lock me-2"></i>Close Event
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Handle form submission for status updates (follow-up, whitelist, clear)
+    document.querySelectorAll('form[action*="/update_event_status"]').forEach(form => {
+        form.addEventListener('submit', function(event) {
+            // Prevent default submission if it's a button click that triggers it
+            if (event.submitter && event.submitter.type === 'submit') {
+                // If it's a button, let it submit
+            } else {
+                // If it's not a button submit, prevent default to handle via AJAX or other means if needed
+                // For now, we assume direct form submission is intended by buttons
+            }
+        });
+    });
+
+    // Close event modal functions
+    function showCloseModal(eventId) {
+        document.getElementById('close_event_id').value = eventId;
+        document.getElementById('close_event_form').action = `/event/${eventId}/status`;
+
+        var modal = new bootstrap.Modal(document.getElementById('closeEventModal'));
+        modal.show();
+    }
+
+    function toggleReferenceField() {
+        const reasonSelect = document.getElementById('closure_reason');
+        const referenceDiv = document.getElementById('reference_field');
+        const selectedOption = reasonSelect.options[reasonSelect.selectedIndex];
+        const requiresReference = selectedOption.getAttribute('data-requires-reference') === '1';
+
+        if (requiresReference) {
+            referenceDiv.style.display = 'block';
+            document.getElementById('closure_reference').required = true;
+        } else {
+            referenceDiv.style.display = 'none';
+            document.getElementById('closure_reference').required = false;
+            document.getElementById('closure_reference').value = '';
+        }
+    }
+</script>
 {% endblock %}

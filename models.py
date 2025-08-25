@@ -92,6 +92,14 @@ CREATE TABLE IF NOT EXISTS ml_policies (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS closure_reasons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reason TEXT NOT NULL UNIQUE,
+    requires_reference INTEGER DEFAULT 0,
+    enabled INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_events_time ON events(_time);
 CREATE INDEX IF NOT EXISTS idx_events_sender ON events(sender);
 CREATE INDEX IF NOT EXISTS idx_events_ml_score ON events(ml_score);
@@ -152,7 +160,10 @@ def init_db():
                 "ALTER TABLE events ADD COLUMN leaver INTEGER DEFAULT 0",
                 "ALTER TABLE events ADD COLUMN termination_date TEXT",
                 "ALTER TABLE events ADD COLUMN email_sent INTEGER DEFAULT 0",
-                "ALTER TABLE events ADD COLUMN email_sent_date TEXT"
+                "ALTER TABLE events ADD COLUMN email_sent_date TEXT",
+                "ALTER TABLE events ADD COLUMN closure_reason TEXT",
+                "ALTER TABLE events ADD COLUMN closure_notes TEXT",
+                "ALTER TABLE events ADD COLUMN closure_reference TEXT"
             ]:
                 try:
                     cursor.execute(column_def)
@@ -170,6 +181,22 @@ def init_db():
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_policies_name ON policies(policy_name)")
 
             conn.commit()
+            
+            # Initialize default closure reasons if none exist
+            cursor.execute("SELECT COUNT(*) FROM closure_reasons")
+            if cursor.fetchone()[0] == 0:
+                default_reasons = [
+                    ('BAU', 0),
+                    ('Personal', 0),
+                    ('Escalation', 1)  # Requires reference
+                ]
+                cursor.executemany(
+                    "INSERT INTO closure_reasons (reason, requires_reference) VALUES (?, ?)",
+                    default_reasons
+                )
+                conn.commit()
+                logger.info("Initialized default closure reasons")
+        
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
@@ -572,7 +599,8 @@ def get_remaining_events(limit=100):
 
 def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=None, 
                         follow_up_date=None, closed_date=None, closed_by=None, 
-                        email_sent=None, email_sent_date=None):
+                        email_sent=None, email_sent_date=None, closure_reason=None,
+                        closure_notes=None, closure_reference=None):
     """Update event status and related fields"""
     with get_db() as conn:
         cursor = conn.cursor()
@@ -612,6 +640,18 @@ def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=No
         if email_sent_date is not None:
             updates.append("email_sent_date = ?")
             params.append(email_sent_date)
+
+        if closure_reason is not None:
+            updates.append("closure_reason = ?")
+            params.append(closure_reason)
+
+        if closure_notes is not None:
+            updates.append("closure_notes = ?")
+            params.append(closure_notes)
+
+        if closure_reference is not None:
+            updates.append("closure_reference = ?")
+            params.append(closure_reference)
 
         if updates:
             query = f"UPDATE events SET {', '.join(updates)} WHERE id = ?"
@@ -710,13 +750,78 @@ def get_ml_policy_weights():
         """)
         return dict(cursor.fetchall())
 
+def get_closure_reasons():
+    """Get all closure reasons"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, reason, requires_reference, enabled, created_at
+            FROM closure_reasons
+            ORDER BY reason
+        """)
+        return cursor.fetchall()
+
+def add_closure_reason(reason, requires_reference=False):
+    """Add new closure reason"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO closure_reasons (reason, requires_reference)
+                VALUES (?, ?)
+            """, (reason.strip(), 1 if requires_reference else 0))
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            return None
+
+def update_closure_reason(reason_id, reason=None, requires_reference=None, enabled=None):
+    """Update existing closure reason"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        updates = []
+        params = []
+        
+        if reason is not None:
+            updates.append("reason = ?")
+            params.append(reason.strip())
+        
+        if requires_reference is not None:
+            updates.append("requires_reference = ?")
+            params.append(1 if requires_reference else 0)
+        
+        if enabled is not None:
+            updates.append("enabled = ?")
+            params.append(1 if enabled else 0)
+        
+        if updates:
+            params.append(reason_id)
+            query = f"UPDATE closure_reasons SET {', '.join(updates)} WHERE id = ?"
+            try:
+                cursor.execute(query, params)
+                conn.commit()
+                return cursor.rowcount > 0
+            except sqlite3.IntegrityError:
+                return False
+        
+        return False
+
+def delete_closure_reason(reason_id):
+    """Delete closure reason"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM closure_reasons WHERE id = ?", (reason_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
 def clear_database():
     """Delete all rows from all main tables, keeping schema intact."""
     with get_db() as conn:
         cursor = conn.cursor()
         tables = [
             'events', 'recipients', 'attachments', 'policies', 'rules',
-            'whitelist_domains', 'whitelist_emails', 'keywords', 'ml_policies'
+            'whitelist_domains', 'whitelist_emails', 'keywords', 'ml_policies', 'closure_reasons'
         ]
         for table in tables:
             cursor.execute(f"DELETE FROM {table}")
