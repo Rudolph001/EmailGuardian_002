@@ -692,7 +692,7 @@ def update_event_status(event_id):
             
             if update_status(event_id, status="closed", closed_by="admin", 
                            closure_reason=closure_reason, closure_notes=closure_notes,
-                           closure_reference=closure_reference):
+                           closure_reference=closure_reference, follow_up=False):
                 flash("Event closed successfully", "success")
             else:
                 flash("Failed to close event", "error")

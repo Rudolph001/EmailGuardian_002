@@ -404,7 +404,7 @@ def get_follow_up_events(limit=100):
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
                    status, is_whitelisted, follow_up, follow_up_date, email_sent, email_sent_date
             FROM events
-            WHERE follow_up = 1
+            WHERE follow_up = 1 AND status != 'closed'
             ORDER BY datetime(follow_up_date) ASC, datetime(_time) DESC
             LIMIT ?
         """, (limit,))
