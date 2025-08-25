@@ -510,6 +510,9 @@ def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=No
             if follow_up and follow_up_date:
                 updates.append("follow_up_date = ?")
                 params.append(follow_up_date)
+            elif not follow_up:
+                # When clearing follow_up, also clear the follow_up_date
+                updates.append("follow_up_date = NULL")
 
         if updates:
             params.append(event_id)

@@ -505,6 +505,7 @@ def update_event_status(event_id):
     try:
         from models import update_event_status as update_status
         action = request.form.get("action")
+        redirect_to = request.form.get("redirect_to", "event_detail")
 
         if action == "whitelist":
             if update_status(event_id, is_whitelisted=True):
@@ -519,6 +520,13 @@ def update_event_status(event_id):
                 flash("Event marked for follow-up", "success")
             else:
                 flash("Failed to mark event for follow-up", "error")
+
+        elif action == "clear":
+            # Clear means reset the event to normal state (not whitelisted, not follow-up, not closed)
+            if update_status(event_id, status="open", is_whitelisted=False, follow_up=False):
+                flash("Event cleared and moved to Other Events", "success")
+            else:
+                flash("Failed to clear event", "error")
 
         elif action == "close":
             if update_status(event_id, status="closed", closed_by="admin"):
@@ -536,7 +544,11 @@ def update_event_status(event_id):
         logger.error(f"Error updating event {event_id} status: {e}")
         flash(f"Error updating event status: {str(e)}", "error")
 
-    return redirect(url_for("event_detail", event_id=event_id))
+    # Handle different redirect destinations
+    if redirect_to == "events":
+        return redirect(url_for("events"))
+    else:
+        return redirect(url_for("event_detail", event_id=event_id))
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_dashboard():

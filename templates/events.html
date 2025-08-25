@@ -221,10 +221,32 @@
                                         </td>
                                         {% endif %}
                                         <td>
-                                            <a href="{{ url_for('event_detail', event_id=event.id) }}" 
-                                               class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-eye me-1"></i>View
-                                            </a>
+                                            <div class="btn-group" role="group">
+                                                <a href="{{ url_for('event_detail', event_id=event.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    <i class="fas fa-eye me-1"></i>View
+                                                </a>
+                                                
+                                                {% if request.args.get('filter') in ['rule_triggered', 'high_risk'] %}
+                                                    {% if not event.follow_up %}
+                                                        <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" class="d-inline">
+                                                            <input type="hidden" name="action" value="follow_up">
+                                                            <input type="hidden" name="redirect_to" value="events">
+                                                            <button type="submit" class="btn btn-sm btn-warning" title="Mark for Follow-up">
+                                                                <i class="fas fa-flag"></i>
+                                                            </button>
+                                                        </form>
+                                                    {% endif %}
+                                                    
+                                                    <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" class="d-inline">
+                                                        <input type="hidden" name="action" value="clear">
+                                                        <input type="hidden" name="redirect_to" value="events">
+                                                        <button type="submit" class="btn btn-sm btn-secondary" title="Clear (move to Other Events)">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
                                         </td>
                                     </tr>
                                 {% endfor %}
