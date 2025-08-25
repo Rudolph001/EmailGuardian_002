@@ -210,22 +210,61 @@ footer {
 .dropdown-menu {
     border: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
-    z-index: 1050 !important;
+    z-index: 9999 !important;
     position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    transform: none !important;
+    min-width: 200px;
 }
 
 .dropdown-item:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
 
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    display: block;
+    width: 100%;
+    clear: both;
+    font-weight: 400;
+    color: var(--bs-body-color);
+    text-align: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+    background-color: transparent;
+    border: 0;
+}
+
 /* Ensure dropdowns are always visible */
 .navbar .dropdown-menu {
-    z-index: 1060 !important;
+    z-index: 9999 !important;
     margin-top: 0;
+    position: absolute !important;
 }
 
 .dropdown {
     position: relative;
+}
+
+/* Fix Bootstrap dropdown positioning conflicts */
+.navbar-nav .dropdown-menu {
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+}
+
+/* Ensure dropdown stays in viewport */
+@media (max-width: 991.98px) {
+    .navbar-nav .dropdown-menu {
+        position: static !important;
+        float: none;
+        width: auto;
+        margin-top: 0;
+        background-color: transparent;
+        border: 0;
+        box-shadow: none;
+    }
 }
 
 /* Utility classes for common layouts */
