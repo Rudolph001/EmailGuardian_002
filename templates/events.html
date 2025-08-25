@@ -132,6 +132,9 @@
                                     <th>Type</th>
                                     {% if request.args.get('filter') == 'rule_triggered' %}
                                     <th>Trigger Reason</th>
+                                    {% elif request.args.get('filter') == 'closed' %}
+                                    <th>Closure Reason</th>
+                                    <th>Closure Notes</th>
                                     {% endif %}
                                     <th>Actions</th>
                                 </tr>
@@ -217,6 +220,26 @@
                                                 </div>
                                             {% else %}
                                                 <span class="text-muted">Unknown</span>
+                                            {% endif %}
+                                        </td>
+                                        {% elif request.args.get('filter') == 'closed' %}
+                                        <td>
+                                            {% if event.closure_reason %}
+                                                <span class="badge bg-secondary">{{ event.closure_reason }}</span>
+                                                {% if event.closure_reference %}
+                                                    <br><small class="text-muted">Ref: {{ event.closure_reference }}</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Not specified</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if event.closure_notes %}
+                                                <div class="text-truncate" style="max-width: 250px;" title="{{ event.closure_notes }}">
+                                                    {{ event.closure_notes }}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">No notes</span>
                                             {% endif %}
                                         </td>
                                         {% endif %}

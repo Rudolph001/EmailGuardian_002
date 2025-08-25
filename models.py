@@ -416,7 +416,7 @@ def get_closed_events(limit=100):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                   status, closed_date, closed_by
+                   status, closed_date, closed_by, closure_reason, closure_notes, closure_reference
             FROM events
             WHERE status = 'closed'
             ORDER BY datetime(closed_date) DESC
