@@ -412,14 +412,21 @@
         document.getElementById('reference_field').style.display = 'none';
         document.getElementById('reference_number').required = false;
 
-        // Ensure any existing modal is properly hidden first
-        const existingModal = bootstrap.Modal.getInstance(document.getElementById('closeEventModal'));
+        // Ensure any existing modal is properly disposed first
+        const modalElement = document.getElementById('closeEventModal');
+        const existingModal = bootstrap.Modal.getInstance(modalElement);
         if (existingModal) {
-            existingModal.hide();
+            existingModal.dispose();
         }
 
+        // Remove any leftover backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+
         // Create new modal instance
-        const modal = new bootstrap.Modal(document.getElementById('closeEventModal'), {
+        const modal = new bootstrap.Modal(modalElement, {
             backdrop: true,
             keyboard: true,
             focus: true
@@ -443,12 +450,27 @@
         }
     }
 
-    // Add change event listener to closure reason dropdown
+    // Add change event listener to closure reason dropdown and cleanup any modal issues
     document.addEventListener('DOMContentLoaded', function() {
         const closureReasonSelect = document.getElementById('closure_reason');
         if (closureReasonSelect) {
             closureReasonSelect.addEventListener('change', toggleReferenceField);
         }
+
+        // Clean up any leftover modal state on page load
+        const modalElement = document.getElementById('closeEventModal');
+        if (modalElement) {
+            const existingModal = bootstrap.Modal.getInstance(modalElement);
+            if (existingModal) {
+                existingModal.dispose();
+            }
+        }
+        
+        // Remove any leftover backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
     });
 </script>
 {% endblock %}

@@ -116,7 +116,7 @@ code {
     .table-responsive table {
         font-size: 0.875rem;
     }
-    
+
     .btn-sm {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
@@ -227,39 +227,63 @@ footer {
     z-index: 1050 !important;
 }
 
-.modal-dialog {
+/* Fix for navigation being unclickable */
+.navbar {
     position: relative;
-    z-index: 1061 !important;
+    z-index: 1030 !important;
 }
 
-/* Ensure modal content is clickable */
-.modal-content {
+.nav-tabs {
     position: relative;
-    z-index: 1062 !important;
-    pointer-events: auto !important;
+    z-index: 1020 !important;
 }
 
-/* Fix any pointer-events issues */
-.modal.show {
-    pointer-events: auto !important;
+.nav-tabs .nav-link {
+    position: relative;
+    z-index: auto !important;
 }
 
-.dropdown-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+/* Remove problematic z-index overrides that can cause conflicts */
+.btn, .form-control, .form-select, input, button, a {
+    position: relative;
+    z-index: auto !important;
 }
 
-.dropdown-item {
-    padding: 0.5rem 1rem;
-    display: block;
-    width: 100%;
-    clear: both;
-    font-weight: 400;
-    color: var(--bs-body-color);
-    text-align: inherit;
-    text-decoration: none;
-    white-space: nowrap;
-    background-color: transparent;
-    border: 0;
+/* Ensure table content is properly layered */
+.table {
+    position: relative;
+    z-index: auto !important;
+}
+
+.table td, .table th {
+    position: relative;
+    z-index: auto !important;
+}
+
+/* Fix card content */
+.card {
+    position: relative;
+    z-index: auto !important;
+}
+
+.card-body {
+    position: relative;
+    z-index: auto !important;
+}
+
+/* Ensure modal doesn't interfere when hidden */
+.modal:not(.show) {
+    display: none !important;
+}
+
+/* Fix any backdrop issues */
+.modal-backdrop.show {
+    opacity: 0.5;
+}
+
+/* Ensure page content is always accessible when modal is not shown */
+body:not(.modal-open) .modal-backdrop {
+    display: none !important;
 }
 
 /* Ensure dropdowns are always visible */
@@ -310,7 +334,7 @@ footer {
     .no-print {
         display: none !important;
     }
-    
+
     .card {
         border: 1px solid #000 !important;
         box-shadow: none !important;
