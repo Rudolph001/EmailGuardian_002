@@ -454,6 +454,29 @@
                                         <i class="fas fa-flag me-1"></i>Mark for Follow-up
                                     </button>
                                 </form>
+                            {% elif event.follow_up %}
+                                <!-- Generate Email button for follow-up events -->
+                                <a href="mailto:{{ event.sender }}?subject=Follow-up: {{ event.subject | urlencode }}&body=Hi,%0D%0A%0D%0AI am following up on your email regarding '{{ event.subject | urlencode }}'.%0D%0A%0D%0APlease let me know if you need any assistance.%0D%0A%0D%0ABest regards" 
+                                   class="btn btn-sm btn-info"
+                                   onclick="setTimeout(() => { 
+                                       if(confirm('Mark this email as sent?')) {
+                                           document.getElementById('markSentForm').submit();
+                                       }
+                                   }, 1000);">
+                                    <i class="fas fa-envelope me-1"></i>Generate Email
+                                </a>
+                                
+                                <!-- Hidden form to mark email as sent -->
+                                <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" 
+                                      id="markSentForm" style="display: none;">
+                                    <input type="hidden" name="action" value="mark_email_sent">
+                                </form>
+                                
+                                {% if event.email_sent %}
+                                    <span class="badge bg-info ms-2" title="Email sent on {{ event.email_sent_date }}">
+                                        <i class="fas fa-paper-plane me-1"></i>Email Sent
+                                    </span>
+                                {% endif %}
                             {% endif %}
 
                             {% if event.status != 'closed' %}

@@ -219,6 +219,11 @@
                                                 <span class="badge bg-warning">
                                                     <i class="fas fa-flag me-1"></i>Follow-up
                                                 </span>
+                                                {% if event.email_sent %}
+                                                    <span class="badge bg-info ms-1">
+                                                        <i class="fas fa-paper-plane me-1"></i>Email Sent
+                                                    </span>
+                                                {% endif %}
                                             {% elif event.status == 'closed' %}
                                                 <span class="badge bg-secondary">
                                                     <i class="fas fa-archive me-1"></i>Closed

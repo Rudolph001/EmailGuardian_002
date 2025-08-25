@@ -684,6 +684,14 @@ def update_event_status(event_id):
             else:
                 flash("Failed to reopen event", "error")
 
+        elif action == "mark_email_sent":
+            from datetime import datetime
+            email_sent_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if update_status(event_id, email_sent=True, email_sent_date=email_sent_date):
+                flash("Email marked as sent successfully", "success")
+            else:
+                flash("Failed to mark email as sent", "error")
+
     except Exception as e:
         logger.error(f"Error updating event {event_id} status: {e}")
         flash(f"Error updating event status: {str(e)}", "error")

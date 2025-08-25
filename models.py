@@ -147,6 +147,18 @@ def init_db():
                 # Column already exists
                 pass
 
+            # Add columns that might not exist in older versions
+            for column_def in [
+                "ALTER TABLE events ADD COLUMN leaver INTEGER DEFAULT 0",
+                "ALTER TABLE events ADD COLUMN termination_date TEXT",
+                "ALTER TABLE events ADD COLUMN email_sent INTEGER DEFAULT 0",
+                "ALTER TABLE events ADD COLUMN email_sent_date TEXT"
+            ]:
+                try:
+                    cursor.execute(column_def)
+                except sqlite3.OperationalError:
+                    pass  # Column already exists
+
             # Create indexes for better performance
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_sender ON events(sender)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_time ON events(_time)")
@@ -174,33 +186,33 @@ def get_dashboard_stats():
     """Get dashboard statistics for all events"""
     with get_db() as conn:
         cursor = conn.cursor()
-        
+
         # High risk events (ML score > 0.7)
         cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score > 0.7")
         high_risk_count = cursor.fetchone()[0]
-        
+
         # Low risk events (ML score <= 0.3)
         cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score <= 0.3 AND ml_score IS NOT NULL")
         low_risk_count = cursor.fetchone()[0]
-        
+
         # Whitelisted events
         cursor.execute("SELECT COUNT(*) FROM events WHERE is_whitelisted = 1")
         whitelisted_count = cursor.fetchone()[0]
-        
+
         # Closed events
         cursor.execute("SELECT COUNT(*) FROM events WHERE status = 'closed'")
         closed_count = cursor.fetchone()[0]
-        
+
         # Follow-up events
         cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1")
         follow_up_count = cursor.fetchone()[0]
-        
+
         # Rule triggered events - calculate using actual logic
         rule_triggered_count = _get_rule_triggered_count()
-        
+
         # High risk events - exclude those that would be in rule triggered
         actual_high_risk_count = _get_actual_high_risk_count()
-        
+
         return {
             'high_risk_count': actual_high_risk_count,
             'low_risk_count': low_risk_count,
@@ -213,7 +225,7 @@ def get_dashboard_stats():
 def _get_rule_triggered_count():
     """Get count of events that would appear in Rule Triggered filter"""
     from rules import check_keyword_matches, apply_rules_to_event
-    
+
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -236,7 +248,7 @@ def _get_rule_triggered_count():
                 if keyword_matches:
                     triggered_count += 1
                     continue
-                
+
                 # Check regular rules
                 actions = apply_rules_to_event(event['id'])
                 rule_actions = [action for action in actions if action.get('type') == 'rule']
@@ -244,13 +256,13 @@ def _get_rule_triggered_count():
                     triggered_count += 1
         except Exception:
             continue
-    
+
     return triggered_count
 
 def _get_actual_high_risk_count():
     """Get count of events that would appear in High Risk filter"""
     from rules import check_keyword_matches, apply_rules_to_event
-    
+
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -273,7 +285,7 @@ def _get_actual_high_risk_count():
                 keyword_matches = check_keyword_matches(event_data['event'])
                 if keyword_matches:
                     continue  # Skip - would be in rule triggered
-                
+
                 # Check regular rules
                 actions = apply_rules_to_event(event['id'])
                 rule_actions = [action for action in actions if action.get('type') == 'rule']
@@ -282,7 +294,7 @@ def _get_actual_high_risk_count():
         except Exception:
             # If there's an error, include the event in high-risk
             high_risk_count += 1
-    
+
     return high_risk_count
 
 def get_recent_events(limit=10):
@@ -416,7 +428,7 @@ def get_high_risk_events(limit=100):
             keyword_matches = check_keyword_matches(event)
             if keyword_matches:
                 continue  # Skip this event - it should appear in rule triggered
-            
+
             # Check regular rules
             actions = apply_rules_to_event(event['id'])
             # If no rule-based actions were triggered, include in high-risk
@@ -462,7 +474,7 @@ def get_rule_triggered_events(limit=100):
         try:
             # Convert to dict so we can add trigger_reason
             event_dict = dict(event)
-            
+
             # Check if event has keyword matches
             keyword_matches = check_keyword_matches(event)
             if keyword_matches:
@@ -476,7 +488,7 @@ def get_rule_triggered_events(limit=100):
                 if len(triggered_events) >= limit:
                     break
                 continue
-            
+
             # Check regular rules
             actions = apply_rules_to_event(event['id'])
             # If any rule-based actions (not whitelist) were triggered, include this event
@@ -525,24 +537,24 @@ def get_remaining_events(limit=100):
                 keyword_matches = check_keyword_matches(event)
                 if keyword_matches:
                     continue  # Skip - would be in Rule Triggered
-                
+
                 actions = apply_rules_to_event(event['id'])
                 rule_actions = [action for action in actions if action.get('type') == 'rule']
                 if rule_actions:
                     continue  # Skip - would be in Rule Triggered
                 else:
                     continue  # Skip - would be in High Risk
-            
+
             # Skip if this would be in Rule Triggered
             keyword_matches = check_keyword_matches(event)
             if keyword_matches:
                 continue  # Skip - would be in Rule Triggered
-            
+
             actions = apply_rules_to_event(event['id'])
             rule_actions = [action for action in actions if action.get('type') == 'rule']
             if rule_actions:
                 continue  # Skip - would be in Rule Triggered
-            
+
             # This event doesn't belong in High Risk or Rule Triggered, so include it
             remaining_events.append(event)
 
@@ -558,23 +570,20 @@ def get_remaining_events(limit=100):
 
     return remaining_events
 
-def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=None,
-                       follow_up_date=None, closed_by=None):
-    """Update event status and flags"""
+def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=None, 
+                        follow_up_date=None, closed_date=None, closed_by=None, 
+                        email_sent=None, email_sent_date=None):
+    """Update event status and related fields"""
     with get_db() as conn:
         cursor = conn.cursor()
 
+        # Build dynamic update query
         updates = []
         params = []
 
         if status is not None:
             updates.append("status = ?")
             params.append(status)
-            if status == 'closed':
-                updates.append("closed_date = CURRENT_TIMESTAMP")
-                if closed_by:
-                    updates.append("closed_by = ?")
-                    params.append(closed_by)
 
         if is_whitelisted is not None:
             updates.append("is_whitelisted = ?")
@@ -583,16 +592,30 @@ def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=No
         if follow_up is not None:
             updates.append("follow_up = ?")
             params.append(1 if follow_up else 0)
-            if follow_up and follow_up_date:
-                updates.append("follow_up_date = ?")
-                params.append(follow_up_date)
-            elif not follow_up:
-                # When clearing follow_up, also clear the follow_up_date
-                updates.append("follow_up_date = NULL")
+
+        if follow_up_date is not None:
+            updates.append("follow_up_date = ?")
+            params.append(follow_up_date)
+
+        if closed_date is not None:
+            updates.append("closed_date = ?")
+            params.append(closed_date)
+
+        if closed_by is not None:
+            updates.append("closed_by = ?")
+            params.append(closed_by)
+
+        if email_sent is not None:
+            updates.append("email_sent = ?")
+            params.append(1 if email_sent else 0)
+
+        if email_sent_date is not None:
+            updates.append("email_sent_date = ?")
+            params.append(email_sent_date)
 
         if updates:
-            params.append(event_id)
             query = f"UPDATE events SET {', '.join(updates)} WHERE id = ?"
+            params.append(event_id)
             cursor.execute(query, params)
             conn.commit()
             return cursor.rowcount > 0
