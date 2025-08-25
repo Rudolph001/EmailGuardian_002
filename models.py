@@ -420,6 +420,68 @@ def get_rule_triggered_events(limit=100):
 
     return triggered_events
 
+def get_remaining_events(limit=100):
+    """Get events that are not in Rule Triggered or High Risk categories"""
+    from rules import check_keyword_matches, apply_rules_to_event
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up
+            FROM events
+            WHERE is_whitelisted = 0 
+            AND status != 'closed'
+            AND follow_up = 0
+            ORDER BY datetime(_time) DESC
+            LIMIT ?
+        """, (limit * 3,))  # Get more events to filter through
+        all_events = cursor.fetchall()
+
+    remaining_events = []
+
+    # Check each event to exclude those that would appear in Rule Triggered or High Risk
+    for event in all_events:
+        try:
+            # Skip if this would be in High Risk (ML score > 0.7)
+            if event['ml_score'] and event['ml_score'] > 0.7:
+                # Check if it would be caught by rules/keywords
+                keyword_matches = check_keyword_matches(event)
+                if keyword_matches:
+                    continue  # Skip - would be in Rule Triggered
+                
+                actions = apply_rules_to_event(event['id'])
+                rule_actions = [action for action in actions if action.get('type') == 'rule']
+                if rule_actions:
+                    continue  # Skip - would be in Rule Triggered
+                else:
+                    continue  # Skip - would be in High Risk
+            
+            # Skip if this would be in Rule Triggered
+            keyword_matches = check_keyword_matches(event)
+            if keyword_matches:
+                continue  # Skip - would be in Rule Triggered
+            
+            actions = apply_rules_to_event(event['id'])
+            rule_actions = [action for action in actions if action.get('type') == 'rule']
+            if rule_actions:
+                continue  # Skip - would be in Rule Triggered
+            
+            # This event doesn't belong in High Risk or Rule Triggered, so include it
+            remaining_events.append(event)
+
+            # Stop when we have enough results
+            if len(remaining_events) >= limit:
+                break
+
+        except Exception:
+            # If there's an error checking, include the event to be safe
+            remaining_events.append(event)
+            if len(remaining_events) >= limit:
+                break
+
+    return remaining_events
+
 def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=None,
                        follow_up_date=None, closed_by=None):
     """Update event status and flags"""

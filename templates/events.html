@@ -35,8 +35,9 @@
             </li>
             <li class="nav-item" role="presentation">
                 <a class="nav-link {{ 'active' if not request.args.get('filter') or request.args.get('filter') == 'all' else '' }}" 
-                   href="{{ url_for('events', filter='all') }}">
-                    <i class="fas fa-list me-1"></i>Remaining Events
+                   href="{{ url_for('events', filter='all') }}"
+                   title="Events that are not high risk, rule triggered, whitelisted, closed, or marked for follow-up">
+                    <i class="fas fa-list me-1"></i>Other Events
                 </a>
             </li>
             <li class="nav-item" role="presentation">

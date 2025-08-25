@@ -124,7 +124,9 @@ def events():
             from models import get_rule_triggered_events
             events_list = get_rule_triggered_events(100)
         else:
-            events_list = get_recent_events(100)
+            # For "all" or remaining events, exclude those in High Risk and Rule Triggered
+            from models import get_remaining_events
+            events_list = get_remaining_events(100)
 
         return render_template("events.html", 
                              events=events_list,
