@@ -332,7 +332,7 @@
 </div>
 
 <!-- Close Event Modal -->
-<div class="modal fade" id="closeEventModal" tabindex="-1" aria-labelledby="closeEventModalLabel" aria-hidden="true" style="z-index: 1060;">
+<div class="modal fade" id="closeEventModal" tabindex="-1" aria-labelledby="closeEventModalLabel" aria-hidden="true" style="z-index: 1060 !important;">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -401,14 +401,29 @@
         });
     });
 
-    // Close event modal functions
-    function showCloseModal(eventId) {
-        // Clean up any existing modal state completely
-        document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+    // Helper function to completely clean modal state
+    function forceCleanModal() {
+        // Remove all modal backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+            backdrop.remove();
+        });
+        
+        // Reset body styles
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
+        document.body.style.removeProperty('padding-right');
+        
+        // Remove any modal-related classes or attributes
+        document.documentElement.style.overflow = '';
+        document.documentElement.style.paddingRight = '';
+    }
 
+    // Close event modal functions
+    function showCloseModal(eventId) {
+        // Force clean any existing modal state
+        forceCleanModal();
+        
         // Reset form
         document.getElementById('close_event_id').value = eventId;
         document.getElementById('close_event_form').action = `/event/${eventId}/status`;
@@ -425,31 +440,37 @@
             existingModal.dispose();
         }
 
-        // Create new modal instance with proper event handlers
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: true,
-            keyboard: true,
-            focus: true
-        });
+        // Wait a moment then show modal
+        setTimeout(() => {
+            // Create new modal instance with no backdrop to avoid issues
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: 'static',
+                keyboard: true,
+                focus: true
+            });
 
-        // Add event listeners for proper cleanup
-        modalElement.addEventListener('hidden.bs.modal', function() {
-            // Ensure complete cleanup when modal is hidden
-            const modalInstance = bootstrap.Modal.getInstance(modalElement);
-            if (modalInstance) {
-                modalInstance.dispose();
-            }
+            // Custom backdrop handler
+            modal.show();
             
-            // Force remove any leftover backdrops
-            setTimeout(() => {
-                document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
-                document.body.classList.remove('modal-open');
-                document.body.style.overflow = '';
-                document.body.style.paddingRight = '';
-            }, 100);
-        }, { once: true });
-
-        modal.show();
+            // Add custom close handlers
+            const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+            closeButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    modal.hide();
+                    forceCleanModal();
+                }, { once: true });
+            });
+            
+            // Handle modal hidden event
+            modalElement.addEventListener('hidden.bs.modal', function() {
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) {
+                    modalInstance.dispose();
+                }
+                forceCleanModal();
+            }, { once: true });
+            
+        }, 50);
     }
 
     function toggleReferenceField() {
