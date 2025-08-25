@@ -21,8 +21,8 @@
                 </h5>
             </div>
             <div class="card-body">
-                <!-- Add Domain Form -->
-                <form method="POST" class="mb-4">
+                <!-- Add Single Domain Form -->
+                <form method="POST" class="mb-3">
                     <input type="hidden" name="action" value="add_domain">
                     <div class="input-group">
                         <input type="text" class="form-control" name="domain" 
@@ -32,6 +32,34 @@
                         </button>
                     </div>
                 </form>
+
+                <!-- Bulk Add Domains -->
+                <div class="card bg-light mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-upload me-2"></i>Bulk Import Domains
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="bulk_add_domains">
+                            <div class="mb-3">
+                                <textarea class="form-control" name="bulk_domains" rows="5" 
+                                          placeholder="Enter multiple domains, one per line:&#10;example.com&#10;trusted.org&#10;partner.net" required></textarea>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" name="skip_duplicates" 
+                                       id="skipDuplicatesDomains" checked>
+                                <label class="form-check-label" for="skipDuplicatesDomains">
+                                    Skip duplicates (don't show errors for domains that already exist)
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-info">
+                                <i class="fas fa-upload me-1"></i>Bulk Import Domains
+                            </button>
+                        </form>
+                    </div>
+                </div>
                 
                 <!-- Domains List -->
                 {% if domains %}
@@ -72,8 +100,8 @@
                 </h5>
             </div>
             <div class="card-body">
-                <!-- Add Email Form -->
-                <form method="POST" class="mb-4">
+                <!-- Add Single Email Form -->
+                <form method="POST" class="mb-3">
                     <input type="hidden" name="action" value="add_email">
                     <div class="input-group">
                         <input type="email" class="form-control" name="email" 
@@ -83,6 +111,34 @@
                         </button>
                     </div>
                 </form>
+
+                <!-- Bulk Add Emails -->
+                <div class="card bg-light mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-upload me-2"></i>Bulk Import Emails
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="bulk_add_emails">
+                            <div class="mb-3">
+                                <textarea class="form-control" name="bulk_emails" rows="5" 
+                                          placeholder="Enter multiple email addresses, one per line:&#10;user@example.com&#10;admin@trusted.org&#10;contact@partner.net" required></textarea>
+                            </div>
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" name="skip_duplicates" 
+                                       id="skipDuplicatesEmails" checked>
+                                <label class="form-check-label" for="skipDuplicatesEmails">
+                                    Skip duplicates (don't show errors for emails that already exist)
+                                </label>
+                            </div>
+                            <button type="submit" class="btn btn-info">
+                                <i class="fas fa-upload me-1"></i>Bulk Import Emails
+                            </button>
+                        </form>
+                    </div>
+                </div>
                 
                 <!-- Emails List -->
                 {% if emails %}

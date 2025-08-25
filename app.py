@@ -343,6 +343,103 @@ def whitelist():
                 else:
                     flash("Failed to remove email", "error")
 
+            elif action == "bulk_add_domains":
+                bulk_domains = request.form.get("bulk_domains", "").strip()
+                skip_duplicates = request.form.get("skip_duplicates") == "on"
+
+                if bulk_domains:
+                    lines = [line.strip().lower() for line in bulk_domains.split('\n') if line.strip()]
+                    
+                    if lines:
+                        added_count = 0
+                        skipped_count = 0
+                        failed_count = 0
+                        
+                        for domain in lines:
+                            try:
+                                result = add_whitelist_domain(domain)
+                                if result:
+                                    added_count += 1
+                                else:
+                                    if skip_duplicates:
+                                        skipped_count += 1
+                                    else:
+                                        failed_count += 1
+                            except Exception as e:
+                                logger.error(f"Error adding bulk domain '{domain}': {e}")
+                                failed_count += 1
+                        
+                        # Provide detailed feedback
+                        messages = []
+                        if added_count > 0:
+                            messages.append(f"{added_count} domain{'s' if added_count > 1 else ''} added")
+                        if skipped_count > 0:
+                            messages.append(f"{skipped_count} duplicate{'s' if skipped_count > 1 else ''} skipped")
+                        if failed_count > 0:
+                            messages.append(f"{failed_count} failed")
+                        
+                        if added_count > 0:
+                            flash(f"Bulk domain import completed: {', '.join(messages)}", "success")
+                        elif skipped_count > 0:
+                            flash(f"Bulk domain import completed: {', '.join(messages)}", "info")
+                        else:
+                            flash(f"Bulk domain import failed: {', '.join(messages)}", "error")
+                    else:
+                        flash("No valid domains found in bulk import", "warning")
+                else:
+                    flash("Bulk domains are required", "error")
+
+            elif action == "bulk_add_emails":
+                bulk_emails = request.form.get("bulk_emails", "").strip()
+                skip_duplicates = request.form.get("skip_duplicates") == "on"
+
+                if bulk_emails:
+                    lines = [line.strip().lower() for line in bulk_emails.split('\n') if line.strip()]
+                    
+                    if lines:
+                        added_count = 0
+                        skipped_count = 0
+                        failed_count = 0
+                        
+                        for email in lines:
+                            try:
+                                # Basic email validation
+                                if '@' in email and '.' in email.split('@')[-1]:
+                                    result = add_whitelist_email(email)
+                                    if result:
+                                        added_count += 1
+                                    else:
+                                        if skip_duplicates:
+                                            skipped_count += 1
+                                        else:
+                                            failed_count += 1
+                                else:
+                                    logger.warning(f"Invalid email format: {email}")
+                                    failed_count += 1
+                            except Exception as e:
+                                logger.error(f"Error adding bulk email '{email}': {e}")
+                                failed_count += 1
+                        
+                        # Provide detailed feedback
+                        messages = []
+                        if added_count > 0:
+                            messages.append(f"{added_count} email{'s' if added_count > 1 else ''} added")
+                        if skipped_count > 0:
+                            messages.append(f"{skipped_count} duplicate{'s' if skipped_count > 1 else ''} skipped")
+                        if failed_count > 0:
+                            messages.append(f"{failed_count} failed")
+                        
+                        if added_count > 0:
+                            flash(f"Bulk email import completed: {', '.join(messages)}", "success")
+                        elif skipped_count > 0:
+                            flash(f"Bulk email import completed: {', '.join(messages)}", "info")
+                        else:
+                            flash(f"Bulk email import failed: {', '.join(messages)}", "error")
+                    else:
+                        flash("No valid emails found in bulk import", "warning")
+                else:
+                    flash("Bulk emails are required", "error")
+
         except Exception as e:
             logger.error(f"Error managing whitelist: {e}")
             flash(f"Error: {str(e)}", "error")
