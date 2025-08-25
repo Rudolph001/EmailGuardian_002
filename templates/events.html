@@ -332,7 +332,7 @@
 </div>
 
 <!-- Close Event Modal -->
-<div class="modal fade" id="closeEventModal" tabindex="-1" aria-labelledby="closeEventModalLabel" aria-hidden="true">
+<div class="modal fade" id="closeEventModal" tabindex="-1" aria-labelledby="closeEventModalLabel" aria-hidden="true" style="z-index: 1060;">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -412,7 +412,18 @@
         document.getElementById('reference_field').style.display = 'none';
         document.getElementById('reference_number').required = false;
 
-        var modal = new bootstrap.Modal(document.getElementById('closeEventModal'));
+        // Ensure any existing modal is properly hidden first
+        const existingModal = bootstrap.Modal.getInstance(document.getElementById('closeEventModal'));
+        if (existingModal) {
+            existingModal.hide();
+        }
+
+        // Create new modal instance
+        const modal = new bootstrap.Modal(document.getElementById('closeEventModal'), {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
         modal.show();
     }
 
