@@ -187,10 +187,31 @@ def get_dashboard_stats():
         cursor.execute("SELECT COUNT(*) FROM events WHERE is_whitelisted = 1")
         whitelisted_count = cursor.fetchone()[0]
         
+        # Closed events
+        cursor.execute("SELECT COUNT(*) FROM events WHERE status = 'closed'")
+        closed_count = cursor.fetchone()[0]
+        
+        # Follow-up events
+        cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1")
+        follow_up_count = cursor.fetchone()[0]
+        
+        # Rule triggered events (need to calculate this differently)
+        # For now, use a simple approximation - events that would trigger rules
+        # This is a simplified count - actual rule triggering logic is more complex
+        cursor.execute("""
+            SELECT COUNT(*) FROM events 
+            WHERE is_whitelisted = 0 
+            AND (ml_score > 0.5 OR subject LIKE '%urgent%' OR subject LIKE '%confidential%')
+        """)
+        rule_triggered_count = cursor.fetchone()[0]
+        
         return {
             'high_risk_count': high_risk_count,
             'low_risk_count': low_risk_count,
-            'whitelisted_count': whitelisted_count
+            'whitelisted_count': whitelisted_count,
+            'closed_count': closed_count,
+            'follow_up_count': follow_up_count,
+            'rule_triggered_count': rule_triggered_count
         }
 
 def get_recent_events(limit=10):

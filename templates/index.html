@@ -13,42 +13,72 @@
 
 <!-- Statistics Cards -->
 <div class="row mb-4">
-    <div class="col-md-3">
+    <div class="col-md-3 col-lg-2 mb-3">
         <div class="card">
             <div class="card-body text-center">
-                <i class="fas fa-envelope fa-3x text-primary mb-3"></i>
-                <h3 class="card-title">{{ total_events }}</h3>
-                <p class="card-text text-muted">Total Events</p>
+                <i class="fas fa-envelope fa-2x text-primary mb-2"></i>
+                <h4 class="card-title">{{ total_events }}</h4>
+                <p class="card-text text-muted small">Total Events</p>
             </div>
         </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-3 col-lg-2 mb-3">
         <div class="card">
             <div class="card-body text-center">
-                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
-                <h3 class="card-title">{{ stats.high_risk_count }}</h3>
-                <p class="card-text text-muted">High Risk (>0.7)</p>
+                <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                <h4 class="card-title">{{ stats.high_risk_count }}</h4>
+                <p class="card-text text-muted small">High Risk (>0.7)</p>
             </div>
         </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-3 col-lg-2 mb-3">
         <div class="card">
             <div class="card-body text-center">
-                <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
-                <h3 class="card-title">{{ stats.low_risk_count }}</h3>
-                <p class="card-text text-muted">Low Risk (≤0.3)</p>
+                <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                <h4 class="card-title">{{ stats.low_risk_count }}</h4>
+                <p class="card-text text-muted small">Low Risk (≤0.3)</p>
             </div>
         </div>
     </div>
 
-    <div class="col-md-3">
+    <div class="col-md-3 col-lg-2 mb-3">
         <div class="card">
             <div class="card-body text-center">
-                <i class="fas fa-shield-alt fa-3x text-info mb-3"></i>
-                <h3 class="card-title">{{ stats.whitelisted_count }}</h3>
-                <p class="card-text text-muted">Whitelisted</p>
+                <i class="fas fa-shield-alt fa-2x text-info mb-2"></i>
+                <h4 class="card-title">{{ stats.whitelisted_count }}</h4>
+                <p class="card-text text-muted small">Whitelisted</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-lg-2 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-check-circle fa-2x text-secondary mb-2"></i>
+                <h4 class="card-title">{{ stats.closed_count }}</h4>
+                <p class="card-text text-muted small">Closed</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-lg-2 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-gavel fa-2x text-warning mb-2"></i>
+                <h4 class="card-title">{{ stats.rule_triggered_count }}</h4>
+                <p class="card-text text-muted small">Rules Triggered</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3 col-lg-2 mb-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-clock fa-2x text-orange mb-2"></i>
+                <h4 class="card-title">{{ stats.follow_up_count }}</h4>
+                <p class="card-text text-muted small">Follow-up</p>
             </div>
         </div>
     </div>

@@ -54,7 +54,8 @@ def index():
         logger.error(f"Error loading dashboard: {e}")
         flash("Error loading dashboard", "error")
         return render_template("index.html", total_events=0, recent_events=[], 
-                             stats={'high_risk_count': 0, 'low_risk_count': 0, 'whitelisted_count': 0})
+                             stats={'high_risk_count': 0, 'low_risk_count': 0, 'whitelisted_count': 0, 
+                                   'closed_count': 0, 'rule_triggered_count': 0, 'follow_up_count': 0})
 
 @app.route("/upload", methods=["GET", "POST"])
 def upload():
