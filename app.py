@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 from models import (
     init_db, get_event_count, get_recent_events, search_events, get_event_detail,
     get_ml_policies, add_ml_policy, update_ml_policy, delete_ml_policy, get_db,
-    get_dashboard_stats
+    get_dashboard_stats, get_closure_reasons
 )
 from ingest import ingest_csv
 from ml import rescore_all_events
@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SESSION_SECRET", SECRET_KEY)
+
+# Make functions available to templates
+app.jinja_env.globals['get_closure_reasons'] = get_closure_reasons
 
 # Initialize database on startup
 with app.app_context():
