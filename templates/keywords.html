@@ -11,48 +11,130 @@
     </div>
 </div>
 
-<!-- Add New Keyword -->
+<!-- Add Keywords -->
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-plus me-2"></i>Add New Keyword
-                </h5>
-            </div>
-            <div class="card-body">
-                <form method="POST">
-                    <input type="hidden" name="action" value="add">
-                    
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label for="term" class="form-label">Keyword/Pattern *</label>
-                                <input type="text" class="form-control" id="term" name="term" 
-                                       placeholder="Enter keyword or regex pattern" required>
-                                <div class="form-text">
-                                    Case-insensitive search term or regular expression pattern
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="mb-3">
-                                <label for="is_regex" class="form-label">Type</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="is_regex" name="is_regex">
-                                    <label class="form-check-label" for="is_regex">
-                                        Regular Expression
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-2 d-flex align-items-end">
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-plus me-2"></i>Add
-                            </button>
-                        </div>
+        <!-- Nav tabs -->
+        <ul class="nav nav-tabs" id="keywordTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="single-tab" data-bs-toggle="tab" data-bs-target="#single" type="button" role="tab">
+                    <i class="fas fa-plus me-2"></i>Add Single Keyword
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#bulk" type="button" role="tab">
+                    <i class="fas fa-file-import me-2"></i>Bulk Import Keywords
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="keywordTabContent">
+            <!-- Single Keyword Tab -->
+            <div class="tab-pane fade show active" id="single" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-plus me-2"></i>Add Single Keyword
+                        </h5>
                     </div>
-                </form>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="add">
+                            
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label for="term" class="form-label">Keyword/Pattern *</label>
+                                        <input type="text" class="form-control" id="term" name="term" 
+                                               placeholder="Enter keyword or regex pattern" required>
+                                        <div class="form-text">
+                                            Case-insensitive search term or regular expression pattern
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="is_regex" class="form-label">Type</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="is_regex" name="is_regex">
+                                            <label class="form-check-label" for="is_regex">
+                                                Regular Expression
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fas fa-plus me-2"></i>Add
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Import Tab -->
+            <div class="tab-pane fade" id="bulk" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-import me-2"></i>Bulk Import Keywords
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST">
+                            <input type="hidden" name="action" value="bulk_add">
+                            
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label for="bulk_terms" class="form-label">Keywords/Patterns *</label>
+                                        <textarea class="form-control" id="bulk_terms" name="bulk_terms" rows="8" 
+                                                  placeholder="Enter one keyword per line, e.g.:&#10;password&#10;confidential&#10;social security&#10;\b\d{3}-\d{2}-\d{4}\b" required></textarea>
+                                        <div class="form-text">
+                                            Enter one keyword or regex pattern per line. Empty lines will be ignored.
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Import Options</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="bulk_is_regex" name="bulk_is_regex">
+                                            <label class="form-check-label" for="bulk_is_regex">
+                                                Treat all as Regular Expressions
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="skip_duplicates" name="skip_duplicates" checked>
+                                            <label class="form-check-label" for="skip_duplicates">
+                                                Skip duplicate keywords
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-file-import me-2"></i>Import Keywords
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="alert alert-info mt-3">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Quick Import Examples:</strong>
+                                        <ul class="mb-0 mt-2">
+                                            <li><code>password</code></li>
+                                            <li><code>confidential</code></li>
+                                            <li><code>social security</code></li>
+                                            <li><code>\b\d{3}-\d{2}-\d{4}\b</code> (SSN regex)</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

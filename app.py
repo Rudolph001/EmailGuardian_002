@@ -377,6 +377,53 @@ def keywords():
                 else:
                     flash("Term is required", "error")
 
+            elif action == "bulk_add":
+                bulk_terms = request.form.get("bulk_terms", "").strip()
+                bulk_is_regex = request.form.get("bulk_is_regex") == "on"
+                skip_duplicates = request.form.get("skip_duplicates") == "on"
+
+                if bulk_terms:
+                    lines = [line.strip() for line in bulk_terms.split('\n') if line.strip()]
+                    
+                    if lines:
+                        added_count = 0
+                        skipped_count = 0
+                        failed_count = 0
+                        
+                        for term in lines:
+                            try:
+                                result = add_keyword(term, bulk_is_regex)
+                                if result:
+                                    added_count += 1
+                                else:
+                                    if skip_duplicates:
+                                        skipped_count += 1
+                                    else:
+                                        failed_count += 1
+                            except Exception as e:
+                                logger.error(f"Error adding bulk keyword '{term}': {e}")
+                                failed_count += 1
+                        
+                        # Provide detailed feedback
+                        messages = []
+                        if added_count > 0:
+                            messages.append(f"{added_count} keyword{'s' if added_count > 1 else ''} added")
+                        if skipped_count > 0:
+                            messages.append(f"{skipped_count} duplicate{'s' if skipped_count > 1 else ''} skipped")
+                        if failed_count > 0:
+                            messages.append(f"{failed_count} failed")
+                        
+                        if added_count > 0:
+                            flash(f"Bulk import completed: {', '.join(messages)}", "success")
+                        elif skipped_count > 0:
+                            flash(f"Bulk import completed: {', '.join(messages)}", "info")
+                        else:
+                            flash(f"Bulk import failed: {', '.join(messages)}", "error")
+                    else:
+                        flash("No valid keywords found in bulk import", "warning")
+                else:
+                    flash("Bulk terms are required", "error")
+
             elif action == "delete":
                 keyword_id = int(request.form.get("keyword_id"))
                 if delete_keyword(keyword_id):
