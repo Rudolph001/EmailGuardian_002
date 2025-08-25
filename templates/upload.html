@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Upload CSV - Email Guardian{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-upload me-2"></i>Upload CSV Events
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Upload Form -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-csv me-2"></i>CSV File Upload
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="csvfile" class="form-label">Select CSV File</label>
+                        <input type="file" class="form-control" id="csvfile" name="csvfile" 
+                               accept=".csv" required>
+                        <div class="form-text">
+                            Maximum file size: 100MB. Only CSV files are accepted.
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload and Process
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Instructions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>CSV Format Requirements
+                </h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Required Headers:</strong></p>
+                <ul class="list-unstyled">
+                    <li><code>_time</code> - Event timestamp</li>
+                    <li><code>sender</code> - Sender email address</li>
+                    <li><code>subject</code> - Email subject</li>
+                    <li><code>recipients</code> - Recipient emails (comma-separated)</li>
+                    <li><code>attachments</code> - Attachment filenames (comma-separated)</li>
+                    <li><code>policy_name</code> - Policy names (comma-separated)</li>
+                    <li><code>time_month</code> - Month number</li>
+                    <li><code>leaver</code> - Is leaving employee (0/1)</li>
+                    <li><code>termination_date</code> - Termination date</li>
+                    <li><code>bunit</code> - Business unit</li>
+                    <li><code>department</code> - Department</li>
+                    <li><code>user_response</code> - User response</li>
+                    <li><code>final_outcome</code> - Final outcome</li>
+                    <li><code>justifications</code> - Justifications</li>
+                </ul>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>Tip:</strong> Multi-valued fields (recipients, attachments, policies) 
+                    should use commas or semicolons as separators.
+                </div>
+            </div>
+        </div>
+        
+        <!-- Processing Info -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>Processing Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success me-2"></i>Streaming processing for large files</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Automatic ML risk scoring</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Internal/external email detection</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Batch processing (1000 rows at a time)</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Error handling with dead letter file</li>
+                </ul>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Note:</strong> Failed rows will be saved to 
+                    <code>dead_letter.csv</code> for review.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('csvfile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const fileSize = file.size / 1024 / 1024; // MB
+        if (fileSize > 100) {
+            alert('File size exceeds 100MB limit');
+            e.target.value = '';
+        }
+    }
+});
+</script>
+{% endblock %}

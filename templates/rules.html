@@ -1,0 +1,974 @@
+{% extends "base.html" %}
+
+{% block title %}Rules Management - Email Guardian{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-gavel me-2"></i>Rules Management
+        </h1>
+    </div>
+</div>
+
+<!-- Rule Builder -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>Build New Rule
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="ruleForm">
+                    <input type="hidden" name="action" value="add">
+
+                    <!-- Basic Rule Info -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Rule Name *</label>
+                                <input type="text" class="form-control" id="name" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="rule_action" class="form-label">Action *</label>
+                                <select class="form-select" id="rule_action" name="rule_action" required>
+                                    <option value="">Select action...</option>
+                                    <option value="allow">Allow</option>
+                                    <option value="block">Block</option>
+                                    <option value="escalate">Escalate</option>
+                                    <option value="flag">Flag</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <input type="number" class="form-control" id="priority" name="priority" 
+                                       value="100" min="1" max="1000">
+                                <div class="form-text">Lower numbers = higher priority</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rule Conditions -->
+                    <div class="mb-4">
+                        <h6>Rule Conditions</h6>
+                        <div id="conditions-container">
+                            <div class="condition-group border rounded p-3 mb-3" data-condition="0">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3">
+                                        <select class="form-select condition-field" name="conditions[0][field]">
+                                            <option value="">Select field...</option>
+                                            <option value="sender">Sender Email</option>
+                                            <option value="sender_domain">Sender Domain</option>
+                                            <option value="subject">Subject</option>
+                                            <option value="recipients">Recipients</option>
+                                            <option value="recipient_domain">Recipient Domain</option>
+                                            <option value="bunit">Business Unit</option>
+                                            <option value="department">Department</option>
+                                            <option value="leaver">Is Leaver</option>
+                                            <option value="termination_date">Termination Date</option>
+                                            <option value="attachments">Attachments</option>
+                                            <option value="policies">Policy Names</option>
+                                            <option value="ml_score">ML Score</option>
+                                            <option value="is_internal_to_external">Internal to External</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select class="form-select condition-operator" name="conditions[0][operator]">
+                                            <option value="equals">Equals</option>
+                                            <option value="contains">Contains</option>
+                                            <option value="starts_with">Starts With</option>
+                                            <option value="ends_with">Ends With</option>
+                                            <option value="matches">Matches Pattern</option>
+                                            <option value="greater_than">Greater Than</option>
+                                            <option value="less_than">Less Than</option>
+                                            <option value="is_true">Is True</option>
+                                            <option value="is_false">Is False</option>
+                                            <option value="is_empty">Is Empty</option>
+                                            <option value="is_not_empty">Is Not Empty</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control condition-value" 
+                                               name="conditions[0][value]" placeholder="Enter value...">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select class="form-select condition-logic" name="conditions[0][logic]">
+                                            <option value="AND">AND</option>
+                                            <option value="OR">OR</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <button type="button" class="btn btn-danger btn-sm remove-condition">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-outline-primary btn-sm add-condition-btn">
+                            <i class="fas fa-plus me-2"></i>Add Condition
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="resetForm()">
+                            <i class="fas fa-refresh me-2"></i>Reset Form
+                        </button>
+                    </div>
+
+                    <!-- Rule Status and Submit -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enabled" name="enabled" checked>
+                                <label class="form-check-label" for="enabled">
+                                    Enabled
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button type="button" class="btn btn-outline-info me-2" id="testRuleBtn">
+                                <i class="fas fa-flask me-2"></i>Test Rule
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Create Rule
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Results Section (initially hidden) -->
+<div class="row mb-4" id="testResultsSection" style="display: none;">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-flask me-2"></i>Rule Test Results
+                </h5>
+            </div>
+            <div class="card-body" id="testResultsContent">
+                <!-- Test results will be populated here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Existing Rules -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Existing Rules ({{ rules|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if rules %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Priority</th>
+                                    <th>Name</th>
+                                    <th>Action</th>
+                                    <th>Conditions</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rule in rules %}
+                                    <tr class="{{ 'table-secondary' if not rule.enabled else '' }}" data-rule-id="{{ rule.id }}">
+                                        <td>
+                                            <span class="badge bg-secondary">{{ rule.priority }}</span>
+                                        </td>
+                                        <td>
+                                            <strong>{{ rule.name }}</strong>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if rule.action == 'allow' else 'danger' if rule.action == 'block' else 'warning' }}">
+                                                {{ rule.action.title() }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small>
+                                                {% if rule.conditions_json %}
+                                                    {{ rule.conditions_summary }}
+                                                {% else %}
+                                                    <em class="text-muted">No conditions set</em>
+                                                {% endif %}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            {% if rule.enabled %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Enabled
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-pause me-1"></i>Disabled
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <!-- Toggle Enable/Disable -->
+                                            <form method="POST" class="d-inline">
+                                                <input type="hidden" name="action" value="toggle">
+                                                <input type="hidden" name="rule_id" value="{{ rule.id }}">
+                                                <input type="hidden" name="enabled" value="{{ 'false' if rule.enabled else 'true' }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-{{ 'warning' if rule.enabled else 'success' }}" 
+                                                        title="{{ 'Disable' if rule.enabled else 'Enable' }} rule">
+                                                    <i class="fas fa-{{ 'pause' if rule.enabled else 'play' }}"></i>
+                                                </button>
+                                            </form>
+
+                                            <!-- Delete -->
+                                            <form method="POST" class="d-inline" 
+                                                  onsubmit="return confirm('Are you sure you want to delete this rule?')">
+                                                <input type="hidden" name="action" value="delete">
+                                                <input type="hidden" name="rule_id" value="{{ rule.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete rule">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+
+                                            <!-- Edit Button -->
+                                            <button type="button" class="btn btn-sm btn-outline-primary edit-rule-btn" 
+                                                    title="Edit rule"
+                                                    data-rule-id="{{ rule.id }}"
+                                                    data-rule-name="{{ rule.name }}"
+                                                    data-rule-action="{{ rule.action }}"
+                                                    data-rule-priority="{{ rule.priority }}"
+                                                    data-rule-enabled="{{ rule.enabled }}"
+                                                    data-rule-conditions="{% if rule.conditions_json %}{{ rule.conditions_json | tojson }}{% else %}[]{% endif %}">>>
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-gavel fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No rules configured</h5>
+                        <p class="text-muted">Create your first rule using the form above.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Field Reference -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Field Reference & Rule Guide
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Available Fields</h6>
+                        <ul>
+                            <li><strong>Sender Email:</strong> Full sender email address</li>
+                            <li><strong>Sender Domain:</strong> Domain part of sender email</li>
+                            <li><strong>Subject:</strong> Email subject line</li>
+                            <li><strong>Recipients:</strong> List of recipient emails</li>
+                            <li><strong>Recipient Domain:</strong> Domain of recipients</li>
+                            <li><strong>Business Unit:</strong> Sender's business unit</li>
+                            <li><strong>Department:</strong> Sender's department</li>
+                            <li><strong>Is Leaver:</strong> Boolean - if sender is leaving</li>
+                            <li><strong>Termination Date:</strong> Employee termination date</li>
+                            <li><strong>Attachments:</strong> List of attachment filenames</li>
+                            <li><strong>Policy Names:</strong> Triggered security policies</li>
+                            <li><strong>ML Score:</strong> Risk score (0.0 to 1.0)</li>
+                            <li><strong>Internal to External:</strong> Boolean - internal sender to external recipient</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Operators</h6>
+                        <ul>
+                            <li><strong>Equals:</strong> Exact match</li>
+                            <li><strong>Contains:</strong> Field contains value</li>
+                            <li><strong>Starts With:</strong> Field starts with value</li>
+                            <li><strong>Ends With:</strong> Field ends with value</li>
+                            <li><strong>Matches Pattern:</strong> Wildcard matching (*, ?)</li>
+                            <li><strong>Greater/Less Than:</strong> Numeric comparison</li>
+                            <li><strong>Is True/False:</strong> Boolean values</li>
+                            <li><strong>Is Empty/Not Empty:</strong> Field presence</li>
+                        </ul>
+
+                        <h6>Logic</h6>
+                        <ul>
+                            <li><strong>AND:</strong> All conditions must match</li>
+                            <li><strong>OR:</strong> Any condition can match</li>
+                            <li>Conditions are evaluated left to right</li>
+                            <li>Use parentheses for complex logic grouping</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let conditionCounter = 1;
+
+function addCondition() {
+    const container = document.getElementById('conditions-container');
+    const newCondition = document.createElement('div');
+    newCondition.className = 'condition-group border rounded p-3 mb-3';
+    newCondition.setAttribute('data-condition', conditionCounter);
+
+    newCondition.innerHTML = `
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <select class="form-select condition-field" name="conditions[${conditionCounter}][field]">
+                    <option value="">Select field...</option>
+                    <option value="sender">Sender Email</option>
+                    <option value="sender_domain">Sender Domain</option>
+                    <option value="subject">Subject</option>
+                    <option value="recipients">Recipients</option>
+                    <option value="recipient_domain">Recipient Domain</option>
+                    <option value="bunit">Business Unit</option>
+                    <option value="department">Department</option>
+                    <option value="leaver">Is Leaver</option>
+                    <option value="termination_date">Termination Date</option>
+                    <option value="attachments">Attachments</option>
+                    <option value="policies">Policy Names</option>
+                    <option value="ml_score">ML Score</option>
+                    <option value="is_internal_to_external">Internal to External</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select condition-operator" name="conditions[${conditionCounter}][operator]">
+                    <option value="equals">Equals</option>
+                    <option value="contains">Contains</option>
+                    <option value="starts_with">Starts With</option>
+                    <option value="ends_with">Ends With</option>
+                    <option value="matches">Matches Pattern</option>
+                    <option value="greater_than">Greater Than</option>
+                    <option value="less_than">Less Than</option>
+                    <option value="is_true">Is True</option>
+                    <option value="is_false">Is False</option>
+                    <option value="is_empty">Is Empty</option>
+                    <option value="is_not_empty">Is Not Empty</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="form-control condition-value" 
+                       name="conditions[${conditionCounter}][value]" placeholder="Enter value...">
+            </div>
+            <div class="col-md-2">
+                <select class="form-select condition-logic" name="conditions[${conditionCounter}][logic]">
+                    <option value="AND">AND</option>
+                    <option value="OR">OR</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-danger btn-sm remove-condition">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.appendChild(newCondition);
+    conditionCounter++;
+}
+
+function removeCondition(conditionId) {
+    const condition = document.querySelector(`[data-condition="${conditionId}"]`);
+    const container = document.getElementById('conditions-container');
+    
+    if (condition && container) {
+        // Don't allow removing the last condition if it's the only one
+        const allConditions = container.querySelectorAll('.condition-group');
+        
+        if (allConditions.length > 1) {
+            condition.remove();
+        } else {
+            // If it's the last condition, clear its values instead of removing it
+            const selects = condition.querySelectorAll('select');
+            const inputs = condition.querySelectorAll('input');
+            
+            selects.forEach(select => select.selectedIndex = 0);
+            inputs.forEach(input => input.value = '');
+        }
+    }
+}
+
+// Update operator options based on field selection
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('condition-field')) {
+        const field = e.target.value;
+        const operatorSelect = e.target.closest('.row').querySelector('.condition-operator');
+        const valueInput = e.target.closest('.row').querySelector('.condition-value');
+
+        // Reset operator options
+        operatorSelect.innerHTML = '';
+
+        if (['ml_score'].includes(field)) {
+            // Numeric fields
+            operatorSelect.innerHTML = `
+                <option value="equals">Equals</option>
+                <option value="greater_than">Greater Than</option>
+                <option value="less_than">Less Than</option>
+            `;
+            valueInput.type = 'number';
+            valueInput.step = '0.01';
+        } else if (['leaver', 'is_internal_to_external'].includes(field)) {
+            // Boolean fields
+            operatorSelect.innerHTML = `
+                <option value="is_true">Is True</option>
+                <option value="is_false">Is False</option>
+            `;
+            valueInput.style.display = 'none';
+        } else {
+            // Text fields
+            operatorSelect.innerHTML = `
+                <option value="equals">Equals</option>
+                <option value="contains">Contains</option>
+                <option value="starts_with">Starts With</option>
+                <option value="ends_with">Ends With</option>
+                <option value="matches">Matches Pattern</option>
+                <option value="is_empty">Is Empty</option>
+                <option value="is_not_empty">Is Not Empty</option>
+            `;
+            valueInput.type = 'text';
+            valueInput.style.display = 'block';
+        }
+    }
+});
+
+function editRule(ruleId, name, action, priority, enabled, conditions) {
+    // Clear any existing edit state first
+    resetForm();
+    
+    // Highlight the rule being edited
+    highlightEditingRule(ruleId);
+    
+    // Populate the form with existing rule data
+    const nameElement = document.getElementById('name');
+    const actionElement = document.getElementById('rule_action');
+    const priorityElement = document.getElementById('priority');
+    const enabledElement = document.getElementById('enabled');
+    
+    if (nameElement) nameElement.value = name;
+    if (actionElement) actionElement.value = action;
+    if (priorityElement) priorityElement.value = priority;
+    if (enabledElement) enabledElement.checked = enabled;
+    
+    // Change form action to edit
+    const form = document.getElementById('ruleForm');
+    const actionInput = form.querySelector('input[name="action"]');
+    
+    if (actionInput) {
+        actionInput.value = 'edit';
+    }
+    
+    // Add rule ID for editing
+    let ruleIdInput = form.querySelector('input[name="rule_id"]');
+    if (!ruleIdInput) {
+        ruleIdInput = document.createElement('input');
+        ruleIdInput.type = 'hidden';
+        ruleIdInput.name = 'rule_id';
+        form.appendChild(ruleIdInput);
+    }
+    ruleIdInput.value = ruleId;
+    
+    // Clear existing conditions
+    const container = document.getElementById('conditions-container');
+    
+    if (container) {
+        container.innerHTML = '';
+        conditionCounter = 0;
+        
+        // Populate conditions if they exist
+        if (conditions && Array.isArray(conditions) && conditions.length > 0) {
+            conditions.forEach((condition, index) => {
+                addConditionWithData(
+                    condition.field || '', 
+                    condition.operator || 'equals', 
+                    condition.value || '', 
+                    condition.logic || 'AND'
+                );
+            });
+        } else {
+            // Add one empty condition if no conditions exist
+            addCondition();
+        }
+    }
+    
+    // Update submit button text
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    if (submitBtn) {
+        submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Update Rule';
+    }
+    
+    // Add cancel button if it doesn't exist
+    addCancelButton();
+    
+    // Add visual indicator that we're editing
+    addEditingIndicator(name);
+    
+    // Scroll to form
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function addConditionWithData(field = '', operator = 'equals', value = '', logic = 'AND') {
+    const container = document.getElementById('conditions-container');
+    const newCondition = document.createElement('div');
+    newCondition.className = 'condition-group border rounded p-3 mb-3';
+    newCondition.setAttribute('data-condition', conditionCounter);
+
+    newCondition.innerHTML = `
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <select class="form-select condition-field" name="conditions[${conditionCounter}][field]">
+                    <option value="">Select field...</option>
+                    <option value="sender" ${field === 'sender' ? 'selected' : ''}>Sender Email</option>
+                    <option value="sender_domain" ${field === 'sender_domain' ? 'selected' : ''}>Sender Domain</option>
+                    <option value="subject" ${field === 'subject' ? 'selected' : ''}>Subject</option>
+                    <option value="recipients" ${field === 'recipients' ? 'selected' : ''}>Recipients</option>
+                    <option value="recipient_domain" ${field === 'recipient_domain' ? 'selected' : ''}>Recipient Domain</option>
+                    <option value="bunit" ${field === 'bunit' ? 'selected' : ''}>Business Unit</option>
+                    <option value="department" ${field === 'department' ? 'selected' : ''}>Department</option>
+                    <option value="leaver" ${field === 'leaver' ? 'selected' : ''}>Is Leaver</option>
+                    <option value="termination_date" ${field === 'termination_date' ? 'selected' : ''}>Termination Date</option>
+                    <option value="attachments" ${field === 'attachments' ? 'selected' : ''}>Attachments</option>
+                    <option value="policies" ${field === 'policies' ? 'selected' : ''}>Policy Names</option>
+                    <option value="ml_score" ${field === 'ml_score' ? 'selected' : ''}>ML Score</option>
+                    <option value="is_internal_to_external" ${field === 'is_internal_to_external' ? 'selected' : ''}>Internal to External</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select condition-operator" name="conditions[${conditionCounter}][operator]">
+                    <option value="equals" ${operator === 'equals' ? 'selected' : ''}>Equals</option>
+                    <option value="contains" ${operator === 'contains' ? 'selected' : ''}>Contains</option>
+                    <option value="starts_with" ${operator === 'starts_with' ? 'selected' : ''}>Starts With</option>
+                    <option value="ends_with" ${operator === 'ends_with' ? 'selected' : ''}>Ends With</option>
+                    <option value="matches" ${operator === 'matches' ? 'selected' : ''}>Matches Pattern</option>
+                    <option value="greater_than" ${operator === 'greater_than' ? 'selected' : ''}>Greater Than</option>
+                    <option value="less_than" ${operator === 'less_than' ? 'selected' : ''}>Less Than</option>
+                    <option value="is_true" ${operator === 'is_true' ? 'selected' : ''}>Is True</option>
+                    <option value="is_false" ${operator === 'is_false' ? 'selected' : ''}>Is False</option>
+                    <option value="is_empty" ${operator === 'is_empty' ? 'selected' : ''}>Is Empty</option>
+                    <option value="is_not_empty" ${operator === 'is_not_empty' ? 'selected' : ''}>Is Not Empty</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="text" class="form-control condition-value" 
+                       name="conditions[${conditionCounter}][value]" placeholder="Enter value..." value="${value}">
+            </div>
+            <div class="col-md-2">
+                <select class="form-select condition-logic" name="conditions[${conditionCounter}][logic]">
+                    <option value="AND" ${logic === 'AND' ? 'selected' : ''}>AND</option>
+                    <option value="OR" ${logic === 'OR' ? 'selected' : ''}>OR</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="button" class="btn btn-danger btn-sm remove-condition">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    container.appendChild(newCondition);
+    conditionCounter++;
+}
+
+function resetForm() {
+    const form = document.getElementById('ruleForm');
+    if (form) {
+        form.reset();
+        
+        // Reset form action to add
+        const actionInput = form.querySelector('input[name="action"]');
+        if (actionInput) {
+            actionInput.value = 'add';
+        }
+        
+        // Remove rule_id input if it exists
+        const ruleIdInput = form.querySelector('input[name="rule_id"]');
+        if (ruleIdInput) {
+            ruleIdInput.remove();
+        }
+        
+        // Reset submit button text
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-plus me-2"></i>Create Rule';
+        }
+        
+        // Remove cancel button if it exists
+        removeCancelButton();
+        
+        // Remove editing indicator
+        removeEditingIndicator();
+        
+        // Clear rule highlights
+        clearRuleHighlights();
+        
+        // Reset conditions
+        const container = document.getElementById('conditions-container');
+        if (container) {
+            container.innerHTML = '';
+            conditionCounter = 0;
+            addCondition();
+        }
+    }
+}
+
+function addCancelButton() {
+    const form = document.getElementById('ruleForm');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    // Check if cancel button already exists
+    let cancelBtn = form.querySelector('.cancel-edit-btn');
+    if (!cancelBtn) {
+        cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn btn-secondary ms-2 cancel-edit-btn';
+        cancelBtn.innerHTML = '<i class="fas fa-times me-2"></i>Cancel';
+        cancelBtn.onclick = function() {
+            resetForm();
+        };
+        
+        // Insert after submit button
+        submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
+    }
+}
+
+function removeCancelButton() {
+    const cancelBtn = document.querySelector('.cancel-edit-btn');
+    if (cancelBtn) {
+        cancelBtn.remove();
+    }
+}
+
+function addEditingIndicator(ruleName) {
+    // Remove existing indicator
+    removeEditingIndicator();
+    
+    const form = document.getElementById('ruleForm');
+    const indicator = document.createElement('div');
+    indicator.className = 'alert alert-info mb-3 editing-indicator';
+    indicator.innerHTML = `
+        <i class="fas fa-edit me-2"></i>
+        <strong>Editing Rule:</strong> ${ruleName}
+        <button type="button" class="btn-close float-end" onclick="resetForm()"></button>
+    `;
+    
+    // Insert at the top of the form
+    form.insertBefore(indicator, form.firstChild);
+}
+
+function removeEditingIndicator() {
+    const indicator = document.querySelector('.editing-indicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+function highlightEditingRule(ruleId) {
+    // Remove existing highlights
+    clearRuleHighlights();
+    
+    // Find and highlight the rule being edited
+    const ruleRows = document.querySelectorAll('tr[data-rule-id]');
+    ruleRows.forEach(row => {
+        if (row.getAttribute('data-rule-id') == ruleId) {
+            row.classList.add('table-warning', 'editing-rule');
+        }
+    });
+}
+
+function clearRuleHighlights() {
+    const highlightedRows = document.querySelectorAll('.editing-rule');
+    highlightedRows.forEach(row => {
+        row.classList.remove('table-warning', 'editing-rule');
+    });
+}
+
+// Initialize the form when the DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Add one initial condition when page loads
+    addCondition();
+    
+    // Add event listener for test rule button
+    document.getElementById('testRuleBtn').addEventListener('click', function() {
+        testRule();
+    });
+    
+    // Add event listeners for edit buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.edit-rule-btn')) {
+            const btn = e.target.closest('.edit-rule-btn');
+            const ruleId = btn.getAttribute('data-rule-id');
+            const name = btn.getAttribute('data-rule-name');
+            const action = btn.getAttribute('data-rule-action');
+            const priority = btn.getAttribute('data-rule-priority');
+            const enabled = btn.getAttribute('data-rule-enabled') === 'True';
+            
+            let conditions;
+            try {
+                const conditionsStr = btn.getAttribute('data-rule-conditions');
+                if (conditionsStr && conditionsStr.trim() !== '' && conditionsStr !== 'null') {
+                    conditions = JSON.parse(conditionsStr);
+                } else {
+                    conditions = [];
+                }
+            } catch (e) {
+                conditions = [];
+            }
+            
+            editRule(ruleId, name, action, priority, enabled, conditions);
+        }
+        
+        // Handle add condition button
+        if (e.target.closest('.add-condition-btn')) {
+            e.preventDefault();
+            addCondition();
+        }
+        
+        // Handle remove condition buttons (for dynamically generated ones)
+        if (e.target.closest('.remove-condition')) {
+            e.preventDefault();
+            const btn = e.target.closest('.remove-condition');
+            const conditionGroup = btn.closest('.condition-group');
+            if (conditionGroup) {
+                const conditionId = conditionGroup.getAttribute('data-condition');
+                removeCondition(conditionId);
+            }
+        }
+        
+        // Handle reset form button
+        if (e.target.closest('.reset-form-btn')) {
+            e.preventDefault();
+            if (confirm('Are you sure you want to reset the form? All unsaved changes will be lost.')) {
+                resetForm();
+            }
+        }
+    });
+});
+
+// Function to test rule against existing events
+function testRule() {
+    // Collect form data
+    const formData = new FormData();
+    formData.append('action', 'test');
+    
+    // Get basic rule info
+    const name = document.getElementById('name').value;
+    const action = document.getElementById('rule_action').value;
+    const priority = document.getElementById('priority').value;
+    const enabled = document.getElementById('enabled').checked;
+    
+    if (!name.trim()) {
+        alert('Please enter a rule name to test');
+        return;
+    }
+    
+    if (!action) {
+        alert('Please select an action to test');
+        return;
+    }
+    
+    formData.append('name', name);
+    formData.append('rule_action', action);
+    formData.append('priority', priority);
+    formData.append('enabled', enabled);
+    
+    // Collect conditions
+    const conditions = [];
+    const conditionGroups = document.querySelectorAll('.condition-group');
+    
+    conditionGroups.forEach((group, index) => {
+        const field = group.querySelector('.condition-field').value;
+        const operator = group.querySelector('.condition-operator').value;
+        const value = group.querySelector('.condition-value').value;
+        const logic = group.querySelector('.condition-logic').value;
+        
+        if (field && operator) {
+            conditions.push({
+                field: field,
+                operator: operator,
+                value: value,
+                logic: logic
+            });
+        }
+    });
+    
+    // Add conditions to form data
+    formData.append('conditions', JSON.stringify(conditions));
+    
+    // Show loading state
+    const testBtn = document.getElementById('testRuleBtn');
+    const originalText = testBtn.innerHTML;
+    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
+    testBtn.disabled = true;
+    
+    // Send test request
+    fetch('/rules', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        displayTestResults(data);
+    })
+    .catch(error => {
+        console.error('Error testing rule:', error);
+        alert('Error testing rule. Please check console for details.');
+    })
+    .finally(() => {
+        // Restore button state
+        testBtn.innerHTML = originalText;
+        testBtn.disabled = false;
+    });
+}
+
+// Function to display test results
+function displayTestResults(data) {
+    const resultsSection = document.getElementById('testResultsSection');
+    const resultsContent = document.getElementById('testResultsContent');
+    
+    if (data.success) {
+        const matchCount = data.matches.length;
+        const totalEvents = data.total_events;
+        const percentage = totalEvents > 0 ? ((matchCount / totalEvents) * 100).toFixed(1) : 0;
+        
+        let html = `
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h4>${matchCount}</h4>
+                            <p class="mb-0">Events Matched</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h4>${totalEvents}</h4>
+                            <p class="mb-0">Total Events</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h4>${percentage}%</h4>
+                            <p class="mb-0">Match Rate</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        if (matchCount > 0) {
+            html += `
+                <h6><i class="fas fa-list me-2"></i>Sample Matching Events (showing first 10):</h6>
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Sender</th>
+                                <th>Subject</th>
+                                <th>Recipients</th>
+                                <th>ML Score</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            data.matches.slice(0, 10).forEach(event => {
+                html += `
+                    <tr>
+                        <td><a href="/event/${event.id}" class="text-decoration-none">#${event.id}</a></td>
+                        <td><small>${event.sender}</small></td>
+                        <td><small>${event.subject || 'No subject'}</small></td>
+                        <td><small>${event.recipient_count} recipient(s)</small></td>
+                        <td>
+                            <span class="badge bg-${event.ml_score > 0.7 ? 'danger' : event.ml_score > 0.4 ? 'warning' : 'success'}">
+                                ${(event.ml_score * 100).toFixed(0)}%
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-${event.status === 'closed' ? 'success' : 'warning'}">
+                                ${event.status}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            if (matchCount > 10) {
+                html += `<p class="text-muted mt-2"><small>... and ${matchCount - 10} more events</small></p>`;
+            }
+        } else {
+            html += `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>No events matched your rule conditions.</strong> 
+                    You may want to adjust your criteria or test with different conditions.
+                </div>
+            `;
+        }
+        
+        html += `
+            <div class="mt-3">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="hideTestResults()">
+                    <i class="fas fa-times me-2"></i>Close Results
+                </button>
+            </div>
+        `;
+        
+        resultsContent.innerHTML = html;
+    } else {
+        resultsContent.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Test failed:</strong> ${data.error}
+            </div>
+        `;
+    }
+    
+    // Show results section
+    resultsSection.style.display = 'block';
+    resultsSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Function to hide test results
+function hideTestResults() {
+    document.getElementById('testResultsSection').style.display = 'none';
+}
+
+</script>
+{% endblock %}

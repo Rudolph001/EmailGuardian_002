@@ -1,0 +1,483 @@
+{% extends "base.html" %}
+
+{% block title %}Event Details - Email Guardian{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-envelope-open me-2"></i>Event Details
+            </h1>
+            <a href="{{ url_for('events') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Events
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Event Overview -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Event Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Event ID:</dt>
+                            <dd class="col-sm-8">{{ event.id }}</dd>
+
+                            <dt class="col-sm-4">Time:</dt>
+                            <dd class="col-sm-8">{{ event._time }}</dd>
+
+                            <dt class="col-sm-4">Sender:</dt>
+                            <dd class="col-sm-8">
+                                <code>{{ event.sender }}</code>
+                            </dd>
+
+                            <dt class="col-sm-4">Subject:</dt>
+                            <dd class="col-sm-8">
+                                <em>{{ event.subject or 'No subject' }}</em>
+                            </dd>
+
+                            <dt class="col-sm-4">Department:</dt>
+                            <dd class="col-sm-8">{{ event.department or 'Not specified' }}</dd>
+
+                            <dt class="col-sm-4">Business Unit:</dt>
+                            <dd class="col-sm-8">{{ event.bunit or 'Not specified' }}</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">ML Score:</dt>
+                            <dd class="col-sm-8">
+                                {% if event.ml_score %}
+                                    {% set score = event.ml_score %}
+                                    <span class="badge bg-{{ 'danger' if score > 0.7 else 'warning' if score > 0.3 else 'success' }} me-2">
+                                        {{ "%.3f"|format(score) }}
+                                    </span>
+                                    <div class="progress mt-1" style="height: 8px;">
+                                        <div class="progress-bar bg-{{ 'danger' if score > 0.7 else 'warning' if score > 0.3 else 'success' }}"
+                                             style="width: {{ (score * 100)|round }}%"></div>
+                                    </div>
+                                    <small class="text-muted">Model: {{ event.ml_model_version }}</small>
+                                {% else %}
+                                    <span class="text-muted">Not scored</span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Type:</dt>
+                            <dd class="col-sm-8">
+                                {% if event.is_internal_to_external %}
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-exchange-alt me-1"></i>Internal → External
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-building me-1"></i>Internal
+                                    </span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Leaver:</dt>
+                            <dd class="col-sm-8">
+                                {% if event.leaver %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-user-times me-1"></i>Yes
+                                    </span>
+                                    {% if event.termination_date %}
+                                        <br><small class="text-muted">Term Date: {{ event.termination_date }}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-user-check me-1"></i>No
+                                    </span>
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">User Response:</dt>
+                            <dd class="col-sm-8">{{ event.user_response or 'Not specified' }}</dd>
+
+                            <dt class="col-sm-4">Final Outcome:</dt>
+                            <dd class="col-sm-8">
+                                {% if event.final_outcome %}
+                                    <span class="badge bg-{{ 'danger' if event.final_outcome.lower() in ['risky', 'block'] else 'warning' if event.final_outcome.lower() in ['escalate', 'review'] else 'success' }}">
+                                        {{ event.final_outcome }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">Not specified</span>
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+
+                {% if event.justifications %}
+                    <div class="mt-3">
+                        <strong>Justifications:</strong>
+                        <p class="mt-2">{{ event.justifications }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Applied Rules and Actions -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-gavel me-2"></i>Applied Rules & Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if actions %}
+                    {% for action in actions %}
+                        <div class="border rounded p-2 mb-2 {{ 'border-success' if action.action == 'allow' else 'border-danger' if action.action == 'block' else 'border-warning' }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <span class="badge bg-{{ 'success' if action.action == 'allow' else 'danger' if action.action == 'block' else 'warning' }}">
+                                    {{ action.action.title() }}
+                                </span>
+                                <small class="text-muted">Priority: {{ action.priority }}</small>
+                            </div>
+                            <div class="mt-1">
+                                {% if action.type == 'rule' %}
+                                    <strong>{{ action.rule_name }}</strong>
+                                {% else %}
+                                    <strong>Whitelist</strong>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ action.reason }}</small>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-info-circle fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No rules applied to this event</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Whitelist Status -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-check-circle me-2"></i>Whitelist Status
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if whitelist_matches %}
+                    {% for match in whitelist_matches %}
+                        <div class="border rounded p-2 mb-2 border-success bg-light">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>Whitelisted
+                                </span>
+                                <small class="text-muted">{{ match.type.title() }}</small>
+                            </div>
+                            <div class="mt-1">
+                                <strong>{{ match.value }}</strong>
+                            </div>
+                            <small class="text-muted">{{ match.reason }}</small>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-times-circle fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No whitelist matches</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        
+    </div>
+</div>
+
+<!-- Event Details Tabs -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="eventDetailTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="recipients-tab" data-bs-toggle="tab" data-bs-target="#recipients" type="button" role="tab">
+                            <i class="fas fa-users me-2"></i>Recipients ({{ recipients|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments" type="button" role="tab">
+                            <i class="fas fa-paperclip me-2"></i>Attachments ({{ attachments|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="policies-tab" data-bs-toggle="tab" data-bs-target="#policies" type="button" role="tab">
+                            <i class="fas fa-shield-alt me-2"></i>Policies ({{ policies|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="keywords-tab" data-bs-toggle="tab" data-bs-target="#keywords" type="button" role="tab">
+                            <i class="fas fa-tags me-2"></i>Keyword Matches ({{ keyword_matches|length }})
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="eventDetailTabsContent">
+                    <!-- Recipients Tab -->
+                    <div class="tab-pane fade show active" id="recipients" role="tabpanel">
+                        {% if recipients %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Email Address</th>
+                                            <th>Domain</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for recipient in recipients %}
+                                            <tr>
+                                                <td><code>{{ recipient }}</code></td>
+                                                <td>
+                                                    {% if '@' in recipient %}
+                                                        <span class="badge bg-secondary">{{ recipient.split('@')[1] }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No recipients listed</h5>
+                                <p class="text-muted mb-0">This event does not have any recipients recorded.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Attachments Tab -->
+                    <div class="tab-pane fade" id="attachments" role="tabpanel">
+                        {% if attachments %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Filename</th>
+                                            <th>Type</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for attachment in attachments %}
+                                            <tr>
+                                                <td>
+                                                    <i class="fas fa-file me-2"></i>
+                                                    <code>{{ attachment }}</code>
+                                                </td>
+                                                <td>
+                                                    {% if '.' in attachment %}
+                                                        <span class="badge bg-info">{{ attachment.split('.')[-1].upper() }}</span>
+                                                    {% else %}
+                                                        <span class="text-muted">Unknown</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-paperclip fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No attachments</h5>
+                                <p class="text-muted mb-0">This email does not contain any attachments.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Policies Tab -->
+                    <div class="tab-pane fade" id="policies" role="tabpanel">
+                        {% if policies %}
+                            <div class="row">
+                                {% for policy in policies %}
+                                    <div class="col-md-6 col-lg-4 mb-3">
+                                        <div class="card border-secondary">
+                                            <div class="card-body text-center">
+                                                <i class="fas fa-shield-alt fa-2x text-secondary mb-2"></i>
+                                                <h6 class="card-title">{{ policy }}</h6>
+                                                <span class="badge bg-secondary">Policy</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No policies specified</h5>
+                                <p class="text-muted mb-0">This event does not have any security policies applied.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Keyword Matches Tab -->
+                    <div class="tab-pane fade" id="keywords" role="tabpanel">
+                        {% if keyword_matches %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Keyword/Pattern</th>
+                                            <th>Found In</th>
+                                            <th>Match Type</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for match in keyword_matches %}
+                                            <tr>
+                                                <td>
+                                                    {% if match.is_regex %}
+                                                        <span class="badge bg-warning">
+                                                            <i class="fas fa-code me-1"></i>Regex
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-info">
+                                                            <i class="fas fa-font me-1"></i>Literal
+                                                        </span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <code class="bg-light p-1 rounded">{{ match.term }}</code>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-{{ 'primary' if match.location == 'Subject' else 'success' }}">
+                                                        <i class="fas fa-{{ 'envelope' if match.location == 'Subject' else 'paperclip' }} me-1"></i>
+                                                        {{ match.location }}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <small class="text-muted">
+                                                        {% if match.is_regex %}
+                                                            Regular expression pattern match
+                                                        {% else %}
+                                                            Case-insensitive text match
+                                                        {% endif %}
+                                                    </small>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="alert alert-warning mt-3">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>{{ keyword_matches|length }} keyword match(es) found</strong> - 
+                                This event contains content that matches your configured keywords. Review carefully for potential security concerns.
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No keyword matches</h5>
+                                <p class="text-muted mb-0">This event does not match any of your configured keywords.</p>
+                                <a href="{{ url_for('keywords') }}" class="btn btn-outline-primary mt-3">
+                                    <i class="fas fa-plus me-2"></i>Manage Keywords
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Event Management -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>Event Management
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>Current Status</h6>
+                        {% if event.is_whitelisted %}
+                            <span class="badge bg-success fs-6">
+                                <i class="fas fa-check-circle me-1"></i>Whitelisted
+                            </span>
+                        {% elif event.follow_up %}
+                            <span class="badge bg-warning fs-6">
+                                <i class="fas fa-flag me-1"></i>Follow-up Required
+                            </span>
+                        {% elif event.status == 'closed' %}
+                            <span class="badge bg-secondary fs-6">
+                                <i class="fas fa-archive me-1"></i>Closed
+                            </span>
+                        {% else %}
+                            <span class="badge bg-primary fs-6">
+                                <i class="fas fa-folder-open me-1"></i>Open
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-8">
+                        <h6>Actions</h6>
+                        <div class="btn-group" role="group">
+                            {% if not event.is_whitelisted %}
+                                <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" class="d-inline">
+                                    <input type="hidden" name="action" value="whitelist">
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        <i class="fas fa-check-circle me-1"></i>Whitelist
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                            {% if not event.follow_up and event.status != 'closed' %}
+                                <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" class="d-inline">
+                                    <input type="hidden" name="action" value="follow_up">
+                                    <button type="submit" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-flag me-1"></i>Mark for Follow-up
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                            {% if event.status != 'closed' %}
+                                <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" class="d-inline">
+                                    <input type="hidden" name="action" value="close">
+                                    <button type="submit" class="btn btn-sm btn-secondary">
+                                        <i class="fas fa-archive me-1"></i>Close Event
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                            {% if event.status == 'closed' %}
+                                <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" class="d-inline">
+                                    <input type="hidden" name="action" value="reopen">
+                                    <button type="submit" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-folder-open me-1"></i>Reopen Event
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,632 @@
+
+import sqlite3
+import logging
+import fnmatch
+import json
+import re
+from models import get_db
+
+logger = logging.getLogger(__name__)
+
+def get_rules(enabled_only=True):
+    """Get all rules with condition summaries"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if enabled_only:
+            cursor.execute("""
+                SELECT id, name, action, conditions_json, priority, enabled
+                FROM rules 
+                WHERE enabled = 1
+                ORDER BY priority ASC, id ASC
+            """)
+        else:
+            cursor.execute("""
+                SELECT id, name, action, conditions_json, priority, enabled
+                FROM rules 
+                ORDER BY priority ASC, id ASC
+            """)
+        
+        rules = []
+        for row in cursor.fetchall():
+            rule = dict(row)
+            rule['conditions_summary'] = _generate_condition_summary(rule['conditions_json'])
+            rules.append(rule)
+        
+        return rules
+
+def _generate_condition_summary(conditions_json):
+    """Generate a human-readable summary of conditions"""
+    if not conditions_json:
+        return "No conditions"
+    
+    try:
+        conditions = json.loads(conditions_json)
+        if not conditions:
+            return "No conditions"
+        
+        summaries = []
+        for condition in conditions:
+            field = condition.get('field', '')
+            operator = condition.get('operator', '')
+            value = condition.get('value', '')
+            logic = condition.get('logic', 'AND')
+            
+            # Format field name
+            field_map = {
+                'sender': 'Sender',
+                'sender_domain': 'Sender Domain',
+                'subject': 'Subject',
+                'recipients': 'Recipients',
+                'recipient_domain': 'Recipient Domain',
+                'bunit': 'Business Unit',
+                'department': 'Department',
+                'leaver': 'Is Leaver',
+                'termination_date': 'Termination Date',
+                'attachments': 'Attachments',
+                'policies': 'Policies',
+                'ml_score': 'ML Score',
+                'is_internal_to_external': 'Internal to External'
+            }
+            
+            field_display = field_map.get(field, field)
+            
+            # Format operator
+            operator_map = {
+                'equals': '=',
+                'contains': 'contains',
+                'starts_with': 'starts with',
+                'ends_with': 'ends with',
+                'matches': 'matches',
+                'greater_than': '>',
+                'less_than': '<',
+                'is_true': 'is true',
+                'is_false': 'is false',
+                'is_empty': 'is empty',
+                'is_not_empty': 'is not empty'
+            }
+            
+            operator_display = operator_map.get(operator, operator)
+            
+            # Build condition string
+            if operator in ['is_true', 'is_false', 'is_empty', 'is_not_empty']:
+                condition_str = f"{field_display} {operator_display}"
+            else:
+                condition_str = f"{field_display} {operator_display} '{value}'"
+            
+            summaries.append(condition_str)
+            
+            # Add logic operator (except for last condition)
+            if condition != conditions[-1]:
+                summaries.append(f" {logic} ")
+        
+        return ''.join(summaries)
+        
+    except Exception as e:
+        logger.warning(f"Error generating condition summary: {e}")
+        return "Invalid conditions"
+
+def add_rule(name, action, conditions, priority=100, enabled=True):
+    """Add a new rule with JSON conditions"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        conditions_json = json.dumps(conditions) if conditions else None
+        cursor.execute("""
+            INSERT INTO rules (name, action, conditions_json, priority, enabled)
+            VALUES (?, ?, ?, ?, ?)
+        """, (name, action, conditions_json, priority, 1 if enabled else 0))
+        conn.commit()
+        return cursor.lastrowid
+
+def update_rule(rule_id, name=None, action=None, conditions=None, priority=None, enabled=None):
+    """Update an existing rule"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        updates = []
+        params = []
+
+        if name is not None:
+            updates.append("name = ?")
+            params.append(name)
+        if action is not None:
+            updates.append("action = ?")
+            params.append(action)
+        if conditions is not None:
+            updates.append("conditions_json = ?")
+            params.append(json.dumps(conditions) if conditions else None)
+        if priority is not None:
+            updates.append("priority = ?")
+            params.append(priority)
+        if enabled is not None:
+            updates.append("enabled = ?")
+            params.append(1 if enabled else 0)
+
+        if updates:
+            params.append(rule_id)
+            cursor.execute(f"UPDATE rules SET {', '.join(updates)} WHERE id = ?", params)
+            conn.commit()
+            return cursor.rowcount > 0
+
+        return False
+
+def delete_rule(rule_id):
+    """Delete a rule"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM rules WHERE id = ?", (rule_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def get_whitelist_domains():
+    """Get all whitelisted domains"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, domain FROM whitelist_domains ORDER BY domain")
+        return cursor.fetchall()
+
+def get_whitelist_emails():
+    """Get all whitelisted emails"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, email FROM whitelist_emails ORDER BY email")
+        return cursor.fetchall()
+
+def add_whitelist_domain(domain):
+    """Add domain to whitelist"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO whitelist_domains (domain) VALUES (?)", (domain,))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+def add_whitelist_email(email):
+    """Add email to whitelist"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO whitelist_emails (email) VALUES (?)", (email,))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+def delete_whitelist_domain(domain_id):
+    """Remove domain from whitelist"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM whitelist_domains WHERE id = ?", (domain_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def delete_whitelist_email(email_id):
+    """Remove email from whitelist"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM whitelist_emails WHERE id = ?", (email_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def get_keywords():
+    """Get all keywords"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, term, is_regex FROM keywords ORDER BY term")
+        return cursor.fetchall()
+
+def add_keyword(term, is_regex=False):
+    """Add keyword"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO keywords (term, is_regex) VALUES (?, ?)", 
+                         (term, 1 if is_regex else 0))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+def delete_keyword(keyword_id):
+    """Delete keyword"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM keywords WHERE id = ?", (keyword_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def check_whitelist_matches(event, recipients):
+    """Check if event matches whitelist entries - requires ALL recipients to be whitelisted"""
+    matches = []
+    
+    # Get whitelist data
+    domains = get_whitelist_domains()
+    emails = get_whitelist_emails()
+    
+    # Check sender domain
+    sender_domain = event['sender'].split('@')[-1].lower() if '@' in event['sender'] else ''
+    sender_whitelisted = False
+    
+    for domain in domains:
+        if sender_domain == domain['domain'].lower():
+            matches.append({
+                'type': 'domain',
+                'value': domain['domain'],
+                'reason': f'Sender domain {sender_domain} is whitelisted'
+            })
+            sender_whitelisted = True
+            break
+    
+    # Check sender email if domain not whitelisted
+    if not sender_whitelisted:
+        sender_email = event['sender'].lower()
+        for email in emails:
+            if sender_email == email['email'].lower():
+                matches.append({
+                    'type': 'email',
+                    'value': email['email'],
+                    'reason': f'Sender email {sender_email} is whitelisted'
+                })
+                sender_whitelisted = True
+                break
+    
+    # For recipients, ALL must be whitelisted
+    if recipients:
+        all_recipients_whitelisted = True
+        recipient_matches = []
+        
+        for recipient in recipients:
+            recipient_lower = recipient.lower()
+            recipient_domain = recipient.split('@')[-1].lower() if '@' in recipient else ''
+            recipient_whitelisted = False
+            
+            # Check recipient domain
+            for domain in domains:
+                if recipient_domain == domain['domain'].lower():
+                    recipient_matches.append({
+                        'type': 'domain',
+                        'value': domain['domain'],
+                        'reason': f'Recipient domain {recipient_domain} is whitelisted'
+                    })
+                    recipient_whitelisted = True
+                    break
+            
+            # Check recipient email if domain not whitelisted
+            if not recipient_whitelisted:
+                for email in emails:
+                    if recipient_lower == email['email'].lower():
+                        recipient_matches.append({
+                            'type': 'email',
+                            'value': email['email'],
+                            'reason': f'Recipient email {recipient_lower} is whitelisted'
+                        })
+                        recipient_whitelisted = True
+                        break
+            
+            # If this recipient is not whitelisted, the entire event fails
+            if not recipient_whitelisted:
+                all_recipients_whitelisted = False
+                break
+        
+        # Only add recipient matches if ALL recipients are whitelisted
+        if all_recipients_whitelisted:
+            matches.extend(recipient_matches)
+        else:
+            # Clear all matches if not all recipients are whitelisted
+            matches = []
+    
+    return matches
+
+def check_keyword_matches(event):
+    """Check if event matches any keywords in subject and attachments"""
+    import re
+    matches = []
+    
+    # Get keywords
+    keywords = get_keywords()
+    
+    # Check subject for keyword matches
+    subject = (event['subject'] or '').lower()
+    
+    # Get attachments for checking - try to get from event detail
+    attachments = []
+    attachments_text = ''
+    
+    try:
+        from models import get_event_detail
+        event_detail = get_event_detail(event['id'])
+        if event_detail and 'attachments' in event_detail:
+            attachments = event_detail['attachments'] or []
+            attachments_text = ' '.join(attachments).lower()
+    except Exception:
+        # If we can't get attachments, just continue with subject checking
+        pass
+    
+    for keyword in keywords:
+        term = keyword['term']
+        is_regex = keyword['is_regex']
+        found_locations = []
+        
+        try:
+            if is_regex:
+                # Use regex matching
+                pattern = re.compile(term, re.IGNORECASE)
+                
+                # Check subject
+                if pattern.search(subject):
+                    found_locations.append('Subject')
+                
+                # Check attachments
+                if attachments_text and pattern.search(attachments_text):
+                    found_locations.append('Attachments')
+                    
+            else:
+                # Simple case-insensitive string matching
+                
+                # Check subject
+                if term.lower() in subject:
+                    found_locations.append('Subject')
+                
+                # Check attachments
+                if attachments_text and term.lower() in attachments_text:
+                    found_locations.append('Attachments')
+            
+            # Add matches for each location found
+            for location in found_locations:
+                matches.append({
+                    'term': term,
+                    'is_regex': is_regex,
+                    'location': location
+                })
+                
+        except re.error:
+            # Skip invalid regex patterns
+            continue
+    
+    return matches
+
+def _evaluate_condition(condition, event_data):
+    """Evaluate a single condition against event data"""
+    field = condition.get('field')
+    operator = condition.get('operator')
+    value = condition.get('value', '')
+    
+    if not field or not operator:
+        return False
+    
+    # Get field value from event data
+    field_value = _get_field_value(field, event_data)
+    
+    # Handle different operators
+    if operator == 'equals':
+        return str(field_value).lower() == str(value).lower()
+    elif operator == 'contains':
+        return str(value).lower() in str(field_value).lower()
+    elif operator == 'starts_with':
+        return str(field_value).lower().startswith(str(value).lower())
+    elif operator == 'ends_with':
+        return str(field_value).lower().endswith(str(value).lower())
+    elif operator == 'matches':
+        return fnmatch.fnmatch(str(field_value).lower(), str(value).lower())
+    elif operator == 'greater_than':
+        try:
+            return float(field_value) > float(value)
+        except (ValueError, TypeError):
+            return False
+    elif operator == 'less_than':
+        try:
+            return float(field_value) < float(value)
+        except (ValueError, TypeError):
+            return False
+    elif operator == 'is_true':
+        return bool(field_value)
+    elif operator == 'is_false':
+        return not bool(field_value)
+    elif operator == 'is_empty':
+        return not field_value or field_value == ''
+    elif operator == 'is_not_empty':
+        return field_value and field_value != ''
+    
+    return False
+
+def _get_field_value(field, event_data):
+    """Extract field value from event data"""
+    event = event_data['event']
+    recipients = event_data['recipients']
+    attachments = event_data['attachments']
+    policies = event_data['policies']
+    
+    if field == 'sender':
+        return event['sender']
+    elif field == 'sender_domain':
+        return event['sender'].split('@')[1] if '@' in event['sender'] else ''
+    elif field == 'subject':
+        return event['subject'] or ''
+    elif field == 'recipients':
+        return ', '.join(recipients)
+    elif field == 'recipient_domain':
+        domains = set()
+        for email in recipients:
+            if '@' in email:
+                domains.add(email.split('@')[1])
+        return ', '.join(domains)
+    elif field == 'bunit':
+        return event['bunit'] or ''
+    elif field == 'department':
+        return event['department'] or ''
+    elif field == 'leaver':
+        return bool(event['leaver'])
+    elif field == 'termination_date':
+        return event['termination_date'] or ''
+    elif field == 'attachments':
+        return ', '.join(attachments)
+    elif field == 'policies':
+        return ', '.join(policies)
+    elif field == 'ml_score':
+        return event['ml_score'] or 0.0
+    elif field == 'is_internal_to_external':
+        return bool(event['is_internal_to_external'])
+    
+    return ''
+
+def _evaluate_conditions(conditions, event_data):
+    """Evaluate all conditions with AND/OR logic"""
+    if not conditions:
+        return False
+    
+    results = []
+    operators = []
+    
+    for condition in conditions:
+        result = _evaluate_condition(condition, event_data)
+        results.append(result)
+        operators.append(condition.get('logic', 'AND'))
+    
+    # Start with first result
+    final_result = results[0]
+    
+    # Apply operators from left to right
+    for i in range(1, len(results)):
+        operator = operators[i-1]  # Previous condition's logic operator
+        if operator == 'OR':
+            final_result = final_result or results[i]
+        else:  # AND
+            final_result = final_result and results[i]
+    
+    return final_result
+
+def apply_rules_to_event(event_id):
+    """Apply rules to a specific event and return matching actions"""
+    from models import get_event_detail
+
+    event_data = get_event_detail(event_id)
+    if not event_data:
+        return []
+
+    event = event_data['event']
+    recipients = event_data['recipients']
+    actions = []
+
+    # Check whitelist using new logic that requires ALL recipients to be whitelisted
+    whitelist_matches = check_whitelist_matches(event, recipients)
+    
+    if whitelist_matches:
+        # Determine the reason based on what was whitelisted
+        sender_matches = [m for m in whitelist_matches if 'Sender' in m['reason']]
+        recipient_matches = [m for m in whitelist_matches if 'Recipient' in m['reason']]
+        
+        if sender_matches and recipient_matches:
+            reason = f"Sender and all recipients are whitelisted"
+        elif sender_matches:
+            reason = f"Sender is whitelisted and all recipients are whitelisted"
+        else:
+            reason = f"All recipients are whitelisted"
+            
+        actions.append({
+            'type': 'whitelist',
+            'action': 'allow',
+            'rule_name': 'Whitelist (All Recipients Required)',
+            'reason': reason
+        })
+        return actions
+
+    # Apply rules
+    rules = get_rules(enabled_only=True)
+
+    for rule in rules:
+        try:
+            conditions_json = rule['conditions_json']
+            if not conditions_json:
+                continue
+            
+            conditions = json.loads(conditions_json)
+            if not conditions:
+                continue
+            
+            if _evaluate_conditions(conditions, event_data):
+                actions.append({
+                    'type': 'rule',
+                    'action': rule['action'],
+                    'rule_name': rule['name'],
+                    'reason': f"Rule conditions matched: {rule['conditions_summary']}"
+                })
+                
+                # Only return first matching rule (highest priority)
+                break
+                
+        except Exception as e:
+            logger.warning(f"Error evaluating rule {rule['id']}: {e}")
+            continue
+
+    return actions
+
+
+def test_rule_against_events(conditions):
+    """Test rule conditions against existing events and return matches"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Get all events with related data
+        cursor.execute("""
+            SELECT e.id, e.sender, e.subject, e.ml_score, e.status, e.leaver, 
+                   e.is_internal_to_external, e.bunit, e.department, e.termination_date,
+                   GROUP_CONCAT(DISTINCT r.email) as recipients,
+                   GROUP_CONCAT(DISTINCT a.filename) as attachments,
+                   GROUP_CONCAT(DISTINCT p.policy_name) as policies,
+                   COUNT(DISTINCT r.id) as recipient_count
+            FROM events e
+            LEFT JOIN recipients r ON e.id = r.event_id
+            LEFT JOIN attachments a ON e.id = a.event_id
+            LEFT JOIN policies p ON e.id = p.event_id
+            GROUP BY e.id
+            ORDER BY e.id DESC
+            LIMIT 1000
+        """)
+        
+        events = cursor.fetchall()
+        total_events = len(events)
+        matches = []
+        
+        for event in events:
+            # Prepare event data for evaluation
+            event_data = {
+                'sender': event['sender'] or '',
+                'sender_domain': event['sender'].split('@')[1] if event['sender'] and '@' in event['sender'] else '',
+                'subject': event['subject'] or '',
+                'recipients': event['recipients'].split(',') if event['recipients'] else [],
+                'recipient_domain': '',  # Will be calculated if needed
+                'bunit': event['bunit'] or '',
+                'department': event['department'] or '',
+                'leaver': bool(event['leaver']),
+                'termination_date': event['termination_date'] or '',
+                'attachments': event['attachments'].split(',') if event['attachments'] else [],
+                'policies': event['policies'].split(',') if event['policies'] else [],
+                'ml_score': float(event['ml_score']) if event['ml_score'] is not None else 0.0,
+                'is_internal_to_external': bool(event['is_internal_to_external']),
+            }
+            
+            # Calculate recipient domain if needed
+            if event_data['recipients']:
+                domains = set()
+                for recipient in event_data['recipients']:
+                    if '@' in recipient:
+                        domains.add(recipient.split('@')[1])
+                event_data['recipient_domain'] = ','.join(domains)
+            
+            # Test if event matches the conditions
+            try:
+                if _evaluate_conditions(conditions, event_data):
+                    matches.append({
+                        'id': event['id'],
+                        'sender': event['sender'],
+                        'subject': event['subject'][:50] + '...' if event['subject'] and len(event['subject']) > 50 else event['subject'],
+                        'recipient_count': event['recipient_count'],
+                        'ml_score': float(event['ml_score']) if event['ml_score'] is not None else 0.0,
+                        'status': event['status']
+                    })
+            except Exception as e:
+                logger.warning(f"Error evaluating event {event['id']} against test conditions: {e}")
+                continue
+        
+        return matches, total_events

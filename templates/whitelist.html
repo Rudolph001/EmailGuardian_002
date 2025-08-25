@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Whitelist Management - Email Guardian{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-check-circle me-2"></i>Whitelist Management
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Domain Whitelist -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-globe me-2"></i>Whitelisted Domains
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Add Domain Form -->
+                <form method="POST" class="mb-4">
+                    <input type="hidden" name="action" value="add_domain">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="domain" 
+                               placeholder="Enter domain (e.g., trusted.com)" required>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Domains List -->
+                {% if domains %}
+                    <div class="list-group">
+                        {% for domain in domains %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-globe me-2 text-muted"></i>
+                                    <code>{{ domain.domain }}</code>
+                                </div>
+                                <form method="POST" class="d-inline" 
+                                      onsubmit="return confirm('Remove {{ domain.domain }} from whitelist?')">
+                                    <input type="hidden" name="action" value="delete_domain">
+                                    <input type="hidden" name="domain_id" value="{{ domain.id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-globe fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No whitelisted domains</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Email Whitelist -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-envelope me-2"></i>Whitelisted Emails
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Add Email Form -->
+                <form method="POST" class="mb-4">
+                    <input type="hidden" name="action" value="add_email">
+                    <div class="input-group">
+                        <input type="email" class="form-control" name="email" 
+                               placeholder="Enter email address" required>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Emails List -->
+                {% if emails %}
+                    <div class="list-group">
+                        {% for email in emails %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-envelope me-2 text-muted"></i>
+                                    <code>{{ email.email }}</code>
+                                </div>
+                                <form method="POST" class="d-inline" 
+                                      onsubmit="return confirm('Remove {{ email.email }} from whitelist?')">
+                                    <input type="hidden" name="action" value="delete_email">
+                                    <input type="hidden" name="email_id" value="{{ email.id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-envelope fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No whitelisted emails</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Whitelist Information -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Whitelist Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-globe me-2"></i>Domain Whitelist</h6>
+                        <ul>
+                            <li>Whitelisted domains automatically trust all emails from that domain</li>
+                            <li>Both sender and recipient domains are checked</li>
+                            <li>Domain matching is case-insensitive</li>
+                            <li>Subdomains are NOT automatically included</li>
+                        </ul>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            <strong>Example:</strong> Adding <code>trusted.com</code> will whitelist 
+                            all emails from <code>*@trusted.com</code>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-envelope me-2"></i>Email Whitelist</h6>
+                        <ul>
+                            <li>Individual email addresses that are always trusted</li>
+                            <li>Exact email address matching</li>
+                            <li>Takes precedence over domain rules</li>
+                            <li>Email matching is case-insensitive</li>
+                        </ul>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> Whitelisted items bypass most security rules. 
+                            Use carefully and review regularly.
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <h6><i class="fas fa-shield-alt me-2"></i>Security Considerations</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="border rounded p-3 h-100">
+                                    <h6 class="text-success">
+                                        <i class="fas fa-check-circle me-1"></i>Best Practices
+                                    </h6>
+                                    <ul class="small">
+                                        <li>Regularly review whitelist entries</li>
+                                        <li>Use specific emails over broad domains</li>
+                                        <li>Document business justification</li>
+                                        <li>Monitor whitelisted traffic</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border rounded p-3 h-100">
+                                    <h6 class="text-warning">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Cautions
+                                    </h6>
+                                    <ul class="small">
+                                        <li>Whitelists bypass security rules</li>
+                                        <li>Can create security blind spots</li>
+                                        <li>May hide malicious activity</li>
+                                        <li>Require ongoing maintenance</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border rounded p-3 h-100">
+                                    <h6 class="text-danger">
+                                        <i class="fas fa-times-circle me-1"></i>Avoid
+                                    </h6>
+                                    <ul class="small">
+                                        <li>Whitelisting entire public domains</li>
+                                        <li>Adding entries without justification</li>
+                                        <li>Leaving old entries active</li>
+                                        <li>Ignoring whitelist impact</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

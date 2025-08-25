@@ -1,0 +1,241 @@
+/* Email Guardian Custom Styles */
+/* Minimal custom CSS to complement Bootstrap dark theme */
+
+/* Clean dark background for all views */
+body {
+    background-color: #1a1a1a;
+}
+
+/* Make sure content appears above the background */
+.container,
+main,
+nav,
+footer {
+    position: relative;
+    z-index: 1;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bs-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bs-secondary);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--bs-light);
+}
+
+/* Enhanced table styling for better readability */
+.table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Risk score progress bars with custom sizing */
+.progress {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Code blocks with better contrast */
+code {
+    background-color: var(--bs-dark) !important;
+    color: var(--bs-light) !important;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Card hover effects for interactive elements */
+.card:hover {
+    box-shadow: 0 0.125rem 0.25rem rgba(255, 255, 255, 0.075);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+/* Enhanced alert styling */
+.alert {
+    border-left: 4px solid;
+}
+
+.alert-success {
+    border-left-color: var(--bs-success);
+}
+
+.alert-danger {
+    border-left-color: var(--bs-danger);
+}
+
+.alert-warning {
+    border-left-color: var(--bs-warning);
+}
+
+.alert-info {
+    border-left-color: var(--bs-info);
+}
+
+/* List group enhancements */
+.list-group-item {
+    background-color: transparent;
+    border-color: rgba(255, 255, 255, 0.125);
+}
+
+.list-group-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Form enhancements */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Badge enhancements for better visibility */
+.badge {
+    font-weight: 500;
+}
+
+/* Navigation enhancements */
+.navbar-brand {
+    font-weight: 600;
+}
+
+.nav-link:hover {
+    color: var(--bs-primary) !important;
+}
+
+/* Table responsiveness improvements */
+@media (max-width: 768px) {
+    .table-responsive table {
+        font-size: 0.875rem;
+    }
+    
+    .btn-sm {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
+
+/* Footer styling */
+footer {
+    margin-top: auto;
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Text truncation utilities */
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Risk score color coding */
+.risk-low {
+    color: var(--bs-success);
+}
+
+.risk-medium {
+    color: var(--bs-warning);
+}
+
+.risk-high {
+    color: var(--bs-danger);
+}
+
+/* Custom spacing for dashboard cards */
+.dashboard-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+}
+
+/* File upload area styling */
+.file-upload-area {
+    border: 2px dashed rgba(255, 255, 255, 0.3);
+    border-radius: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+    transition: border-color 0.3s ease;
+}
+
+.file-upload-area:hover {
+    border-color: var(--bs-primary);
+}
+
+.file-upload-area.dragover {
+    border-color: var(--bs-success);
+    background-color: rgba(var(--bs-success-rgb), 0.1);
+}
+
+/* Icon spacing consistency */
+.fa, .fas, .far, .fab {
+    vertical-align: baseline;
+}
+
+/* Custom button variants for specific actions */
+.btn-rescore {
+    background-color: var(--bs-info);
+    border-color: var(--bs-info);
+    color: white;
+}
+
+.btn-rescore:hover {
+    background-color: var(--bs-info);
+    border-color: var(--bs-info);
+    filter: brightness(0.9);
+}
+
+/* Ensure proper spacing in form groups */
+.input-group .btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* Enhanced dropdown styling */
+.dropdown-menu {
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
+}
+
+.dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Utility classes for common layouts */
+.full-height {
+    min-height: 100vh;
+}
+
+.sticky-footer {
+    position: sticky;
+    bottom: 0;
+}
+
+/* Print styles */
+@media print {
+    .navbar,
+    .btn,
+    .no-print {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #000 !important;
+        box-shadow: none !important;
+    }
+}

@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Keywords Management - Email Guardian{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tags me-2"></i>Keywords Management
+        </h1>
+    </div>
+</div>
+
+<!-- Add New Keyword -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>Add New Keyword
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="add">
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="term" class="form-label">Keyword/Pattern *</label>
+                                <input type="text" class="form-control" id="term" name="term" 
+                                       placeholder="Enter keyword or regex pattern" required>
+                                <div class="form-text">
+                                    Case-insensitive search term or regular expression pattern
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="mb-3">
+                                <label for="is_regex" class="form-label">Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_regex" name="is_regex">
+                                    <label class="form-check-label" for="is_regex">
+                                        Regular Expression
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-plus me-2"></i>Add
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Keywords List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Configured Keywords ({{ keywords|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if keywords %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Term/Pattern</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for keyword in keywords %}
+                                    <tr>
+                                        <td>
+                                            {% if keyword.is_regex %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-code me-1"></i>Regex
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-primary">
+                                                    <i class="fas fa-search me-1"></i>Literal
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <code class="bg-dark text-light p-1 rounded">{{ keyword.term }}</code>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ keyword.created_at }}</small>
+                                        </td>
+                                        <td>
+                                            <form method="POST" class="d-inline" 
+                                                  onsubmit="return confirm('Delete keyword \'{{ keyword.term }}\'?')">
+                                                <input type="hidden" name="action" value="delete">
+                                                <input type="hidden" name="keyword_id" value="{{ keyword.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete keyword">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No keywords configured</h5>
+                        <p class="text-muted">Add keywords to help identify sensitive or suspicious content.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Keyword Documentation -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Keyword Configuration Guide
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-search me-2"></i>Literal Keywords</h6>
+                        <p>Simple text matching that searches for exact phrases (case-insensitive).</p>
+                        
+                        <h6>Examples:</h6>
+                        <ul>
+                            <li><code>confidential</code> - Matches any email containing "confidential"</li>
+                            <li><code>social security</code> - Matches "social security number", etc.</li>
+                            <li><code>password</code> - Matches emails with "password" in subject</li>
+                        </ul>
+                        
+                        <div class="alert alert-success">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            <strong>Best for:</strong> Simple phrases, common sensitive terms, 
+                            policy violations.
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-code me-2"></i>Regular Expressions</h6>
+                        <p>Advanced pattern matching for complex searches and data formats.</p>
+                        
+                        <h6>Examples:</h6>
+                        <ul>
+                            <li><code>\b\d{3}-\d{2}-\d{4}\b</code> - SSN format (123-45-6789)</li>
+                            <li><code>\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b</code> - Credit card numbers</li>
+                            <li><code>(urgent|asap|immediate).{0,20}(action|response)</code> - Urgent requests</li>
+                        </ul>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Caution:</strong> Complex regex can impact performance. 
+                            Test patterns carefully.
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-shield-alt me-2 text-success"></i>Common Use Cases</h6>
+                        <ul class="small">
+                            <li>Detecting sensitive data (SSN, credit cards)</li>
+                            <li>Policy violation keywords</li>
+                            <li>Phishing indicators</li>
+                            <li>Compliance monitoring</li>
+                            <li>Threat intelligence terms</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-cogs me-2 text-primary"></i>How Keywords Work</h6>
+                        <ul class="small">
+                            <li>Searched in email subjects only</li>
+                            <li>Case-insensitive matching</li>
+                            <li>Increases ML risk score when matched</li>
+                            <li>Can trigger specific rules</li>
+                            <li>Logged for audit purposes</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-chart-line me-2 text-warning"></i>Performance Tips</h6>
+                        <ul class="small">
+                            <li>Use specific terms over broad ones</li>
+                            <li>Avoid very complex regex patterns</li>
+                            <li>Test patterns on sample data</li>
+                            <li>Monitor keyword hit rates</li>
+                            <li>Remove unused keywords</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> Keywords are used for risk scoring and rule matching. 
+                    They help identify potentially sensitive or suspicious email content automatically.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

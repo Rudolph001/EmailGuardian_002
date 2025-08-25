@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Email Guardian{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+        </h1>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-envelope fa-3x text-primary mb-3"></i>
+                <h3 class="card-title">{{ total_events }}</h3>
+                <p class="card-text text-muted">Total Events</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                <h3 class="card-title">{{ stats.high_risk_count }}</h3>
+                <p class="card-text text-muted">High Risk (>0.7)</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                <h3 class="card-title">{{ stats.low_risk_count }}</h3>
+                <p class="card-text text-muted">Low Risk (≤0.3)</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-shield-alt fa-3x text-info mb-3"></i>
+                <h3 class="card-title">{{ stats.whitelisted_count }}</h3>
+                <p class="card-text text-muted">Whitelisted</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('upload') }}" class="btn btn-primary w-100">
+                            <i class="fas fa-upload me-2"></i>Upload CSV
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('events') }}" class="btn btn-secondary w-100">
+                            <i class="fas fa-search me-2"></i>Browse Events
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('rules') }}" class="btn btn-secondary w-100">
+                            <i class="fas fa-gavel me-2"></i>Manage Rules
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <form method="POST" action="{{ url_for('rescore') }}" class="d-inline w-100">
+                            <button type="submit" class="btn btn-outline-secondary w-100">
+                                <i class="fas fa-sync-alt me-2"></i>Rescore All
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Events -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-clock me-2"></i>Recent Events
+                </h5>
+                <a href="{{ url_for('events') }}" class="btn btn-sm btn-outline-primary">
+                    View All <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_events %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Sender</th>
+                                    <th>Subject</th>
+                                    <th>Risk Score</th>
+                                    <th>Type</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for event in recent_events %}
+                                    <tr>
+                                        <td>
+                                            <small class="text-muted">{{ event._time }}</small>
+                                        </td>
+                                        <td>
+                                            <a href="{{ url_for('event_detail', event_id=event.id) }}" class="text-decoration-none">
+                                                {{ event.sender }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="text-truncate d-inline-block" style="max-width: 300px;">
+                                                {{ event.subject or 'No subject' }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if event.ml_score %}
+                                                {% set score = event.ml_score %}
+                                                <span class="badge bg-{{ 'danger' if score > 0.7 else 'warning' if score > 0.3 else 'success' }}">
+                                                    {{ "%.2f"|format(score) }}
+                                                </span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if event.is_internal_to_external %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-exchange-alt me-1"></i>Int→Ext
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Internal</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No events found</h5>
+                        <p class="text-muted">Upload a CSV file to get started</p>
+                        <a href="{{ url_for('upload') }}" class="btn btn-primary">
+                            <i class="fas fa-upload me-2"></i>Upload CSV
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

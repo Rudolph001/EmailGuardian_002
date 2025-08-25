@@ -1,0 +1,539 @@
+import sqlite3
+import logging
+from contextlib import contextmanager
+from config import DATABASE_PATH
+
+logger = logging.getLogger(__name__)
+
+# Database schema
+DDL = """
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    _time TEXT NOT NULL,
+    sender TEXT NOT NULL,
+    subject TEXT,
+    time_month TEXT,
+    leaver INTEGER DEFAULT 0,
+    termination_date TEXT,
+    bunit TEXT,
+    department TEXT,
+    user_response TEXT,
+    final_outcome TEXT,
+    justifications TEXT,
+    is_internal_to_external INTEGER DEFAULT 0,
+    ml_score REAL,
+    ml_model_version TEXT,
+    status TEXT DEFAULT 'open',
+    is_whitelisted INTEGER DEFAULT 0,
+    follow_up INTEGER DEFAULT 0,
+    follow_up_date TEXT,
+    closed_date TEXT,
+    closed_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS recipients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    email TEXT NOT NULL,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    filename TEXT NOT NULL,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS policies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id INTEGER NOT NULL,
+    policy_name TEXT NOT NULL,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    action TEXT NOT NULL,
+    conditions_json TEXT,
+    priority INTEGER DEFAULT 100,
+    enabled INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS whitelist_domains (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    domain TEXT NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS whitelist_emails (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS keywords (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    term TEXT NOT NULL UNIQUE,
+    is_regex INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ml_policies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    policy_name TEXT NOT NULL UNIQUE,
+    risk_weight REAL DEFAULT 1.0,
+    category TEXT DEFAULT 'other',
+    description TEXT,
+    enabled INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_time ON events(_time);
+CREATE INDEX IF NOT EXISTS idx_events_sender ON events(sender);
+CREATE INDEX IF NOT EXISTS idx_events_ml_score ON events(ml_score);
+CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
+CREATE INDEX IF NOT EXISTS idx_events_is_whitelisted ON events(is_whitelisted);
+CREATE INDEX IF NOT EXISTS idx_events_follow_up ON events(follow_up);
+CREATE INDEX IF NOT EXISTS idx_recipients_email ON recipients(email);
+CREATE INDEX IF NOT EXISTS idx_rules_priority ON rules(priority);
+"""
+
+def get_db_connection():
+    """Get database connection with optimized settings"""
+    conn = sqlite3.connect(DATABASE_PATH, timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA temp_store=MEMORY;")
+    conn.execute("PRAGMA cache_size=-20000;")
+    return conn
+
+@contextmanager
+def get_db():
+    """Context manager for database connections"""
+    conn = get_db_connection()
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+def init_db():
+    """Initialize database with schema"""
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            for stmt in DDL.split(";\n"):
+                if stmt.strip():
+                    cursor.execute(stmt)
+
+            # Check if conditions_json column exists and add if missing
+            cursor.execute("PRAGMA table_info(rules)")
+            columns = [row[1] for row in cursor.fetchall()]
+
+            if 'conditions_json' not in columns:
+                logger.info("Adding missing conditions_json column to rules table")
+                cursor.execute("ALTER TABLE rules ADD COLUMN conditions_json TEXT")
+
+            # Add is_whitelisted column if it doesn't exist (migration)
+            try:
+                cursor.execute("ALTER TABLE events ADD COLUMN is_whitelisted INTEGER DEFAULT 0")
+                conn.commit()
+                logger.info("Added is_whitelisted column to events table")
+            except sqlite3.OperationalError:
+                # Column already exists
+                pass
+
+            # Create indexes for better performance
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_sender ON events(sender)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_time ON events(_time)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_ml_score ON events(ml_score)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_status ON events(status)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_is_whitelisted ON events(is_whitelisted)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_follow_up ON events(follow_up)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_recipients_email ON recipients(email)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_policies_name ON policies(policy_name)")
+
+            conn.commit()
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        raise
+
+def get_event_count():
+    """Get total number of events"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM events")
+        return cursor.fetchone()[0]
+
+def get_dashboard_stats():
+    """Get dashboard statistics for all events"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # High risk events (ML score > 0.7)
+        cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score > 0.7")
+        high_risk_count = cursor.fetchone()[0]
+        
+        # Low risk events (ML score <= 0.3)
+        cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score <= 0.3 AND ml_score IS NOT NULL")
+        low_risk_count = cursor.fetchone()[0]
+        
+        # Whitelisted events
+        cursor.execute("SELECT COUNT(*) FROM events WHERE is_whitelisted = 1")
+        whitelisted_count = cursor.fetchone()[0]
+        
+        return {
+            'high_risk_count': high_risk_count,
+            'low_risk_count': low_risk_count,
+            'whitelisted_count': whitelisted_count
+        }
+
+def get_recent_events(limit=10):
+    """Get recent events"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up
+            FROM events
+            ORDER BY datetime(_time) DESC
+            LIMIT ?
+        """, (limit,))
+        return cursor.fetchall()
+
+def search_events(query, limit=100):
+    """Search events by sender or subject"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up
+            FROM events
+            WHERE sender LIKE ? OR subject LIKE ?
+            ORDER BY datetime(_time) DESC
+            LIMIT ?
+        """, (f"%{query}%", f"%{query}%", limit))
+        return cursor.fetchall()
+
+def get_event_detail(event_id):
+    """Get detailed event information"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Get main event
+        cursor.execute("SELECT * FROM events WHERE id = ?", (event_id,))
+        event = cursor.fetchone()
+
+        if not event:
+            return None
+
+        # Get recipients
+        cursor.execute("SELECT email FROM recipients WHERE event_id = ?", (event_id,))
+        recipients = [row[0] for row in cursor.fetchall()]
+
+        # Get attachments
+        cursor.execute("SELECT filename FROM attachments WHERE event_id = ?", (event_id,))
+        attachments = [row[0] for row in cursor.fetchall()]
+
+        # Get policies
+        cursor.execute("SELECT policy_name FROM policies WHERE event_id = ?", (event_id,))
+        policies = [row[0] for row in cursor.fetchall()]
+
+        return {
+            'event': event,
+            'recipients': recipients,
+            'attachments': attachments,
+            'policies': policies
+        }
+
+def get_whitelisted_events(limit=100):
+    """Get events that have been whitelisted"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up
+            FROM events
+            WHERE is_whitelisted = 1
+            ORDER BY datetime(_time) DESC
+            LIMIT ?
+        """, (limit,))
+        return cursor.fetchall()
+
+def get_follow_up_events(limit=100):
+    """Get events marked for follow-up"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up, follow_up_date
+            FROM events
+            WHERE follow_up = 1
+            ORDER BY datetime(follow_up_date) ASC, datetime(_time) DESC
+            LIMIT ?
+        """, (limit,))
+        return cursor.fetchall()
+
+def get_closed_events(limit=100):
+    """Get closed events"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, closed_date, closed_by
+            FROM events
+            WHERE status = 'closed'
+            ORDER BY datetime(closed_date) DESC
+            LIMIT ?
+        """, (limit,))
+        return cursor.fetchall()
+
+def get_high_risk_events(limit=100):
+    """Get events with high ML scores (>0.7) that haven't been processed by rules, are not whitelisted, and don't have keyword matches"""
+    from rules import get_rules, apply_rules_to_event, check_keyword_matches
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up
+            FROM events
+            WHERE ml_score > 0.7 AND is_whitelisted = 0
+            ORDER BY ml_score DESC, datetime(_time) DESC
+            LIMIT ?
+        """, (limit * 2,))  # Get more events to filter through
+        all_high_risk = cursor.fetchall()
+
+    # Get enabled rules to check against
+    rules = get_rules(enabled_only=True)
+
+    high_risk_not_rule_triggered = []
+
+    # Check each high-risk event to see if it would be caught by rules or keywords
+    for event in all_high_risk:
+        try:
+            # Check if event has keyword matches - if so, it should be in rule triggered instead
+            keyword_matches = check_keyword_matches(event)
+            if keyword_matches:
+                continue  # Skip this event - it should appear in rule triggered
+            
+            # Check regular rules
+            actions = apply_rules_to_event(event['id'])
+            # If no rule-based actions were triggered, include in high-risk
+            rule_actions = [action for action in actions if action.get('type') == 'rule']
+            if not rule_actions:  # No rules triggered - keep in high risk
+                high_risk_not_rule_triggered.append(event)
+
+            # Stop when we have enough results
+            if len(high_risk_not_rule_triggered) >= limit:
+                break
+
+        except Exception:
+            # If there's an error checking rules/keywords, include the event in high-risk
+            high_risk_not_rule_triggered.append(event)
+            if len(high_risk_not_rule_triggered) >= limit:
+                break
+
+    return high_risk_not_rule_triggered
+
+def get_rule_triggered_events(limit=100):
+    """Get events that have actually triggered configured rules, keyword matches, or are not whitelisted"""
+    from rules import get_rules, apply_rules_to_event, check_keyword_matches
+
+    # Get recent events to check against rules (excluding whitelisted)
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up
+            FROM events
+            WHERE is_whitelisted = 0
+            ORDER BY datetime(_time) DESC
+            LIMIT ?
+        """, (limit * 2,))  # Get more events to filter through
+        all_events = cursor.fetchall()
+
+    triggered_events = []
+
+    # Check each event against rules and keywords
+    for event in all_events:
+        try:
+            # Convert to dict so we can add trigger_reason
+            event_dict = dict(event)
+            
+            # Check if event has keyword matches
+            keyword_matches = check_keyword_matches(event)
+            if keyword_matches:
+                # Build keyword reason string
+                keyword_terms = [match['term'] for match in keyword_matches[:3]]  # Show first 3
+                if len(keyword_matches) > 3:
+                    keyword_terms.append(f"+ {len(keyword_matches) - 3} more")
+                event_dict['trigger_reason'] = f"Keywords: {', '.join(keyword_terms)}"
+                triggered_events.append(event_dict)
+                # Stop when we have enough results
+                if len(triggered_events) >= limit:
+                    break
+                continue
+            
+            # Check regular rules
+            actions = apply_rules_to_event(event['id'])
+            # If any rule-based actions (not whitelist) were triggered, include this event
+            rule_actions = [action for action in actions if action.get('type') == 'rule']
+            if rule_actions:
+                # Use the first rule action's name as the reason
+                event_dict['trigger_reason'] = f"Rule: {rule_actions[0]['rule_name']}"
+                triggered_events.append(event_dict)
+
+            # Stop when we have enough results
+            if len(triggered_events) >= limit:
+                break
+
+        except Exception:
+            # Skip events that cause errors during rule application
+            continue
+
+    return triggered_events
+
+def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=None,
+                       follow_up_date=None, closed_by=None):
+    """Update event status and flags"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        updates = []
+        params = []
+
+        if status is not None:
+            updates.append("status = ?")
+            params.append(status)
+            if status == 'closed':
+                updates.append("closed_date = CURRENT_TIMESTAMP")
+                if closed_by:
+                    updates.append("closed_by = ?")
+                    params.append(closed_by)
+
+        if is_whitelisted is not None:
+            updates.append("is_whitelisted = ?")
+            params.append(1 if is_whitelisted else 0)
+
+        if follow_up is not None:
+            updates.append("follow_up = ?")
+            params.append(1 if follow_up else 0)
+            if follow_up and follow_up_date:
+                updates.append("follow_up_date = ?")
+                params.append(follow_up_date)
+
+        if updates:
+            params.append(event_id)
+            query = f"UPDATE events SET {', '.join(updates)} WHERE id = ?"
+            cursor.execute(query, params)
+            conn.commit()
+            return cursor.rowcount > 0
+
+        return False
+
+def get_ml_policies():
+    """Get all ML policies with event counts"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT p.*,
+                   COALESCE(COUNT(pol.event_id), 0) as event_count
+            FROM ml_policies p
+            LEFT JOIN policies pol ON p.policy_name = pol.policy_name
+            GROUP BY p.id, p.policy_name, p.risk_weight, p.category,
+                     p.description, p.enabled, p.created_at
+            ORDER BY p.policy_name
+        """)
+        return cursor.fetchall()
+
+def add_ml_policy(policy_name, risk_weight=1.0, category='other', description='', enabled=True):
+    """Add new ML policy"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO ml_policies (policy_name, risk_weight, category, description, enabled)
+                VALUES (?, ?, ?, ?, ?)
+            """, (policy_name, risk_weight, category, description, 1 if enabled else 0))
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            return None
+
+def update_ml_policy(policy_id, policy_name=None, risk_weight=None, category=None, description=None, enabled=None):
+    """Update existing ML policy"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        updates = []
+        params = []
+
+        if policy_name is not None:
+            updates.append("policy_name = ?")
+            params.append(policy_name)
+
+        if risk_weight is not None:
+            updates.append("risk_weight = ?")
+            params.append(risk_weight)
+
+        if category is not None:
+            updates.append("category = ?")
+            params.append(category)
+
+        if description is not None:
+            updates.append("description = ?")
+            params.append(description)
+
+        if enabled is not None:
+            updates.append("enabled = ?")
+            params.append(1 if enabled else 0)
+
+        if updates:
+            params.append(policy_id)
+            query = f"UPDATE ml_policies SET {', '.join(updates)} WHERE id = ?"
+            try:
+                cursor.execute(query, params)
+                conn.commit()
+                return cursor.rowcount > 0
+            except sqlite3.IntegrityError:
+                return False
+
+        return False
+
+def delete_ml_policy(policy_id):
+    """Delete ML policy"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM ml_policies WHERE id = ?", (policy_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def get_ml_policy_weights():
+    """Get policy weights for ML scoring"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT policy_name, risk_weight
+            FROM ml_policies
+            WHERE enabled = 1
+        """)
+        return dict(cursor.fetchall())
+
+def clear_database():
+    """Delete all rows from all main tables, keeping schema intact."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        tables = [
+            'events', 'recipients', 'attachments', 'policies', 'rules',
+            'whitelist_domains', 'whitelist_emails', 'keywords', 'ml_policies'
+        ]
+        for table in tables:
+            cursor.execute(f"DELETE FROM {table}")
+        conn.commit()
+    return True
