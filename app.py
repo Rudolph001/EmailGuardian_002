@@ -522,9 +522,9 @@ def update_event_status(event_id):
                 flash("Failed to mark event for follow-up", "error")
 
         elif action == "clear":
-            # Clear means reset the event to normal state (not whitelisted, not follow-up, not closed)
-            if update_status(event_id, status="open", is_whitelisted=False, follow_up=False):
-                flash("Event cleared and moved to Other Events", "success")
+            # Clear means close the event (move to Closed status)
+            if update_status(event_id, status="closed", closed_by="admin"):
+                flash("Event cleared and moved to Closed", "success")
             else:
                 flash("Failed to clear event", "error")
 
