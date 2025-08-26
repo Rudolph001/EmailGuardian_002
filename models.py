@@ -208,6 +208,28 @@ def init_db():
                 )
                 conn.commit()
                 logger.info("Initialized default closure reasons")
+
+            # Initialize default ML scoring rules if none exist
+            cursor.execute("SELECT COUNT(*) FROM ml_scoring_rules")
+            if cursor.fetchone()[0] == 0:
+                default_scoring_rules = [
+                    ('Base Risk Score', 'ml_score', 'exists', '', 0.2),
+                    ('Multiple Recipients', 'recipient_count', '>', '5', 0.15),
+                    ('Has Attachments', 'attachment_count', '>', '0', 0.1),
+                    ('External Recipients', 'external_recipients', '>', '0', 0.2),
+                    ('Leaver Flag', 'leaver', '=', '1', 0.3),
+                    ('Internal to External', 'is_internal_to_external', '=', '1', 0.25),
+                    ('Policy Violations', 'policy_count', '>', '2', 0.2),
+                    ('Subject Length Risk', 'subject_length', '>', '100', 0.05),
+                    ('Urgent Subject', 'subject', 'contains', 'urgent', 0.1),
+                    ('Confidential Subject', 'subject', 'contains', 'confidential', 0.15)
+                ]
+                cursor.executemany(
+                    "INSERT INTO ml_scoring_rules (rule_name, condition_field, condition_operator, condition_value, score_adjustment) VALUES (?, ?, ?, ?, ?)",
+                    default_scoring_rules
+                )
+                conn.commit()
+                logger.info("Initialized default ML scoring rules")
         
         logger.info("Database initialized successfully")
     except Exception as e:

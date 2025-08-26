@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Admin Dashboard - Email Guardian{% endblock %}
@@ -165,38 +164,51 @@
                     <input type="hidden" name="action" value="add_ml_rule">
                     <div class="row g-3">
                         <div class="col-md-3">
-                            <label for="rule_name" class="form-label">Rule Name</label>
-                            <input type="text" class="form-control" id="rule_name" name="rule_name" placeholder="Enter rule name" required>
+                            <label class="form-label">Rule Name</label>
+                            <input type="text" class="form-control" name="rule_name" placeholder="Enter rule name" required>
                         </div>
                         <div class="col-md-2">
-                            <label for="condition_field" class="form-label">Field</label>
-                            <select class="form-select" id="condition_field" name="condition_field" required>
+                            <label class="form-label">Field</label>
+                            <select class="form-select" name="condition_field" required>
                                 <option value="">Select Field</option>
-                                <option value="sender">Sender</option>
-                                <option value="subject">Subject</option>
                                 <option value="ml_score">ML Score</option>
+                                <option value="recipient_count">Recipient Count</option>
+                                <option value="attachment_count">Attachment Count</option>
+                                <option value="external_recipients">External Recipients</option>
+                                <option value="leaver">Leaver Flag</option>
                                 <option value="is_internal_to_external">Internal to External</option>
+                                <option value="policy_count">Policy Count</option>
+                                <option value="subject_length">Subject Length</option>
+                                <option value="subject">Subject Content</option>
+                                <option value="sender">Sender</option>
+                                <option value="time_month">Month</option>
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label for="condition_operator" class="form-label">Operator</label>
-                            <select class="form-select" id="condition_operator" name="condition_operator" required>
+                            <label class="form-label">Operator</label>
+                            <select class="form-select" name="condition_operator" required>
                                 <option value="">Select Operator</option>
+                                <option value="=">=</option>
+                                <option value="!=">!=</option>
+                                <option value=">">&gt;</option>
+                                <option value="<">&lt;</option>
+                                <option value=">=">&gt;=</option>
+                                <option value="<=">&lt;=</option>
                                 <option value="contains">Contains</option>
-                                <option value="equals">Equals</option>
+                                <option value="not_contains">Not Contains</option>
                                 <option value="starts_with">Starts With</option>
                                 <option value="ends_with">Ends With</option>
-                                <option value="greater_than">Greater Than</option>
-                                <option value="less_than">Less Than</option>
+                                <option value="exists">Exists</option>
+                                <option value="not_exists">Not Exists</option>
                             </select>
                         </div>
                         <div class="col-md-2">
-                            <label for="condition_value" class="form-label">Value</label>
-                            <input type="text" class="form-control" id="condition_value" name="condition_value" placeholder="Value">
+                            <label class="form-label">Value</label>
+                            <input type="text" class="form-control" name="condition_value" placeholder="Optional">
                         </div>
                         <div class="col-md-2">
-                            <label for="score_adjustment" class="form-label">Score Adjustment</label>
-                            <input type="number" step="0.1" class="form-control" id="score_adjustment" name="score_adjustment" placeholder="0.1" required>
+                            <label class="form-label">Score Adjustment</label>
+                            <input type="number" class="form-control" name="score_adjustment" step="0.01" min="-1" max="1" value="0.1" required>
                         </div>
                         <div class="col-md-1">
                             <button type="submit" class="btn btn-primary mt-4">
@@ -234,24 +246,24 @@
                                 </td>
                                 <td>
                                     <span class="badge bg-{{ 'success' if rule.enabled else 'secondary' }}">
-                                        {{ 'Enabled' if rule.enabled else 'Disabled' }}
+                                        {{ 'Yes' if rule.enabled else 'No' }}
                                     </span>
                                 </td>
                                 <td>
-                                    <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editMLRuleModal{{ rule.id }}">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#editMLRuleModal{{ rule.id }}">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" style="display: inline;">
                                         <input type="hidden" name="action" value="delete_ml_rule">
                                         <input type="hidden" name="ml_rule_id" value="{{ rule.id }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this ML rule?')">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this ML scoring rule?')">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
                                 </td>
                             </tr>
 
-                            <!-- Edit ML Rule Modal -->
+                            <!-- Edit ML Scoring Rule Modal -->
                             <div class="modal fade" id="editMLRuleModal{{ rule.id }}" tabindex="-1">
                                 <div class="modal-dialog modal-lg">
                                     <div class="modal-content">
@@ -271,30 +283,45 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label">Field</label>
                                                         <select class="form-select" name="condition_field" required>
-                                                            <option value="sender" {{ 'selected' if rule.condition_field == 'sender' else '' }}>Sender</option>
-                                                            <option value="subject" {{ 'selected' if rule.condition_field == 'subject' else '' }}>Subject</option>
+                                                            <option value="">Select Field</option>
                                                             <option value="ml_score" {{ 'selected' if rule.condition_field == 'ml_score' else '' }}>ML Score</option>
+                                                            <option value="recipient_count" {{ 'selected' if rule.condition_field == 'recipient_count' else '' }}>Recipient Count</option>
+                                                            <option value="attachment_count" {{ 'selected' if rule.condition_field == 'attachment_count' else '' }}>Attachment Count</option>
+                                                            <option value="external_recipients" {{ 'selected' if rule.condition_field == 'external_recipients' else '' }}>External Recipients</option>
+                                                            <option value="leaver" {{ 'selected' if rule.condition_field == 'leaver' else '' }}>Leaver Flag</option>
                                                             <option value="is_internal_to_external" {{ 'selected' if rule.condition_field == 'is_internal_to_external' else '' }}>Internal to External</option>
+                                                            <option value="policy_count" {{ 'selected' if rule.condition_field == 'policy_count' else '' }}>Policy Count</option>
+                                                            <option value="subject_length" {{ 'selected' if rule.condition_field == 'subject_length' else '' }}>Subject Length</option>
+                                                            <option value="subject" {{ 'selected' if rule.condition_field == 'subject' else '' }}>Subject Content</option>
+                                                            <option value="sender" {{ 'selected' if rule.condition_field == 'sender' else '' }}>Sender</option>
+                                                            <option value="time_month" {{ 'selected' if rule.condition_field == 'time_month' else '' }}>Month</option>
                                                         </select>
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label">Operator</label>
                                                         <select class="form-select" name="condition_operator" required>
+                                                            <option value="">Select Operator</option>
+                                                            <option value="=" {{ 'selected' if rule.condition_operator == '=' else '' }}>=</option>
+                                                            <option value="!=" {{ 'selected' if rule.condition_operator == '!=' else '' }}>!=</option>
+                                                            <option value=">" {{ 'selected' if rule.condition_operator == '>' else '' }}>&gt;</option>
+                                                            <option value="<" {{ 'selected' if rule.condition_operator == '<' else '' }}>&lt;</option>
+                                                            <option value=">=" {{ 'selected' if rule.condition_operator == '>=' else '' }}>&gt;=</option>
+                                                            <option value="<=" {{ 'selected' if rule.condition_operator == '<=' else '' }}>&lt;=</option>
                                                             <option value="contains" {{ 'selected' if rule.condition_operator == 'contains' else '' }}>Contains</option>
-                                                            <option value="equals" {{ 'selected' if rule.condition_operator == 'equals' else '' }}>Equals</option>
+                                                            <option value="not_contains" {{ 'selected' if rule.condition_operator == 'not_contains' else '' }}>Not Contains</option>
                                                             <option value="starts_with" {{ 'selected' if rule.condition_operator == 'starts_with' else '' }}>Starts With</option>
                                                             <option value="ends_with" {{ 'selected' if rule.condition_operator == 'ends_with' else '' }}>Ends With</option>
-                                                            <option value="greater_than" {{ 'selected' if rule.condition_operator == 'greater_than' else '' }}>Greater Than</option>
-                                                            <option value="less_than" {{ 'selected' if rule.condition_operator == 'less_than' else '' }}>Less Than</option>
+                                                            <option value="exists" {{ 'selected' if rule.condition_operator == 'exists' else '' }}>Exists</option>
+                                                            <option value="not_exists" {{ 'selected' if rule.condition_operator == 'not_exists' else '' }}>Not Exists</option>
                                                         </select>
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label">Value</label>
-                                                        <input type="text" class="form-control" name="condition_value" value="{{ rule.condition_value or '' }}">
+                                                        <input type="text" class="form-control" name="condition_value" value="{{ rule.condition_value or '' }}" placeholder="Optional">
                                                     </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label">Score Adjustment</label>
-                                                        <input type="number" step="0.1" class="form-control" name="score_adjustment" value="{{ rule.score_adjustment }}" required>
+                                                        <input type="number" class="form-control" name="score_adjustment" step="0.01" min="-1" max="1" value="{{ rule.score_adjustment }}" required>
                                                     </div>
                                                     <div class="col-md-6">
                                                         <div class="form-check mt-4">
@@ -370,7 +397,7 @@
 var triggerTabList = [].slice.call(document.querySelectorAll('#adminTabs button'))
 triggerTabList.forEach(function (triggerEl) {
     var tabTrigger = new bootstrap.Tab(triggerEl)
-    
+
     triggerEl.addEventListener('click', function (event) {
         event.preventDefault()
         tabTrigger.show()
