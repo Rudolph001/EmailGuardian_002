@@ -819,7 +819,7 @@ def batch_update_events():
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_dashboard():
     from models import (get_closure_reasons, add_closure_reason, 
-                       update_closure_reason, delete_closure_reason, clear_database,
+                       update_closure_reason, delete_closure_reason, clear_database, clear_events_only,
                        get_ml_scoring_rules, add_ml_scoring_rule, update_ml_scoring_rule, delete_ml_scoring_rule)
     
     message = None
@@ -830,6 +830,10 @@ def admin_dashboard():
         if action == 'clear_db':
             clear_database()
             message = 'Database cleared successfully.'
+            
+        elif action == 'clear_events':
+            clear_events_only()
+            flash('All imported events deleted successfully. Rules and configurations preserved.', 'success')
             
         elif action == 'add_reason':
             reason = request.form.get('reason', '').strip()

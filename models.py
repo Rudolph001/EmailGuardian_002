@@ -941,3 +941,14 @@ def clear_database():
             cursor.execute(f"DELETE FROM {table}")
         conn.commit()
     return True
+
+def clear_events_only():
+    """Delete only event data (events, recipients, attachments, policies), keeping rules and configurations intact."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # Only delete event-related tables, preserve rules and configurations
+        event_tables = ['events', 'recipients', 'attachments', 'policies']
+        for table in event_tables:
+            cursor.execute(f"DELETE FROM {table}")
+        conn.commit()
+    return True

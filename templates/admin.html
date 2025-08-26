@@ -363,6 +363,22 @@
 
                 <div class="row">
                     <div class="col-md-6">
+                        <div class="card bg-warning text-dark">
+                            <div class="card-body">
+                                <h6 class="card-title">
+                                    <i class="fas fa-file-import me-2"></i>Clear Events Only
+                                </h6>
+                                <p class="card-text">This will delete all imported events but preserve rules, whitelist, keywords, and other configurations.</p>
+                                <form method="POST" onsubmit="return confirm('Are you sure? This will delete all imported events but keep your rules and configurations.');">
+                                    <input type="hidden" name="action" value="clear_events">
+                                    <button type="submit" class="btn btn-dark">
+                                        <i class="fas fa-file-import me-2"></i>Clear Events Only
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
                         <div class="card bg-danger text-white">
                             <div class="card-body">
                                 <h6 class="card-title">
