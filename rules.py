@@ -659,7 +659,7 @@ def test_rule_against_events(conditions):
                 continue
         
         return matches, total_events
-<line_number>587</line_number>
+
 def process_all_events_for_rules():
     """Process all events to apply rules and set trigger reasons"""
     logger.info("Starting to process all events for rule triggers...")
