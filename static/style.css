@@ -210,104 +210,93 @@ footer {
 .dropdown-menu {
     border: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.5);
-    z-index: 9999 !important;
-    position: absolute !important;
-    top: 100% !important;
-    left: 0 !important;
-    transform: none !important;
+    z-index: 1070;
+    position: absolute;
     min-width: 200px;
 }
 
-/* Modal z-index fixes */
+/* Modal z-index fixes - proper Bootstrap values */
 .modal {
-    z-index: 1060 !important;
+    z-index: 1055;
 }
 
 .modal-backdrop {
-    z-index: 1050 !important;
+    z-index: 1050;
 }
 
-/* Fix for navigation being unclickable */
+/* Modal content should be above backdrop */
+.modal-dialog {
+    position: relative;
+    z-index: 1056;
+}
+
+.modal-content {
+    position: relative;
+    z-index: auto;
+}
+
+/* Modal body and form elements */
+.modal-body {
+    position: relative;
+    z-index: auto;
+}
+
+.modal-body input,
+.modal-body select,
+.modal-body button,
+.modal-body .form-control,
+.modal-body .form-select,
+.modal-body .btn {
+    position: relative;
+    z-index: auto;
+}
+
+/* Navigation with proper z-index */
 .navbar {
     position: relative;
-    z-index: 1030 !important;
+    z-index: 1030;
 }
 
 .nav-tabs {
     position: relative;
-    z-index: 1020 !important;
+    z-index: 1020;
 }
 
-.nav-tabs .nav-link {
+/* Reset problematic z-index overrides */
+.btn, .form-control, .form-select, input, button, a, .table, .card {
     position: relative;
-    z-index: auto !important;
+    z-index: auto;
 }
 
-/* Remove problematic z-index overrides that can cause conflicts */
-.btn, .form-control, .form-select, input, button, a {
-    position: relative;
-    z-index: auto !important;
+/* Ensure modals work properly */
+.modal.show {
+    display: block !important;
 }
 
-/* Ensure table content is properly layered */
-.table {
-    position: relative;
-    z-index: auto !important;
-}
-
-.table td, .table th {
-    position: relative;
-    z-index: auto !important;
-}
-
-/* Fix card content */
-.card {
-    position: relative;
-    z-index: auto !important;
-}
-
-.card-body {
-    position: relative;
-    z-index: auto !important;
-}
-
-/* Ensure modal doesn't interfere when hidden */
 .modal:not(.show) {
     display: none !important;
 }
 
-/* Fix any backdrop issues */
-.modal-backdrop.show {
-    opacity: 0.5;
-}
-
-/* Ensure page content is always accessible when modal is not shown */
+/* Ensure modal backdrop doesn't block content when modal is hidden */
 body:not(.modal-open) .modal-backdrop {
     display: none !important;
 }
 
-/* Ensure dropdowns are always visible */
-.navbar .dropdown-menu {
-    z-index: 9999 !important;
-    margin-top: 0;
-    position: absolute !important;
-}
-
+/* Dropdown positioning */
 .dropdown {
     position: relative;
 }
 
-/* Fix Bootstrap dropdown positioning conflicts */
 .navbar-nav .dropdown-menu {
-    position: absolute !important;
-    top: 100% !important;
-    left: 0 !important;
+    position: absolute;
+    top: 100%;
+    left: 0;
 }
 
-/* Ensure dropdown stays in viewport */
+/* Responsive dropdown behavior */
 @media (max-width: 991.98px) {
     .navbar-nav .dropdown-menu {
-        position: static !important;
+        position: static;
         float: none;
         width: auto;
         margin-top: 0;

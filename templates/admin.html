@@ -404,25 +404,71 @@ triggerTabList.forEach(function (triggerEl) {
     })
 })
 
-// Ensure modals are properly initialized
+// Ensure modals are properly initialized and clickable
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all modals
+    // Clean up any existing modal state
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+    
+    // Initialize all modals with proper settings
     var modalElements = document.querySelectorAll('.modal');
     modalElements.forEach(function(modalEl) {
-        new bootstrap.Modal(modalEl);
+        // Dispose any existing modal instance
+        var existingModal = bootstrap.Modal.getInstance(modalEl);
+        if (existingModal) {
+            existingModal.dispose();
+        }
+        
+        // Create new modal instance
+        var modal = new bootstrap.Modal(modalEl, {
+            backdrop: true,
+            keyboard: true,
+            focus: true
+        });
+        
+        // Handle modal events
+        modalEl.addEventListener('hidden.bs.modal', function() {
+            // Clean up after modal is hidden
+            document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+        });
     });
     
-    // Add click handlers for edit buttons to ensure modals open
+    // Add click handlers for edit buttons
     var editButtons = document.querySelectorAll('[data-bs-toggle="modal"]');
     editButtons.forEach(function(button) {
         button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
             var targetSelector = button.getAttribute('data-bs-target');
             var targetModal = document.querySelector(targetSelector);
             if (targetModal) {
+                // Clean up any existing backdrop
+                document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
+                
                 var modalInstance = bootstrap.Modal.getOrCreateInstance(targetModal);
                 modalInstance.show();
             }
         });
+    });
+    
+    // Add global click handler to prevent event bubbling issues
+    document.addEventListener('click', function(e) {
+        // If clicking on a modal backdrop, ensure proper cleanup
+        if (e.target.classList.contains('modal-backdrop')) {
+            var openModals = document.querySelectorAll('.modal.show');
+            openModals.forEach(function(modal) {
+                var modalInstance = bootstrap.Modal.getInstance(modal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            });
+        }
     });
 });
 </script>
