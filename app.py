@@ -126,22 +126,20 @@ def events():
         elif filter_type == "rule_triggered":
             from models import get_rule_triggered_events
             events_list = get_rule_triggered_events(100)
-        elif filter_type == "show_all":
-            # Show all events regardless of categorization
+        else:
+            # For "all" events, show everything regardless of categorization
             with get_db() as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
                     SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                           status, is_whitelisted, follow_up
+                           status, is_whitelisted, follow_up, trigger_reason,
+                           closure_reason, closure_notes, closure_reference,
+                           email_sent, email_sent_date
                     FROM events
                     ORDER BY datetime(_time) DESC
                     LIMIT 100
                 """)
                 events_list = cursor.fetchall()
-        else:
-            # For "all" or remaining events, exclude those in High Risk and Rule Triggered
-            from models import get_remaining_events
-            events_list = get_remaining_events(100)
             
             # Debug logging to help troubleshoot
             logger.info(f"Remaining/Other events count: {len(events_list)}")
