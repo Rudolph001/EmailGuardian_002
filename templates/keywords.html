@@ -40,7 +40,7 @@
                     <div class="card-body">
                         <form method="POST">
                             <input type="hidden" name="action" value="add">
-                            
+
                             <div class="row">
                                 <div class="col-md-8">
                                     <div class="mb-3">
@@ -85,7 +85,7 @@
                     <div class="card-body">
                         <form method="POST">
                             <input type="hidden" name="action" value="bulk_add">
-                            
+
                             <div class="row">
                                 <div class="col-md-8">
                                     <div class="mb-3">
@@ -113,13 +113,13 @@
                                             </label>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="d-grid">
                                         <button type="submit" class="btn btn-success">
                                             <i class="fas fa-file-import me-2"></i>Import Keywords
                                         </button>
                                     </div>
-                                    
+
                                     <div class="alert alert-info mt-3">
                                         <i class="fas fa-info-circle me-2"></i>
                                         <strong>Quick Import Examples:</strong>
@@ -222,32 +222,32 @@
                     <div class="col-md-6">
                         <h6><i class="fas fa-search me-2"></i>Literal Keywords</h6>
                         <p>Simple text matching that searches for exact phrases (case-insensitive).</p>
-                        
+
                         <h6>Examples:</h6>
                         <ul>
                             <li><code>confidential</code> - Matches any email containing "confidential"</li>
                             <li><code>social security</code> - Matches "social security number", etc.</li>
                             <li><code>password</code> - Matches emails with "password" in subject</li>
                         </ul>
-                        
+
                         <div class="alert alert-success">
                             <i class="fas fa-lightbulb me-2"></i>
                             <strong>Best for:</strong> Simple phrases, common sensitive terms, 
                             policy violations.
                         </div>
                     </div>
-                    
+
                     <div class="col-md-6">
                         <h6><i class="fas fa-code me-2"></i>Regular Expressions</h6>
                         <p>Advanced pattern matching for complex searches and data formats.</p>
-                        
+
                         <h6>Examples:</h6>
                         <ul>
                             <li><code>\b\d{3}-\d{2}-\d{4}\b</code> - SSN format (123-45-6789)</li>
                             <li><code>\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b</code> - Credit card numbers</li>
                             <li><code>(urgent|asap|immediate).{0,20}(action|response)</code> - Urgent requests</li>
                         </ul>
-                        
+
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <strong>Caution:</strong> Complex regex can impact performance. 
@@ -255,9 +255,9 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <hr>
-                
+
                 <div class="row">
                     <div class="col-md-4">
                         <h6><i class="fas fa-shield-alt me-2 text-success"></i>Common Use Cases</h6>
@@ -269,7 +269,7 @@
                             <li>Threat intelligence terms</li>
                         </ul>
                     </div>
-                    
+
                     <div class="col-md-4">
                         <h6><i class="fas fa-cogs me-2 text-primary"></i>How Keywords Work</h6>
                         <ul class="small">
@@ -280,7 +280,7 @@
                             <li>Logged for audit purposes</li>
                         </ul>
                     </div>
-                    
+
                     <div class="col-md-4">
                         <h6><i class="fas fa-chart-line me-2 text-warning"></i>Performance Tips</h6>
                         <ul class="small">
@@ -292,7 +292,7 @@
                         </ul>
                     </div>
                 </div>
-                
+
                 <div class="alert alert-info mt-3">
                     <i class="fas fa-info-circle me-2"></i>
                     <strong>Note:</strong> Keywords are used for risk scoring and rule matching. 

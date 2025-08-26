@@ -45,7 +45,7 @@
                             <input type="hidden" name="action" value="bulk_add_domains">
                             <div class="mb-3">
                                 <textarea class="form-control" name="bulk_domains" rows="5" 
-                                          placeholder="Enter multiple domains, one per line:&#10;example.com&#10;trusted.org&#10;partner.net" required></textarea>
+                                          placeholder="Enter domains separated by new lines or pipes (|):&#10;example.com&#10;company.org|partner.net&#10;trusted-domain.com" required></textarea>
                             </div>
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" name="skip_duplicates" 
@@ -60,7 +60,7 @@
                         </form>
                     </div>
                 </div>
-                
+
                 <!-- Domains List -->
                 {% if domains %}
                     <div class="list-group">
@@ -90,7 +90,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Email Whitelist -->
     <div class="col-md-6">
         <div class="card">
@@ -124,7 +124,7 @@
                             <input type="hidden" name="action" value="bulk_add_emails">
                             <div class="mb-3">
                                 <textarea class="form-control" name="bulk_emails" rows="5" 
-                                          placeholder="Enter multiple email addresses, one per line:&#10;user@example.com&#10;admin@trusted.org&#10;contact@partner.net" required></textarea>
+                                          placeholder="Enter emails separated by new lines or pipes (|):&#10;user@example.com&#10;admin@company.org|support@partner.net&#10;trusted@domain.com" required></textarea>
                             </div>
                             <div class="form-check mb-3">
                                 <input class="form-check-input" type="checkbox" name="skip_duplicates" 
@@ -139,7 +139,7 @@
                         </form>
                     </div>
                 </div>
-                
+
                 <!-- Emails List -->
                 {% if emails %}
                     <div class="list-group">
@@ -190,7 +190,7 @@
                             <li>Domain matching is case-insensitive</li>
                             <li>Subdomains are NOT automatically included</li>
                         </ul>
-                        
+
                         <div class="alert alert-info">
                             <i class="fas fa-lightbulb me-2"></i>
                             <strong>Example:</strong> Adding <code>trusted.com</code> will whitelist 
@@ -205,7 +205,7 @@
                             <li>Takes precedence over domain rules</li>
                             <li>Email matching is case-insensitive</li>
                         </ul>
-                        
+
                         <div class="alert alert-warning">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <strong>Note:</strong> Whitelisted items bypass most security rules. 
@@ -213,9 +213,9 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <hr>
-                
+
                 <div class="row">
                     <div class="col-12">
                         <h6><i class="fas fa-shield-alt me-2"></i>Security Considerations</h6>

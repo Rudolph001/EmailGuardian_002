@@ -55,9 +55,9 @@
                     <li><code>_time</code> - Event timestamp</li>
                     <li><code>sender</code> - Sender email address</li>
                     <li><code>subject</code> - Email subject</li>
-                    <li><code>recipients</code> - Recipient emails (comma-separated)</li>
-                    <li><code>attachments</code> - Attachment filenames (comma-separated)</li>
-                    <li><code>policy_name</code> - Policy names (comma-separated)</li>
+                    <li><code>recipients</code> - Recipient emails (pipe-separated)</li>
+                    <li><code>attachments</code> - Attachment filenames (pipe-separated)</li>
+                    <li><code>policy_name</code> - Policy names (pipe-separated)</li>
                     <li><code>time_month</code> - Month number</li>
                     <li><code>leaver</code> - Is leaving employee (0/1)</li>
                     <li><code>termination_date</code> - Termination date</li>
@@ -71,7 +71,7 @@
                 <div class="alert alert-info">
                     <i class="fas fa-lightbulb me-2"></i>
                     <strong>Tip:</strong> Multi-valued fields (recipients, attachments, policies) 
-                    should use commas or semicolons as separators.
+                    should use pipes (|) as separators. Commas and semicolons are also supported for compatibility.
                 </div>
             </div>
         </div>

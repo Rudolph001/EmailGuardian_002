@@ -390,7 +390,9 @@ def whitelist():
                 skip_duplicates = request.form.get("skip_duplicates") == "on"
 
                 if bulk_domains:
-                    lines = [line.strip().lower() for line in bulk_domains.split('\n') if line.strip()]
+                    # Handle both newline and pipe separation
+                    normalized_input = bulk_domains.replace('|', '\n')
+                    lines = [line.strip().lower() for line in normalized_input.split('\n') if line.strip()]
                     
                     if lines:
                         added_count = 0
@@ -436,7 +438,9 @@ def whitelist():
                 skip_duplicates = request.form.get("skip_duplicates") == "on"
 
                 if bulk_emails:
-                    lines = [line.strip().lower() for line in bulk_emails.split('\n') if line.strip()]
+                    # Handle both newline and pipe separation
+                    normalized_input = bulk_emails.replace('|', '\n')
+                    lines = [line.strip().lower() for line in normalized_input.split('\n') if line.strip()]
                     
                     if lines:
                         added_count = 0
@@ -522,7 +526,9 @@ def keywords():
                 skip_duplicates = request.form.get("skip_duplicates") == "on"
 
                 if bulk_terms:
-                    lines = [line.strip() for line in bulk_terms.split('\n') if line.strip()]
+                    # Handle both newline and pipe separation
+                    normalized_input = bulk_terms.replace('|', '\n')
+                    lines = [line.strip() for line in normalized_input.split('\n') if line.strip()]
                     
                     if lines:
                         added_count = 0

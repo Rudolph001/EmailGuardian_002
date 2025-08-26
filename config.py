@@ -1,4 +1,3 @@
-
 import os
 
 # Database configuration
@@ -17,7 +16,7 @@ INTERNAL_DOMAINS = {
 # CSV processing configuration
 BATCH_SIZE = 500
 MAX_SPLITS = 50
-DELIMITERS = [",", ";", "|", "\n", "\r\n"]
+DELIMITERS = ["|", ",", ";", "\n", "\r\n"]
 
 # ML Model configuration
 ML_MODEL_VERSION = "v1"
