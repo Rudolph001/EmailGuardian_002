@@ -255,8 +255,8 @@ def get_dashboard_stats():
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # High risk events (ML score > 0.7)
-        cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score > 0.7")
+        # High risk events (ML score > 0.7) - simplified count
+        cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0")
         high_risk_count = cursor.fetchone()[0]
 
         # Low risk events (ML score <= 0.3)
@@ -272,17 +272,19 @@ def get_dashboard_stats():
         closed_count = cursor.fetchone()[0]
 
         # Follow-up events
-        cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1")
+        cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1 AND status != 'closed'")
         follow_up_count = cursor.fetchone()[0]
 
-        # Rule triggered events - calculate using actual logic
-        rule_triggered_count = _get_rule_triggered_count()
-
-        # High risk events - exclude those that would be in rule triggered
-        actual_high_risk_count = _get_actual_high_risk_count()
+        # Rule triggered events - simplified count based on trigger_reason
+        cursor.execute("""
+            SELECT COUNT(*) FROM events 
+            WHERE status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
+            AND (trigger_reason IS NOT NULL OR ml_score > 0.8)
+        """)
+        rule_triggered_count = cursor.fetchone()[0]
 
         return {
-            'high_risk_count': actual_high_risk_count,
+            'high_risk_count': high_risk_count,
             'low_risk_count': low_risk_count,
             'whitelisted_count': whitelisted_count,
             'closed_count': closed_count,
@@ -290,80 +292,7 @@ def get_dashboard_stats():
             'rule_triggered_count': rule_triggered_count
         }
 
-def _get_rule_triggered_count():
-    """Get count of events that would appear in Rule Triggered filter"""
-    from rules import check_keyword_matches, apply_rules_to_event
 
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id FROM events
-            WHERE is_whitelisted = 0 
-            AND status != 'closed'
-            AND follow_up = 0
-            ORDER BY datetime(_time) DESC
-            LIMIT 200
-        """)
-        events = cursor.fetchall()
-
-    triggered_count = 0
-    for event in events:
-        try:
-            # Check if event has keyword matches
-            event_data = get_event_detail(event['id'])
-            if event_data:
-                keyword_matches = check_keyword_matches(event_data['event'])
-                if keyword_matches:
-                    triggered_count += 1
-                    continue
-
-                # Check regular rules
-                actions = apply_rules_to_event(event['id'])
-                rule_actions = [action for action in actions if action.get('type') == 'rule']
-                if rule_actions:
-                    triggered_count += 1
-        except Exception:
-            continue
-
-    return triggered_count
-
-def _get_actual_high_risk_count():
-    """Get count of events that would appear in High Risk filter"""
-    from rules import check_keyword_matches, apply_rules_to_event
-
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            SELECT id FROM events
-            WHERE ml_score > 0.7 
-            AND is_whitelisted = 0 
-            AND status != 'closed'
-            AND follow_up = 0
-            ORDER BY ml_score DESC, datetime(_time) DESC
-            LIMIT 200
-        """)
-        events = cursor.fetchall()
-
-    high_risk_count = 0
-    for event in events:
-        try:
-            # Check if event has keyword matches - if so, it should be in rule triggered instead
-            event_data = get_event_detail(event['id'])
-            if event_data:
-                keyword_matches = check_keyword_matches(event_data['event'])
-                if keyword_matches:
-                    continue  # Skip - would be in rule triggered
-
-                # Check regular rules
-                actions = apply_rules_to_event(event['id'])
-                rule_actions = [action for action in actions if action.get('type') == 'rule']
-                if not rule_actions:  # No rules triggered - keep in high risk
-                    high_risk_count += 1
-        except Exception:
-            # If there's an error, include the event in high-risk
-            high_risk_count += 1
-
-    return high_risk_count
 
 def get_recent_events(limit=10):
     """Get recent events"""
