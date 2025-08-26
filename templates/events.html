@@ -430,13 +430,13 @@
         document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
             backdrop.remove();
         });
-        
+
         // Reset body styles
         document.body.classList.remove('modal-open');
         document.body.style.overflow = '';
         document.body.style.paddingRight = '';
         document.body.style.removeProperty('padding-right');
-        
+
         // Remove any modal-related classes or attributes
         document.documentElement.style.overflow = '';
         document.documentElement.style.paddingRight = '';
@@ -446,7 +446,7 @@
     function showCloseModal(eventId) {
         // Force clean any existing modal state
         forceCleanModal();
-        
+
         // Reset form
         document.getElementById('close_event_id').value = eventId;
         document.getElementById('close_event_form').action = `/event/${eventId}/status`;
@@ -474,7 +474,7 @@
 
             // Custom backdrop handler
             modal.show();
-            
+
             // Add custom close handlers
             const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
             closeButtons.forEach(btn => {
@@ -483,7 +483,7 @@
                     forceCleanModal();
                 }, { once: true });
             });
-            
+
             // Handle modal hidden event
             modalElement.addEventListener('hidden.bs.modal', function() {
                 const modalInstance = bootstrap.Modal.getInstance(modalElement);
@@ -492,7 +492,7 @@
                 }
                 forceCleanModal();
             }, { once: true });
-            
+
         }, 50);
     }
 
@@ -528,13 +528,12 @@
                     existingModal.dispose();
                 }
             }
-            
+
             // Aggressively remove any leftover backdrops
             document.querySelectorAll('.modal-backdrop').forEach(backdrop => backdrop.remove());
             document.body.classList.remove('modal-open');
             document.body.style.overflow = '';
             document.body.style.paddingRight = '';
-            document.body.style.removeProperty('padding-right');
         }, 100);
 
         // Add global click handler to detect and fix backdrop issues

@@ -126,10 +126,41 @@ def events():
         elif filter_type == "rule_triggered":
             from models import get_rule_triggered_events
             events_list = get_rule_triggered_events(100)
+        elif filter_type == "show_all":
+            # Show all events regardless of categorization
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                           status, is_whitelisted, follow_up
+                    FROM events
+                    ORDER BY datetime(_time) DESC
+                    LIMIT 100
+                """)
+                events_list = cursor.fetchall()
         else:
             # For "all" or remaining events, exclude those in High Risk and Rule Triggered
             from models import get_remaining_events
             events_list = get_remaining_events(100)
+            
+            # Debug logging to help troubleshoot
+            logger.info(f"Remaining/Other events count: {len(events_list)}")
+            
+            # Also log total event counts for debugging
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM events")
+                total = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score > 0.7")
+                high_risk = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM events WHERE is_whitelisted = 1")
+                whitelisted = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM events WHERE status = 'closed'")
+                closed = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1")
+                follow_up = cursor.fetchone()[0]
+                
+                logger.info(f"Debug - Total: {total}, High Risk: {high_risk}, Whitelisted: {whitelisted}, Closed: {closed}, Follow-up: {follow_up}")
 
         # Get closure reasons for the close modal
         from models import get_closure_reasons
