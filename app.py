@@ -819,7 +819,8 @@ def batch_update_events():
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_dashboard():
     from models import (get_closure_reasons, add_closure_reason, 
-                       update_closure_reason, delete_closure_reason, clear_database)
+                       update_closure_reason, delete_closure_reason, clear_database,
+                       get_ml_scoring_rules, add_ml_scoring_rule, update_ml_scoring_rule, delete_ml_scoring_rule)
     
     message = None
     
@@ -860,10 +861,48 @@ def admin_dashboard():
             else:
                 flash("Failed to delete closure reason", "error")
         
+        elif action == 'add_ml_rule':
+            rule_name = request.form.get('rule_name', '').strip()
+            condition_field = request.form.get('condition_field', '').strip()
+            condition_operator = request.form.get('condition_operator', '').strip()
+            condition_value = request.form.get('condition_value', '').strip()
+            score_adjustment = float(request.form.get('score_adjustment', 0))
+            
+            if rule_name and condition_field and condition_operator:
+                if add_ml_scoring_rule(rule_name, condition_field, condition_operator, condition_value, score_adjustment):
+                    flash(f"ML scoring rule '{rule_name}' added successfully", "success")
+                else:
+                    flash(f"ML scoring rule '{rule_name}' already exists", "warning")
+            else:
+                flash("Rule name, field, and operator are required", "error")
+        
+        elif action == 'edit_ml_rule':
+            rule_id = int(request.form.get('ml_rule_id'))
+            rule_name = request.form.get('rule_name', '').strip()
+            condition_field = request.form.get('condition_field', '').strip()
+            condition_operator = request.form.get('condition_operator', '').strip()
+            condition_value = request.form.get('condition_value', '').strip()
+            score_adjustment = float(request.form.get('score_adjustment', 0))
+            enabled = request.form.get('enabled') == 'on'
+            
+            if update_ml_scoring_rule(rule_id, rule_name, condition_field, condition_operator, 
+                                     condition_value, score_adjustment, enabled):
+                flash("ML scoring rule updated successfully", "success")
+            else:
+                flash("Failed to update ML scoring rule", "error")
+        
+        elif action == 'delete_ml_rule':
+            rule_id = int(request.form.get('ml_rule_id'))
+            if delete_ml_scoring_rule(rule_id):
+                flash("ML scoring rule deleted successfully", "success")
+            else:
+                flash("Failed to delete ML scoring rule", "error")
+        
         return redirect(url_for('admin_dashboard'))
     
     closure_reasons = get_closure_reasons()
-    return render_template('admin.html', message=message, closure_reasons=closure_reasons)
+    ml_scoring_rules = get_ml_scoring_rules()
+    return render_template('admin.html', message=message, closure_reasons=closure_reasons, ml_scoring_rules=ml_scoring_rules)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

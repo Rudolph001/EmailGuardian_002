@@ -100,6 +100,17 @@ CREATE TABLE IF NOT EXISTS closure_reasons (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS ml_scoring_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_name TEXT NOT NULL UNIQUE,
+    condition_field TEXT NOT NULL,
+    condition_operator TEXT NOT NULL,
+    condition_value TEXT,
+    score_adjustment REAL NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_events_time ON events(_time);
 CREATE INDEX IF NOT EXISTS idx_events_sender ON events(sender);
 CREATE INDEX IF NOT EXISTS idx_events_ml_score ON events(ml_score);
@@ -816,13 +827,93 @@ def delete_closure_reason(reason_id):
         conn.commit()
         return cursor.rowcount > 0
 
+def get_ml_scoring_rules():
+    """Get all ML scoring rules"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, rule_name, condition_field, condition_operator, condition_value, 
+                   score_adjustment, enabled, created_at
+            FROM ml_scoring_rules
+            ORDER BY rule_name
+        """)
+        return cursor.fetchall()
+
+def add_ml_scoring_rule(rule_name, condition_field, condition_operator, condition_value, score_adjustment):
+    """Add new ML scoring rule"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO ml_scoring_rules (rule_name, condition_field, condition_operator, condition_value, score_adjustment)
+                VALUES (?, ?, ?, ?, ?)
+            """, (rule_name.strip(), condition_field, condition_operator, condition_value, score_adjustment))
+            conn.commit()
+            return cursor.lastrowid
+        except sqlite3.IntegrityError:
+            return None
+
+def update_ml_scoring_rule(rule_id, rule_name=None, condition_field=None, condition_operator=None, 
+                          condition_value=None, score_adjustment=None, enabled=None):
+    """Update existing ML scoring rule"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        updates = []
+        params = []
+        
+        if rule_name is not None:
+            updates.append("rule_name = ?")
+            params.append(rule_name.strip())
+        
+        if condition_field is not None:
+            updates.append("condition_field = ?")
+            params.append(condition_field)
+        
+        if condition_operator is not None:
+            updates.append("condition_operator = ?")
+            params.append(condition_operator)
+        
+        if condition_value is not None:
+            updates.append("condition_value = ?")
+            params.append(condition_value)
+        
+        if score_adjustment is not None:
+            updates.append("score_adjustment = ?")
+            params.append(score_adjustment)
+        
+        if enabled is not None:
+            updates.append("enabled = ?")
+            params.append(1 if enabled else 0)
+        
+        if updates:
+            params.append(rule_id)
+            query = f"UPDATE ml_scoring_rules SET {', '.join(updates)} WHERE id = ?"
+            try:
+                cursor.execute(query, params)
+                conn.commit()
+                return cursor.rowcount > 0
+            except sqlite3.IntegrityError:
+                return False
+        
+        return False
+
+def delete_ml_scoring_rule(rule_id):
+    """Delete ML scoring rule"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM ml_scoring_rules WHERE id = ?", (rule_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
 def clear_database():
     """Delete all rows from all main tables, keeping schema intact."""
     with get_db() as conn:
         cursor = conn.cursor()
         tables = [
             'events', 'recipients', 'attachments', 'policies', 'rules',
-            'whitelist_domains', 'whitelist_emails', 'keywords', 'ml_policies', 'closure_reasons'
+            'whitelist_domains', 'whitelist_emails', 'keywords', 'ml_policies', 
+            'closure_reasons', 'ml_scoring_rules'
         ]
         for table in tables:
             cursor.execute(f"DELETE FROM {table}")
