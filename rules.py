@@ -1,4 +1,3 @@
-
 import sqlite3
 import logging
 import fnmatch
@@ -25,32 +24,32 @@ def get_rules(enabled_only=True):
                 FROM rules 
                 ORDER BY priority ASC, id ASC
             """)
-        
+
         rules = []
         for row in cursor.fetchall():
             rule = dict(row)
             rule['conditions_summary'] = _generate_condition_summary(rule['conditions_json'])
             rules.append(rule)
-        
+
         return rules
 
 def _generate_condition_summary(conditions_json):
     """Generate a human-readable summary of conditions"""
     if not conditions_json:
         return "No conditions"
-    
+
     try:
         conditions = json.loads(conditions_json)
         if not conditions:
             return "No conditions"
-        
+
         summaries = []
         for condition in conditions:
             field = condition.get('field', '')
             operator = condition.get('operator', '')
             value = condition.get('value', '')
             logic = condition.get('logic', 'AND')
-            
+
             # Format field name
             field_map = {
                 'sender': 'Sender',
@@ -67,9 +66,9 @@ def _generate_condition_summary(conditions_json):
                 'ml_score': 'ML Score',
                 'is_internal_to_external': 'Internal to External'
             }
-            
+
             field_display = field_map.get(field, field)
-            
+
             # Format operator
             operator_map = {
                 'equals': '=',
@@ -84,23 +83,23 @@ def _generate_condition_summary(conditions_json):
                 'is_empty': 'is empty',
                 'is_not_empty': 'is not empty'
             }
-            
+
             operator_display = operator_map.get(operator, operator)
-            
+
             # Build condition string
             if operator in ['is_true', 'is_false', 'is_empty', 'is_not_empty']:
                 condition_str = f"{field_display} {operator_display}"
             else:
                 condition_str = f"{field_display} {operator_display} '{value}'"
-            
+
             summaries.append(condition_str)
-            
+
             # Add logic operator (except for last condition)
             if condition != conditions[-1]:
                 summaries.append(f" {logic} ")
-        
+
         return ''.join(summaries)
-        
+
     except Exception as e:
         logger.warning(f"Error generating condition summary: {e}")
         return "Invalid conditions"
@@ -239,15 +238,15 @@ def delete_keyword(keyword_id):
 def check_whitelist_matches(event, recipients):
     """Check if event matches whitelist entries - requires ALL recipients to be whitelisted"""
     matches = []
-    
+
     # Get whitelist data
     domains = get_whitelist_domains()
     emails = get_whitelist_emails()
-    
+
     # Check sender domain
     sender_domain = event['sender'].split('@')[-1].lower() if '@' in event['sender'] else ''
     sender_whitelisted = False
-    
+
     for domain in domains:
         if sender_domain == domain['domain'].lower():
             matches.append({
@@ -257,7 +256,7 @@ def check_whitelist_matches(event, recipients):
             })
             sender_whitelisted = True
             break
-    
+
     # Check sender email if domain not whitelisted
     if not sender_whitelisted:
         sender_email = event['sender'].lower()
@@ -270,17 +269,17 @@ def check_whitelist_matches(event, recipients):
                 })
                 sender_whitelisted = True
                 break
-    
+
     # For recipients, ALL must be whitelisted
     if recipients:
         all_recipients_whitelisted = True
         recipient_matches = []
-        
+
         for recipient in recipients:
             recipient_lower = recipient.lower()
             recipient_domain = recipient.split('@')[-1].lower() if '@' in recipient else ''
             recipient_whitelisted = False
-            
+
             # Check recipient domain
             for domain in domains:
                 if recipient_domain == domain['domain'].lower():
@@ -291,7 +290,7 @@ def check_whitelist_matches(event, recipients):
                     })
                     recipient_whitelisted = True
                     break
-            
+
             # Check recipient email if domain not whitelisted
             if not recipient_whitelisted:
                 for email in emails:
@@ -303,36 +302,36 @@ def check_whitelist_matches(event, recipients):
                         })
                         recipient_whitelisted = True
                         break
-            
+
             # If this recipient is not whitelisted, the entire event fails
             if not recipient_whitelisted:
                 all_recipients_whitelisted = False
                 break
-        
+
         # Only add recipient matches if ALL recipients are whitelisted
         if all_recipients_whitelisted:
             matches.extend(recipient_matches)
         else:
             # Clear all matches if not all recipients are whitelisted
             matches = []
-    
+
     return matches
 
 def check_keyword_matches(event):
     """Check if event matches any keywords in subject and attachments"""
     import re
     matches = []
-    
+
     # Get keywords
     keywords = get_keywords()
-    
+
     # Check subject for keyword matches
     subject = (event['subject'] or '').lower()
-    
+
     # Get attachments for checking - try to get from event detail
     attachments = []
     attachments_text = ''
-    
+
     try:
         from models import get_event_detail
         event_detail = get_event_detail(event['id'])
@@ -342,36 +341,36 @@ def check_keyword_matches(event):
     except Exception:
         # If we can't get attachments, just continue with subject checking
         pass
-    
+
     for keyword in keywords:
         term = keyword['term']
         is_regex = keyword['is_regex']
         found_locations = []
-        
+
         try:
             if is_regex:
                 # Use regex matching
                 pattern = re.compile(term, re.IGNORECASE)
-                
+
                 # Check subject
                 if pattern.search(subject):
                     found_locations.append('Subject')
-                
+
                 # Check attachments
                 if attachments_text and pattern.search(attachments_text):
                     found_locations.append('Attachments')
-                    
+
             else:
                 # Simple case-insensitive string matching
-                
+
                 # Check subject
                 if term.lower() in subject:
                     found_locations.append('Subject')
-                
+
                 # Check attachments
                 if attachments_text and term.lower() in attachments_text:
                     found_locations.append('Attachments')
-            
+
             # Add matches for each location found
             for location in found_locations:
                 matches.append({
@@ -379,11 +378,11 @@ def check_keyword_matches(event):
                     'is_regex': is_regex,
                     'location': location
                 })
-                
+
         except re.error:
             # Skip invalid regex patterns
             continue
-    
+
     return matches
 
 def _evaluate_condition(condition, event_data):
@@ -391,13 +390,13 @@ def _evaluate_condition(condition, event_data):
     field = condition.get('field')
     operator = condition.get('operator')
     value = condition.get('value', '')
-    
+
     if not field or not operator:
         return False
-    
+
     # Get field value from event data
     field_value = _get_field_value(field, event_data)
-    
+
     # Handle different operators
     if operator == 'equals':
         return str(field_value).lower() == str(value).lower()
@@ -427,7 +426,7 @@ def _evaluate_condition(condition, event_data):
         return not field_value or field_value == ''
     elif operator == 'is_not_empty':
         return field_value and field_value != ''
-    
+
     return False
 
 def _get_field_value(field, event_data):
@@ -436,7 +435,7 @@ def _get_field_value(field, event_data):
     recipients = event_data['recipients']
     attachments = event_data['attachments']
     policies = event_data['policies']
-    
+
     if field == 'sender':
         return event['sender']
     elif field == 'sender_domain':
@@ -467,25 +466,25 @@ def _get_field_value(field, event_data):
         return event['ml_score'] or 0.0
     elif field == 'is_internal_to_external':
         return bool(event['is_internal_to_external'])
-    
+
     return ''
 
 def _evaluate_conditions(conditions, event_data):
     """Evaluate all conditions with AND/OR logic"""
     if not conditions:
         return False
-    
+
     results = []
     operators = []
-    
+
     for condition in conditions:
         result = _evaluate_condition(condition, event_data)
         results.append(result)
         operators.append(condition.get('logic', 'AND'))
-    
+
     # Start with first result
     final_result = results[0]
-    
+
     # Apply operators from left to right
     for i in range(1, len(results)):
         operator = operators[i-1]  # Previous condition's logic operator
@@ -493,7 +492,7 @@ def _evaluate_conditions(conditions, event_data):
             final_result = final_result or results[i]
         else:  # AND
             final_result = final_result and results[i]
-    
+
     return final_result
 
 def apply_rules_to_event(event_id):
@@ -511,19 +510,19 @@ def apply_rules_to_event(event_id):
 
     # Check whitelist using new logic that requires ALL recipients to be whitelisted
     whitelist_matches = check_whitelist_matches(event, recipients)
-    
+
     if whitelist_matches:
         # Determine the reason based on what was whitelisted
         sender_matches = [m for m in whitelist_matches if 'Sender' in m['reason']]
         recipient_matches = [m for m in whitelist_matches if 'Recipient' in m['reason']]
-        
+
         if sender_matches and recipient_matches:
             reason = f"Sender and all recipients are whitelisted"
         elif sender_matches:
             reason = f"Sender is whitelisted and all recipients are whitelisted"
         else:
             reason = f"All recipients are whitelisted"
-            
+
         actions.append({
             'type': 'whitelist',
             'action': 'allow',
@@ -539,7 +538,7 @@ def apply_rules_to_event(event_id):
         if len(keyword_matches) > 3:
             keyword_terms.append(f"+ {len(keyword_matches) - 3} more")
         trigger_reason = f"Keywords: {', '.join(keyword_terms)}"
-        
+
         # Update the event with trigger reason
         try:
             with get_db() as conn:
@@ -557,14 +556,14 @@ def apply_rules_to_event(event_id):
             conditions_json = rule['conditions_json']
             if not conditions_json:
                 continue
-            
+
             conditions = json.loads(conditions_json)
             if not conditions:
                 continue
-            
+
             if _evaluate_conditions(conditions, event_data):
                 trigger_reason = f"Rule: {rule['name']}"
-                
+
                 # Update the event with trigger reason
                 try:
                     with get_db() as conn:
@@ -573,17 +572,17 @@ def apply_rules_to_event(event_id):
                         conn.commit()
                 except Exception as e:
                     logger.warning(f"Failed to update trigger_reason for event {event_id}: {e}")
-                
+
                 actions.append({
                     'type': 'rule',
                     'action': rule['action'],
                     'rule_name': rule['name'],
                     'reason': f"Rule conditions matched: {rule['conditions_summary']}"
                 })
-                
+
                 # Only return first matching rule (highest priority)
                 break
-                
+
         except Exception as e:
             logger.warning(f"Error evaluating rule {rule['id']}: {e}")
             continue
@@ -592,81 +591,132 @@ def apply_rules_to_event(event_id):
 
 
 def test_rule_against_events(conditions):
-    """Test rule conditions against existing events and return matches"""
+    """Test rule conditions against existing events"""
     with get_db() as conn:
         cursor = conn.cursor()
-        
-        # Get all events with related data
+
+        # Get all events for testing
         cursor.execute("""
-            SELECT e.id, e.sender, e.subject, e.ml_score, e.status, e.leaver, 
-                   e.is_internal_to_external, e.bunit, e.department, e.termination_date,
-                   GROUP_CONCAT(DISTINCT r.email) as recipients,
-                   GROUP_CONCAT(DISTINCT a.filename) as attachments,
-                   GROUP_CONCAT(DISTINCT p.policy_name) as policies,
-                   COUNT(DISTINCT r.id) as recipient_count
+            SELECT e.*, 
+                   GROUP_CONCAT(r.email) as recipients,
+                   GROUP_CONCAT(a.filename) as attachments,
+                   GROUP_CONCAT(p.policy_name) as policies
             FROM events e
             LEFT JOIN recipients r ON e.id = r.event_id
             LEFT JOIN attachments a ON e.id = a.event_id
             LEFT JOIN policies p ON e.id = p.event_id
             GROUP BY e.id
             ORDER BY e.id DESC
-            LIMIT 1000
+            LIMIT 100
         """)
-        
+
         events = cursor.fetchall()
         total_events = len(events)
-        matches = []
-        
+
+        if not conditions:
+            return 0, total_events
+
+        matching_events = 0
+
         for event in events:
-            # Prepare event data for evaluation
-            event_data = {
-                'sender': event['sender'] or '',
-                'sender_domain': event['sender'].split('@')[1] if event['sender'] and '@' in event['sender'] else '',
-                'subject': event['subject'] or '',
-                'recipients': event['recipients'].split(',') if event['recipients'] else [],
-                'recipient_domain': '',  # Will be calculated if needed
-                'bunit': event['bunit'] or '',
-                'department': event['department'] or '',
-                'leaver': bool(event['leaver']),
-                'termination_date': event['termination_date'] or '',
-                'attachments': event['attachments'].split(',') if event['attachments'] else [],
-                'policies': event['policies'].split(',') if event['policies'] else [],
-                'ml_score': float(event['ml_score']) if event['ml_score'] is not None else 0.0,
-                'is_internal_to_external': bool(event['is_internal_to_external']),
-            }
-            
-            # Calculate recipient domain if needed
-            if event_data['recipients']:
-                domains = set()
-                for recipient in event_data['recipients']:
-                    if '@' in recipient:
-                        domains.add(recipient.split('@')[1])
-                event_data['recipient_domain'] = ','.join(domains)
-            
-            # Test if event matches the conditions
+            # Convert to dict for easier access
+            event_dict = dict(event)
+
+            # Parse multi-value fields
+            event_dict['recipients'] = event_dict['recipients'].split(',') if event_dict['recipients'] else []
+            event_dict['attachments'] = event_dict['attachments'].split(',') if event_dict['attachments'] else []
+            event_dict['policies'] = event_dict['policies'].split(',') if event_dict['policies'] else []
+
+            # Test all conditions
+            all_conditions_match = True
+
+            for i, condition in enumerate(conditions):
+                field = condition.get('field', '')
+                operator = condition.get('operator', '')
+                value = condition.get('value', '')
+                logic = condition.get('logic', 'AND')
+
+                condition_result = evaluate_condition(event_dict, field, operator, value)
+
+                if i == 0:
+                    # First condition sets the result
+                    all_conditions_match = condition_result
+                else:
+                    # Apply logic operator with previous result
+                    if logic == 'OR':
+                        all_conditions_match = all_conditions_match or condition_result
+                    else:  # AND
+                        all_conditions_match = all_conditions_match and condition_result
+
+            if all_conditions_match:
+                matching_events += 1
+
+        return matching_events, total_events
+
+def evaluate_condition(event, field, operator, value):
+    """Evaluate a single condition against an event"""
+    try:
+        # Handle different field types
+        if field == 'sender':
+            event_value = event.get('sender', '')
+        elif field == 'subject':
+            event_value = event.get('subject', '')
+        elif field == 'ml_score':
+            event_value = event.get('ml_score', 0) or 0
+        elif field == 'recipient_count':
+            event_value = len(event.get('recipients', []))
+        elif field == 'attachment_count':
+            event_value = len(event.get('attachments', []))
+        elif field == 'policy_count':
+            event_value = len(event.get('policies', []))
+        elif field == 'is_internal_to_external':
+            event_value = bool(event.get('is_internal_to_external', 0))
+        elif field == 'Is Leaver':  # Handle the exact field name from the UI
+            event_value = bool(event.get('leaver', 0))
+        elif field == 'leaver':  # Also handle direct database field name
+            event_value = bool(event.get('leaver', 0))
+        else:
+            # Default to getting the field directly
+            event_value = event.get(field, '')
+
+        # Apply operator
+        if operator == 'equals':
+            return str(event_value).lower() == str(value).lower()
+        elif operator == 'contains':
+            return str(value).lower() in str(event_value).lower()
+        elif operator == 'starts_with':
+            return str(event_value).lower().startswith(str(value).lower())
+        elif operator == 'ends_with':
+            return str(event_value).lower().endswith(str(value).lower())
+        elif operator == 'greater_than':
             try:
-                if _evaluate_conditions(conditions, event_data):
-                    matches.append({
-                        'id': event['id'],
-                        'sender': event['sender'],
-                        'subject': event['subject'][:50] + '...' if event['subject'] and len(event['subject']) > 50 else event['subject'],
-                        'recipient_count': event['recipient_count'],
-                        'ml_score': float(event['ml_score']) if event['ml_score'] is not None else 0.0,
-                        'status': event['status']
-                    })
-            except Exception as e:
-                logger.warning(f"Error evaluating event {event['id']} against test conditions: {e}")
-                continue
-        
-        return matches, total_events
+                return float(event_value) > float(value)
+            except (ValueError, TypeError):
+                return False
+        elif operator == 'less_than':
+            try:
+                return float(event_value) < float(value)
+            except (ValueError, TypeError):
+                return False
+        elif operator == 'is_true' or operator == 'Is True':
+            return bool(event_value)
+        elif operator == 'is_false' or operator == 'Is False':
+            return not bool(event_value)
+        else:
+            return False
+
+    except Exception as e:
+        logger.error(f"Error evaluating condition {field} {operator} {value}: {e}")
+        return False
+
 
 def process_all_events_for_rules():
     """Process all events to apply rules and set trigger reasons"""
     logger.info("Starting to process all events for rule triggers...")
-    
+
     with get_db() as conn:
         cursor = conn.cursor()
-        
+
         # Get all events that don't have a trigger_reason set
         cursor.execute("""
             SELECT id FROM events 
@@ -675,30 +725,30 @@ def process_all_events_for_rules():
             AND is_whitelisted = 0 
             AND follow_up = 0
         """)
-        
+
         event_ids = [row[0] for row in cursor.fetchall()]
-        
+
     processed_count = 0
     triggered_count = 0
-    
+
     for event_id in event_ids:
         try:
             # Apply rules to this event (this will also update trigger_reason if applicable)
             actions = apply_rules_to_event(event_id)
-            
+
             # Check if any rules or keywords were triggered
             rule_actions = [action for action in actions if action.get('type') == 'rule']
             if rule_actions:
                 triggered_count += 1
-            
+
             processed_count += 1
-            
+
             if processed_count % 100 == 0:
                 logger.info(f"Processed {processed_count} events, {triggered_count} triggered so far...")
-                
+
         except Exception as e:
             logger.error(f"Error processing event {event_id} for rules: {e}")
             continue
-    
+
     logger.info(f"Completed processing {processed_count} events. {triggered_count} events had rules triggered.")
     return processed_count, triggered_count
