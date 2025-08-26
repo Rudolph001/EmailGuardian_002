@@ -618,15 +618,19 @@ def test_rule_against_events(conditions):
 
         matching_events = 0
 
-        for event in events:
+        for event_row in events:
             try:
                 # Convert to dict for easier access
-                event_dict = dict(event)
+                event_dict = dict(event_row)
 
-                # Parse multi-value fields
-                event_dict['recipients'] = event_dict['recipients'].split(',') if event_dict['recipients'] else []
-                event_dict['attachments'] = event_dict['attachments'].split(',') if event_dict['attachments'] else []
-                event_dict['policies'] = event_dict['policies'].split(',') if event_dict['policies'] else []
+                # Parse multi-value fields safely
+                recipients_str = event_dict.get('recipients') or ''
+                attachments_str = event_dict.get('attachments') or ''
+                policies_str = event_dict.get('policies') or ''
+                
+                event_dict['recipients'] = [r.strip() for r in recipients_str.split(',') if r.strip()] if recipients_str else []
+                event_dict['attachments'] = [a.strip() for a in attachments_str.split(',') if a.strip()] if attachments_str else []
+                event_dict['policies'] = [p.strip() for p in policies_str.split(',') if p.strip()] if policies_str else []
 
                 # Test all conditions
                 all_conditions_match = True
@@ -669,9 +673,9 @@ def evaluate_condition(event, field, operator, value):
         if field == 'sender':
             event_value = event.get('sender', '')
         elif field == 'subject':
-            event_value = event.get('subject', '')
+            event_value = event.get('subject', '') or ''
         elif field == 'ml_score':
-            event_value = event.get('ml_score', 0) or 0
+            event_value = float(event.get('ml_score', 0) or 0)
         elif field == 'recipient_count':
             event_value = len(event.get('recipients', []))
         elif field == 'attachment_count':
@@ -681,9 +685,17 @@ def evaluate_condition(event, field, operator, value):
         elif field == 'is_internal_to_external':
             event_value = bool(event.get('is_internal_to_external', 0))
         elif field == 'Is Leaver':  # Handle the exact field name from the UI
-            event_value = bool(event.get('leaver', 0))
+            leaver_val = event.get('leaver', 0)
+            event_value = bool(leaver_val) if leaver_val is not None else False
         elif field == 'leaver':  # Also handle direct database field name
-            event_value = bool(event.get('leaver', 0))
+            leaver_val = event.get('leaver', 0)
+            event_value = bool(leaver_val) if leaver_val is not None else False
+        elif field == 'bunit':
+            event_value = event.get('bunit', '') or ''
+        elif field == 'department':
+            event_value = event.get('department', '') or ''
+        elif field == 'termination_date':
+            event_value = event.get('termination_date', '') or ''
         else:
             # Default to getting the field directly
             event_value = event.get(field, '')
@@ -711,11 +723,15 @@ def evaluate_condition(event, field, operator, value):
             return bool(event_value)
         elif operator == 'is_false' or operator == 'Is False':
             return not bool(event_value)
+        elif operator == 'is_empty':
+            return not event_value or str(event_value).strip() == ''
+        elif operator == 'is_not_empty':
+            return event_value and str(event_value).strip() != ''
         else:
             return False
 
     except Exception as e:
-        logger.error(f"Error evaluating condition {field} {operator} {value}: {e}")
+        logger.error(f"Error evaluating condition {field} {operator} {value} against event value {event_value}: {e}")
         return False
 
 
