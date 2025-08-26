@@ -108,28 +108,51 @@ def events():
         query = request.args.get("q", "").strip()
         filter_type = request.args.get("filter", "all")
         page = int(request.args.get("page", 1))
+        per_page = 10  # Set 10 records per page
+        offset = (page - 1) * per_page
+
+        # Get total count and events for the current page
+        total_events = 0
+        events_list = []
 
         if query:
-            events_list = search_events(query, limit=100)
+            events_list = search_events(query, limit=per_page, offset=offset)
+            # Get total count for search
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT COUNT(*)
+                    FROM events
+                    WHERE sender LIKE ? OR subject LIKE ?
+                """, (f"%{query}%", f"%{query}%"))
+                total_events = cursor.fetchone()[0]
         elif filter_type == "whitelisted":
-            from models import get_whitelisted_events
-            events_list = get_whitelisted_events(100)
+            from models import get_whitelisted_events, get_whitelisted_events_count
+            events_list = get_whitelisted_events(per_page, offset)
+            total_events = get_whitelisted_events_count()
         elif filter_type == "follow_up":
-            from models import get_follow_up_events
-            events_list = get_follow_up_events(100)
+            from models import get_follow_up_events, get_follow_up_events_count
+            events_list = get_follow_up_events(per_page, offset)
+            total_events = get_follow_up_events_count()
         elif filter_type == "closed":
-            from models import get_closed_events
-            events_list = get_closed_events(100)
+            from models import get_closed_events, get_closed_events_count
+            events_list = get_closed_events(per_page, offset)
+            total_events = get_closed_events_count()
         elif filter_type == "high_risk":
-            from models import get_high_risk_events
-            events_list = get_high_risk_events(100)
+            from models import get_high_risk_events, get_high_risk_events_count
+            events_list = get_high_risk_events(per_page, offset)
+            total_events = get_high_risk_events_count()
         elif filter_type == "rule_triggered":
-            from models import get_rule_triggered_events
-            events_list = get_rule_triggered_events(100)
+            from models import get_rule_triggered_events, get_rule_triggered_events_count
+            events_list = get_rule_triggered_events(per_page, offset)
+            total_events = get_rule_triggered_events_count()
         else:
             # For "all" events, show everything regardless of categorization
             with get_db() as conn:
                 cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM events")
+                total_events = cursor.fetchone()[0]
+                
                 cursor.execute("""
                     SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
                            status, is_whitelisted, follow_up, trigger_reason,
@@ -137,28 +160,14 @@ def events():
                            email_sent, email_sent_date
                     FROM events
                     ORDER BY datetime(_time) DESC
-                    LIMIT 100
-                """)
+                    LIMIT ? OFFSET ?
+                """, (per_page, offset))
                 events_list = cursor.fetchall()
-            
-            # Debug logging to help troubleshoot
-            logger.info(f"Remaining/Other events count: {len(events_list)}")
-            
-            # Also log total event counts for debugging
-            with get_db() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM events")
-                total = cursor.fetchone()[0]
-                cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score > 0.7")
-                high_risk = cursor.fetchone()[0]
-                cursor.execute("SELECT COUNT(*) FROM events WHERE is_whitelisted = 1")
-                whitelisted = cursor.fetchone()[0]
-                cursor.execute("SELECT COUNT(*) FROM events WHERE status = 'closed'")
-                closed = cursor.fetchone()[0]
-                cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1")
-                follow_up = cursor.fetchone()[0]
-                
-                logger.info(f"Debug - Total: {total}, High Risk: {high_risk}, Whitelisted: {whitelisted}, Closed: {closed}, Follow-up: {follow_up}")
+
+        # Calculate pagination info
+        total_pages = (total_events + per_page - 1) // per_page  # Ceiling division
+        has_prev = page > 1
+        has_next = page < total_pages
 
         # Get closure reasons for the close modal
         from models import get_closure_reasons
@@ -168,12 +177,18 @@ def events():
                              events=events_list,
                              query=query,
                              page=page,
+                             per_page=per_page,
+                             total_events=total_events,
+                             total_pages=total_pages,
+                             has_prev=has_prev,
+                             has_next=has_next,
                              filter_type=filter_type,
                              get_closure_reasons=lambda: closure_reasons)
     except Exception as e:
         logger.error(f"Error loading events: {e}")
         flash("Error loading events", "error")
-        return render_template("events.html", events=[], query="", page=1, filter_type="all")
+        return render_template("events.html", events=[], query="", page=1, per_page=10, 
+                             total_events=0, total_pages=0, has_prev=False, has_next=False, filter_type="all")
 
 @app.route("/event/<int:event_id>")
 def event_detail(event_id):

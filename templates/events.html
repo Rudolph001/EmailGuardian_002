@@ -320,11 +320,80 @@
                         </table>
                     </div>
 
+                    <!-- Pagination controls -->
+                    {% if total_pages > 1 %}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <nav aria-label="Events pagination">
+                                <ul class="pagination justify-content-center">
+                                    <!-- Previous button -->
+                                    <li class="page-item {{ 'disabled' if not has_prev }}">
+                                        {% if has_prev %}
+                                            <a class="page-link" href="{{ url_for('events', page=page-1, q=query, filter=filter_type) }}">
+                                                <i class="fas fa-chevron-left me-1"></i>Previous
+                                            </a>
+                                        {% else %}
+                                            <span class="page-link">
+                                                <i class="fas fa-chevron-left me-1"></i>Previous
+                                            </span>
+                                        {% endif %}
+                                    </li>
+
+                                    <!-- Page numbers -->
+                                    {% set start_page = [1, page - 2]|max %}
+                                    {% set end_page = [total_pages, page + 2]|min %}
+                                    
+                                    {% if start_page > 1 %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('events', page=1, q=query, filter=filter_type) }}">1</a>
+                                        </li>
+                                        {% if start_page > 2 %}
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                        {% endif %}
+                                    {% endif %}
+
+                                    {% for p in range(start_page, end_page + 1) %}
+                                        <li class="page-item {{ 'active' if p == page }}">
+                                            <a class="page-link" href="{{ url_for('events', page=p, q=query, filter=filter_type) }}">{{ p }}</a>
+                                        </li>
+                                    {% endfor %}
+
+                                    {% if end_page < total_pages %}
+                                        {% if end_page < total_pages - 1 %}
+                                            <li class="page-item disabled">
+                                                <span class="page-link">...</span>
+                                            </li>
+                                        {% endif %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="{{ url_for('events', page=total_pages, q=query, filter=filter_type) }}">{{ total_pages }}</a>
+                                        </li>
+                                    {% endif %}
+
+                                    <!-- Next button -->
+                                    <li class="page-item {{ 'disabled' if not has_next }}">
+                                        {% if has_next %}
+                                            <a class="page-link" href="{{ url_for('events', page=page+1, q=query, filter=filter_type) }}">
+                                                Next<i class="fas fa-chevron-right ms-1"></i>
+                                            </a>
+                                        {% else %}
+                                            <span class="page-link">
+                                                Next<i class="fas fa-chevron-right ms-1"></i>
+                                            </span>
+                                        {% endif %}
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     <!-- Pagination info -->
                     <div class="row mt-3">
                         <div class="col-12">
                             <small class="text-muted">
-                                Showing {{ events|length }} events
+                                Showing {{ ((page - 1) * per_page + 1) if events else 0 }} to {{ ((page - 1) * per_page + events|length) if events else 0 }} of {{ total_events }} events
                                 {% if query %}
                                     matching "{{ query }}"
                                 {% endif %}

@@ -371,18 +371,20 @@ def get_recent_events(limit=10):
         """, (limit,))
         return cursor.fetchall()
 
-def search_events(query, limit=100):
+def search_events(query, limit=100, offset=0):
     """Search events by sender or subject"""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                   status, is_whitelisted, follow_up
+                   status, is_whitelisted, follow_up, trigger_reason,
+                   closure_reason, closure_notes, closure_reference,
+                   email_sent, email_sent_date
             FROM events
             WHERE sender LIKE ? OR subject LIKE ?
             ORDER BY datetime(_time) DESC
-            LIMIT ?
-        """, (f"%{query}%", f"%{query}%", limit))
+            LIMIT ? OFFSET ?
+        """, (f"%{query}%", f"%{query}%", limit, offset))
         return cursor.fetchall()
 
 def get_event_detail(event_id):
@@ -416,47 +418,72 @@ def get_event_detail(event_id):
             'policies': policies
         }
 
-def get_whitelisted_events(limit=100):
+def get_whitelisted_events(limit=100, offset=0):
     """Get events that have been whitelisted"""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                   status, is_whitelisted, follow_up
+                   status, is_whitelisted, follow_up, trigger_reason,
+                   closure_reason, closure_notes, closure_reference,
+                   email_sent, email_sent_date
             FROM events
             WHERE is_whitelisted = 1
             ORDER BY datetime(_time) DESC
-            LIMIT ?
-        """, (limit,))
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
         return cursor.fetchall()
 
-def get_follow_up_events(limit=100):
+def get_whitelisted_events_count():
+    """Get count of whitelisted events"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM events WHERE is_whitelisted = 1")
+        return cursor.fetchone()[0]
+
+def get_follow_up_events(limit=100, offset=0):
     """Get events marked for follow-up"""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                   status, is_whitelisted, follow_up, follow_up_date, email_sent, email_sent_date
+                   status, is_whitelisted, follow_up, follow_up_date, email_sent, email_sent_date,
+                   trigger_reason, closure_reason, closure_notes, closure_reference
             FROM events
             WHERE follow_up = 1 AND status != 'closed'
             ORDER BY datetime(follow_up_date) ASC, datetime(_time) DESC
-            LIMIT ?
-        """, (limit,))
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
         return cursor.fetchall()
 
-def get_closed_events(limit=100):
+def get_follow_up_events_count():
+    """Get count of follow-up events"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1 AND status != 'closed'")
+        return cursor.fetchone()[0]
+
+def get_closed_events(limit=100, offset=0):
     """Get closed events"""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                   status, closed_date, closed_by, closure_reason, closure_notes, closure_reference
+                   status, closed_date, closed_by, closure_reason, closure_notes, closure_reference,
+                   is_whitelisted, follow_up, trigger_reason, email_sent, email_sent_date
             FROM events
             WHERE status = 'closed'
             ORDER BY datetime(closed_date) DESC
-            LIMIT ?
-        """, (limit,))
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
         return cursor.fetchall()
+
+def get_closed_events_count():
+    """Get count of closed events"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM events WHERE status = 'closed'")
+        return cursor.fetchone()[0]
 
 def get_high_risk_events(limit=100):
     """Get events with high ML scores (>0.7) that haven't been processed by rules, are not whitelisted, and don't have keyword matches"""
@@ -952,3 +979,161 @@ def clear_events_only():
             cursor.execute(f"DELETE FROM {table}")
         conn.commit()
     return True
+
+
+def get_high_risk_events(limit=100, offset=0):
+    """Get high risk events that haven't been processed by rules"""
+    from rules import apply_rules_to_event, check_keyword_matches
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # Get high risk events with larger limit to filter
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up, trigger_reason,
+                   closure_reason, closure_notes, closure_reference,
+                   email_sent, email_sent_date
+            FROM events
+            WHERE ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0
+            ORDER BY datetime(_time) DESC
+            LIMIT ?
+        """, (limit * 3,))  # Get more to account for filtering
+        all_high_risk = cursor.fetchall()
+
+    high_risk_not_rule_triggered = []
+    for event in all_high_risk:
+        try:
+            # Skip if event matches keywords (would be in Rule Triggered)
+            keyword_matches = check_keyword_matches(event)
+            if keyword_matches:
+                continue
+
+            # Check regular rules
+            actions = apply_rules_to_event(event['id'])
+            rule_actions = [action for action in actions if action.get('type') == 'rule']
+            if not rule_actions:
+                high_risk_not_rule_triggered.append(event)
+
+            if len(high_risk_not_rule_triggered) >= offset + limit:
+                break
+
+        except Exception:
+            high_risk_not_rule_triggered.append(event)
+            if len(high_risk_not_rule_triggered) >= offset + limit:
+                break
+
+    # Apply pagination
+    return high_risk_not_rule_triggered[offset:offset + limit]
+
+def get_high_risk_events_count():
+    """Get count of high risk events that haven't been processed by rules"""
+    from rules import apply_rules_to_event, check_keyword_matches
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up, trigger_reason,
+                   closure_reason, closure_notes, closure_reference,
+                   email_sent, email_sent_date
+            FROM events
+            WHERE ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0
+            ORDER BY datetime(_time) DESC
+        """)
+        all_high_risk = cursor.fetchall()
+
+    count = 0
+    for event in all_high_risk:
+        try:
+            keyword_matches = check_keyword_matches(event)
+            if keyword_matches:
+                continue
+
+            actions = apply_rules_to_event(event['id'])
+            rule_actions = [action for action in actions if action.get('type') == 'rule']
+            if not rule_actions:
+                count += 1
+
+        except Exception:
+            count += 1
+
+    return count
+
+def get_rule_triggered_events(limit=100, offset=0):
+    """Get events that have been processed by rules"""
+    from rules import apply_rules_to_event, check_keyword_matches
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up, trigger_reason,
+                   closure_reason, closure_notes, closure_reference,
+                   email_sent, email_sent_date
+            FROM events
+            WHERE status != 'closed'
+            ORDER BY datetime(_time) DESC
+            LIMIT ?
+        """, (limit * 3,))  # Get more to account for filtering
+        all_events = cursor.fetchall()
+
+    rule_triggered_events = []
+    for event in all_events:
+        try:
+            # Check if event matches keywords
+            keyword_matches = check_keyword_matches(event)
+            if keyword_matches:
+                rule_triggered_events.append(event)
+                if len(rule_triggered_events) >= offset + limit:
+                    break
+                continue
+
+            # Check regular rules
+            actions = apply_rules_to_event(event['id'])
+            rule_actions = [action for action in actions if action.get('type') == 'rule']
+            if rule_actions:
+                rule_triggered_events.append(event)
+
+            if len(rule_triggered_events) >= offset + limit:
+                break
+
+        except Exception:
+            continue
+
+    # Apply pagination
+    return rule_triggered_events[offset:offset + limit]
+
+def get_rule_triggered_events_count():
+    """Get count of events that have been processed by rules"""
+    from rules import apply_rules_to_event, check_keyword_matches
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up, trigger_reason,
+                   closure_reason, closure_notes, closure_reference,
+                   email_sent, email_sent_date
+            FROM events
+            WHERE status != 'closed'
+            ORDER BY datetime(_time) DESC
+        """)
+        all_events = cursor.fetchall()
+
+    count = 0
+    for event in all_events:
+        try:
+            keyword_matches = check_keyword_matches(event)
+            if keyword_matches:
+                count += 1
+                continue
+
+            actions = apply_rules_to_event(event['id'])
+            rule_actions = [action for action in actions if action.get('type') == 'rule']
+            if rule_actions:
+                count += 1
+
+        except Exception:
+            continue
+
+    return count
