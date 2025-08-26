@@ -111,9 +111,14 @@
                         </a>
                     </div>
                     <div class="col-md-3 mb-2">
-                        <form method="POST" action="{{ url_for('rescore') }}" class="d-inline w-100">
-                            <button type="submit" class="btn btn-outline-secondary w-100">
-                                <i class="fas fa-sync-alt me-2"></i>Rescore All
+                        <form method="POST" action="{{ url_for('rescore') }}" class="d-inline">
+                            <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('This will recalculate risk scores for all events. Continue?')">
+                                <i class="fas fa-calculator me-1"></i>Rescore All Events
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('process_rules') }}" class="d-inline ms-2">
+                            <button type="submit" class="btn btn-info btn-sm" onclick="return confirm('This will process all events to apply rules and set trigger reasons. Continue?')">
+                                <i class="fas fa-gavel me-1"></i>Process Rules
                             </button>
                         </form>
                     </div>

@@ -706,6 +706,19 @@ def rescore():
 
     return redirect(url_for("index"))
 
+@app.route("/process_rules", methods=["POST"])
+def process_rules():
+    """Process all events to apply rules and set trigger reasons"""
+    try:
+        from rules import process_all_events_for_rules
+        processed_count, triggered_count = process_all_events_for_rules()
+        flash(f"Processed {processed_count} events. {triggered_count} events had rules triggered.", "success")
+    except Exception as e:
+        logger.error(f"Rule processing failed: {e}")
+        flash(f"Rule processing failed: {str(e)}", "error")
+
+    return redirect(url_for("index"))
+
 @app.route("/event/<int:event_id>/status", methods=["POST"])
 def update_event_status(event_id):
     """Update event status"""
