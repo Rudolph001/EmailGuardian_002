@@ -619,37 +619,46 @@ def test_rule_against_events(conditions):
         matching_events = 0
 
         for event in events:
-            # Convert to dict for easier access
-            event_dict = dict(event)
+            try:
+                # Convert to dict for easier access
+                event_dict = dict(event)
 
-            # Parse multi-value fields
-            event_dict['recipients'] = event_dict['recipients'].split(',') if event_dict['recipients'] else []
-            event_dict['attachments'] = event_dict['attachments'].split(',') if event_dict['attachments'] else []
-            event_dict['policies'] = event_dict['policies'].split(',') if event_dict['policies'] else []
+                # Parse multi-value fields
+                event_dict['recipients'] = event_dict['recipients'].split(',') if event_dict['recipients'] else []
+                event_dict['attachments'] = event_dict['attachments'].split(',') if event_dict['attachments'] else []
+                event_dict['policies'] = event_dict['policies'].split(',') if event_dict['policies'] else []
 
-            # Test all conditions
-            all_conditions_match = True
+                # Test all conditions
+                all_conditions_match = True
 
-            for i, condition in enumerate(conditions):
-                field = condition.get('field', '')
-                operator = condition.get('operator', '')
-                value = condition.get('value', '')
-                logic = condition.get('logic', 'AND')
+                for i, condition in enumerate(conditions):
+                    field = condition.get('field', '')
+                    operator = condition.get('operator', '')
+                    value = condition.get('value', '')
+                    logic = condition.get('logic', 'AND')
 
-                condition_result = evaluate_condition(event_dict, field, operator, value)
+                    # Map UI field names to database field names
+                    if field == 'Is Leaver':
+                        field = 'leaver'
 
-                if i == 0:
-                    # First condition sets the result
-                    all_conditions_match = condition_result
-                else:
-                    # Apply logic operator with previous result
-                    if logic == 'OR':
-                        all_conditions_match = all_conditions_match or condition_result
-                    else:  # AND
-                        all_conditions_match = all_conditions_match and condition_result
+                    condition_result = evaluate_condition(event_dict, field, operator, value)
 
-            if all_conditions_match:
-                matching_events += 1
+                    if i == 0:
+                        # First condition sets the result
+                        all_conditions_match = condition_result
+                    else:
+                        # Apply logic operator with previous result
+                        if logic == 'OR':
+                            all_conditions_match = all_conditions_match or condition_result
+                        else:  # AND
+                            all_conditions_match = all_conditions_match and condition_result
+
+                if all_conditions_match:
+                    matching_events += 1
+
+            except Exception as e:
+                logger.warning(f"Error evaluating event {event_dict.get('id', 'unknown')} against test conditions: {e}")
+                continue
 
         return matching_events, total_events
 
