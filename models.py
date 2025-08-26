@@ -950,8 +950,7 @@ def get_rule_triggered_events(limit=100, offset=0):
     """Get events that have been processed by rules"""
     with get_db() as conn:
         cursor = conn.cursor()
-        # For now, return events that have trigger_reason set or are likely rule triggered
-        # This is a simplified approach that avoids complex rule evaluation
+        # Only return events that have a valid trigger_reason set
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
                    status, is_whitelisted, follow_up, trigger_reason,
@@ -959,7 +958,7 @@ def get_rule_triggered_events(limit=100, offset=0):
                    email_sent, email_sent_date
             FROM events
             WHERE status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
-            AND (trigger_reason IS NOT NULL OR ml_score > 0.8)
+            AND trigger_reason IS NOT NULL AND trigger_reason != ''
             ORDER BY datetime(_time) DESC
             LIMIT ? OFFSET ?
         """, (limit, offset))
@@ -969,11 +968,11 @@ def get_rule_triggered_events_count():
     """Get count of events that have been processed by rules"""
     with get_db() as conn:
         cursor = conn.cursor()
-        # Simplified count query
+        # Only count events that have a valid trigger_reason set
         cursor.execute("""
             SELECT COUNT(*)
             FROM events
             WHERE status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
-            AND (trigger_reason IS NOT NULL OR ml_score > 0.8)
+            AND trigger_reason IS NOT NULL AND trigger_reason != ''
         """)
         return cursor.fetchone()[0]
