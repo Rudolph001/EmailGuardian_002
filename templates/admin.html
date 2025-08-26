@@ -264,14 +264,14 @@
                             </tr>
 
                             <!-- Edit ML Scoring Rule Modal -->
-                            <div class="modal fade" id="editMLRuleModal{{ rule.id }}" tabindex="-1">
+                            <div class="modal fade" id="editMLRuleModal{{ rule.id }}" tabindex="-1" aria-labelledby="editMLRuleModalLabel{{ rule.id }}" aria-hidden="true">
                                 <div class="modal-dialog modal-lg">
                                     <div class="modal-content">
                                         <div class="modal-header">
-                                            <h5 class="modal-title">Edit ML Scoring Rule</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            <h5 class="modal-title" id="editMLRuleModalLabel{{ rule.id }}">Edit ML Scoring Rule</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                         </div>
-                                        <form method="POST">
+                                        <form method="POST" action="{{ url_for('admin_dashboard') }}">
                                             <div class="modal-body">
                                                 <input type="hidden" name="action" value="edit_ml_rule">
                                                 <input type="hidden" name="ml_rule_id" value="{{ rule.id }}">
@@ -325,8 +325,8 @@
                                                     </div>
                                                     <div class="col-md-6">
                                                         <div class="form-check mt-4">
-                                                            <input class="form-check-input" type="checkbox" name="enabled" {{ 'checked' if rule.enabled else '' }}>
-                                                            <label class="form-check-label">Enabled</label>
+                                                            <input class="form-check-input" type="checkbox" name="enabled" id="enabled{{ rule.id }}" {{ 'checked' if rule.enabled else '' }}>
+                                                            <label class="form-check-label" for="enabled{{ rule.id }}">Enabled</label>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -403,5 +403,27 @@ triggerTabList.forEach(function (triggerEl) {
         tabTrigger.show()
     })
 })
+
+// Ensure modals are properly initialized
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all modals
+    var modalElements = document.querySelectorAll('.modal');
+    modalElements.forEach(function(modalEl) {
+        new bootstrap.Modal(modalEl);
+    });
+    
+    // Add click handlers for edit buttons to ensure modals open
+    var editButtons = document.querySelectorAll('[data-bs-toggle="modal"]');
+    editButtons.forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            var targetSelector = button.getAttribute('data-bs-target');
+            var targetModal = document.querySelector(targetSelector);
+            if (targetModal) {
+                var modalInstance = bootstrap.Modal.getOrCreateInstance(targetModal);
+                modalInstance.show();
+            }
+        });
+    });
+});
 </script>
 {% endblock %}
