@@ -455,7 +455,8 @@ def _get_field_value(field, event_data):
     elif field == 'department':
         return event['department'] or ''
     elif field == 'leaver':
-        return bool(event['leaver'])
+        # Convert to boolean: 1 = True, 0 = False
+        return bool(event['leaver'] == 1)
     elif field == 'termination_date':
         return event['termination_date'] or ''
     elif field == 'attachments':
@@ -686,10 +687,12 @@ def evaluate_condition(event, field, operator, value):
             event_value = bool(event.get('is_internal_to_external', 0))
         elif field == 'Is Leaver':  # Handle the exact field name from the UI
             leaver_val = event.get('leaver', 0)
-            event_value = bool(leaver_val) if leaver_val is not None else False
+            # Convert to boolean: 1 = True, 0 = False
+            event_value = bool(leaver_val == 1)
         elif field == 'leaver':  # Also handle direct database field name
             leaver_val = event.get('leaver', 0)
-            event_value = bool(leaver_val) if leaver_val is not None else False
+            # Convert to boolean: 1 = True, 0 = False
+            event_value = bool(leaver_val == 1)
         elif field == 'bunit':
             event_value = event.get('bunit', '') or ''
         elif field == 'department':
@@ -720,9 +723,11 @@ def evaluate_condition(event, field, operator, value):
             except (ValueError, TypeError):
                 return False
         elif operator == 'is_true' or operator == 'Is True':
-            return bool(event_value)
+            # For boolean fields, check if the value is True
+            return bool(event_value) is True
         elif operator == 'is_false' or operator == 'Is False':
-            return not bool(event_value)
+            # For boolean fields, check if the value is False
+            return bool(event_value) is False
         elif operator == 'is_empty':
             return not event_value or str(event_value).strip() == ''
         elif operator == 'is_not_empty':
