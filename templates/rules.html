@@ -249,7 +249,7 @@
                                                     data-rule-action="{{ rule.action }}"
                                                     data-rule-priority="{{ rule.priority }}"
                                                     data-rule-enabled="{{ rule.enabled }}"
-                                                    data-rule-conditions="{% if rule.conditions_json %}{{ rule.conditions_json | tojson }}{% else %}[]{% endif %}">>>
+                                                    data-rule-conditions="{{ rule.conditions_json | default('[]') | tojson }}">
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                         </td>
@@ -723,8 +723,7 @@ function clearRuleHighlights() {
 
 // Initialize the form when the DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Add one initial condition when page loads
-    addCondition();
+    // Don't add initial condition here - will be handled later
     
     // Add event listener for test rule button
     document.getElementById('testRuleBtn').addEventListener('click', function() {
@@ -744,12 +743,21 @@ document.addEventListener('DOMContentLoaded', function() {
             let conditions;
             try {
                 const conditionsStr = btn.getAttribute('data-rule-conditions');
-                if (conditionsStr && conditionsStr.trim() !== '' && conditionsStr !== 'null') {
-                    conditions = JSON.parse(conditionsStr);
+                console.log('Raw conditions string:', conditionsStr);
+                if (conditionsStr && conditionsStr.trim() !== '' && conditionsStr !== 'null' && conditionsStr !== '[]') {
+                    // The conditions are double-encoded JSON, so we need to parse twice
+                    const parsed = JSON.parse(conditionsStr);
+                    if (typeof parsed === 'string') {
+                        conditions = JSON.parse(parsed);
+                    } else {
+                        conditions = parsed;
+                    }
+                    console.log('Parsed conditions:', conditions);
                 } else {
                     conditions = [];
                 }
             } catch (e) {
+                console.error('Error parsing conditions:', e);
                 conditions = [];
             }
             
@@ -781,6 +789,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    
+    // Fix initial condition setup - don't add empty condition if we're going to load existing ones
+    const urlParams = new URLSearchParams(window.location.search);
+    if (!urlParams.has('edit')) {
+        // Only add initial condition if we're not editing
+        addCondition();
+    }
 });
 
 // Function to test rule against existing events
