@@ -442,6 +442,13 @@ def _get_field_value(field, event_data):
         return event['sender'].split('@')[1] if '@' in event['sender'] else ''
     elif field == 'subject':
         return event['subject'] or ''
+    elif field == 'keywords':
+        # Check if any keywords match this event
+        keyword_matches = check_keyword_matches(event)
+        if keyword_matches:
+            # Return the matched keywords as a comma-separated string
+            return ', '.join([match['term'] for match in keyword_matches])
+        return ''
     elif field == 'recipients':
         return ', '.join(recipients)
     elif field == 'recipient_domain':
@@ -671,6 +678,18 @@ def evaluate_condition(event, field, operator, value):
             event_value = event.get('sender', '')
         elif field == 'subject':
             event_value = event.get('subject', '') or ''
+        elif field == 'keywords':
+            # For testing, check if any keywords would match this event
+            try:
+                # Create a temporary event dict for keyword checking
+                temp_event = {'id': event.get('id', 0), 'subject': event.get('subject', '')}
+                keyword_matches = check_keyword_matches(temp_event)
+                if keyword_matches:
+                    event_value = ', '.join([match['term'] for match in keyword_matches])
+                else:
+                    event_value = ''
+            except Exception:
+                event_value = ''
         elif field == 'ml_score':
             event_value = float(event.get('ml_score', 0) or 0)
         elif field == 'recipient_count':

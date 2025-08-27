@@ -66,6 +66,7 @@
                                             <option value="sender">Sender Email</option>
                                             <option value="sender_domain">Sender Domain</option>
                                             <option value="subject">Subject</option>
+                                            <option value="keywords">Keywords</option>
                                             <option value="recipients">Recipients</option>
                                             <option value="recipient_domain">Recipient Domain</option>
                                             <option value="bunit">Business Unit</option>
@@ -286,6 +287,7 @@
                             <li><strong>Sender Email:</strong> Full sender email address</li>
                             <li><strong>Sender Domain:</strong> Domain part of sender email</li>
                             <li><strong>Subject:</strong> Email subject line</li>
+                            <li><strong>Keywords:</strong> Matches against configured keywords in subject/attachments</li>
                             <li><strong>Recipients:</strong> List of recipient emails</li>
                             <li><strong>Recipient Domain:</strong> Domain of recipients</li>
                             <li><strong>Business Unit:</strong> Sender's business unit</li>
@@ -342,6 +344,7 @@ function addCondition() {
                     <option value="sender">Sender Email</option>
                     <option value="sender_domain">Sender Domain</option>
                     <option value="subject">Subject</option>
+                    <option value="keywords">Keywords</option>
                     <option value="recipients">Recipients</option>
                     <option value="recipient_domain">Recipient Domain</option>
                     <option value="bunit">Business Unit</option>
@@ -438,6 +441,16 @@ document.addEventListener('change', function(e) {
                 <option value="is_false">Is False</option>
             `;
             valueInput.style.display = 'none';
+        } else if (field === 'keywords') {
+            // Keywords field - special handling
+            operatorSelect.innerHTML = `
+                <option value="contains">Contains Keyword</option>
+                <option value="is_not_empty">Has Any Keywords</option>
+                <option value="is_empty">No Keywords Match</option>
+            `;
+            valueInput.type = 'text';
+            valueInput.style.display = 'block';
+            valueInput.placeholder = 'Enter keyword term to match...';
         } else {
             // Text fields
             operatorSelect.innerHTML = `
@@ -545,6 +558,7 @@ function addConditionWithData(field = '', operator = 'equals', value = '', logic
                     <option value="sender" ${field === 'sender' ? 'selected' : ''}>Sender Email</option>
                     <option value="sender_domain" ${field === 'sender_domain' ? 'selected' : ''}>Sender Domain</option>
                     <option value="subject" ${field === 'subject' ? 'selected' : ''}>Subject</option>
+                    <option value="keywords" ${field === 'keywords' ? 'selected' : ''}>Keywords</option>
                     <option value="recipients" ${field === 'recipients' ? 'selected' : ''}>Recipients</option>
                     <option value="recipient_domain" ${field === 'recipient_domain' ? 'selected' : ''}>Recipient Domain</option>
                     <option value="bunit" ${field === 'bunit' ? 'selected' : ''}>Business Unit</option>
