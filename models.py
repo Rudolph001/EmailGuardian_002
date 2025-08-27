@@ -259,23 +259,25 @@ def get_dashboard_stats():
 
         stats = {}
 
-        # High risk events (ml_score > 0.7, not closed, not whitelisted, not follow-up)
+        # High risk events (ml_score > 0.7, not closed, not whitelisted, not follow-up, no trigger_reason)
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) > 0.7 
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '')
         """)
         stats['high_risk_count'] = cursor.fetchone()[0]
 
-        # Low risk events (ml_score <= 0.3, not closed, not whitelisted, not follow-up)  
+        # Low risk events (ml_score <= 0.3, not closed, not whitelisted, not follow-up, no trigger_reason)  
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) <= 0.3 
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '')
         """)
         stats['low_risk_count'] = cursor.fetchone()[0]
 
@@ -934,7 +936,7 @@ def get_high_risk_events(limit=100, offset=0):
     """Get high risk events that haven't been processed by rules"""
     with get_db() as conn:
         cursor = conn.cursor()
-        # Simplified query - just return high risk events
+        # Exclude events with trigger_reason set (rule triggered events)
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
                    status, is_whitelisted, follow_up, trigger_reason,
@@ -942,6 +944,7 @@ def get_high_risk_events(limit=100, offset=0):
                    email_sent, email_sent_date
             FROM events
             WHERE ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '')
             ORDER BY ml_score DESC, datetime(_time) DESC
             LIMIT ? OFFSET ?
         """, (limit, offset))
@@ -951,11 +954,12 @@ def get_high_risk_events_count():
     """Get count of high risk events that haven't been processed by rules"""
     with get_db() as conn:
         cursor = conn.cursor()
-        # Simplified count query
+        # Exclude events with trigger_reason set (rule triggered events)
         cursor.execute("""
             SELECT COUNT(*)
             FROM events
             WHERE ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '')
         """)
         return cursor.fetchone()[0]
 
