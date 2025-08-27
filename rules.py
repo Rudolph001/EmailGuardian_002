@@ -615,9 +615,9 @@ def test_rule_against_events(conditions):
         total_events = len(events)
 
         if not conditions:
-            return 0, total_events
+            return [], total_events
 
-        matching_events = 0
+        matching_events = []
 
         for event_row in events:
             try:
@@ -642,10 +642,6 @@ def test_rule_against_events(conditions):
                     value = condition.get('value', '')
                     logic = condition.get('logic', 'AND')
 
-                    # Map UI field names to database field names
-                    if field == 'Is Leaver':
-                        field = 'leaver'
-
                     condition_result = evaluate_condition(event_dict, field, operator, value)
 
                     if i == 0:
@@ -659,7 +655,7 @@ def test_rule_against_events(conditions):
                             all_conditions_match = all_conditions_match and condition_result
 
                 if all_conditions_match:
-                    matching_events += 1
+                    matching_events.append(event_dict)
 
             except Exception as e:
                 logger.warning(f"Error evaluating event {event_dict.get('id', 'unknown')} against test conditions: {e}")
@@ -685,14 +681,13 @@ def evaluate_condition(event, field, operator, value):
             event_value = len(event.get('policies', []))
         elif field == 'is_internal_to_external':
             event_value = bool(event.get('is_internal_to_external', 0))
-        elif field == 'Is Leaver':  # Handle the exact field name from the UI
+        elif field == 'leaver':  # Handle leaver field properly
             leaver_val = event.get('leaver', 0)
-            # Convert to boolean: 1 = True, 0 = False
-            event_value = bool(leaver_val == 1)
-        elif field == 'leaver':  # Also handle direct database field name
-            leaver_val = event.get('leaver', 0)
-            # Convert to boolean: 1 = True, 0 = False
-            event_value = bool(leaver_val == 1)
+            # Convert to boolean: 1 = True, 0 = False, handle None
+            if leaver_val is None:
+                event_value = False
+            else:
+                event_value = bool(int(leaver_val) == 1)
         elif field == 'bunit':
             event_value = event.get('bunit', '') or ''
         elif field == 'department':
@@ -722,10 +717,10 @@ def evaluate_condition(event, field, operator, value):
                 return float(event_value) < float(value)
             except (ValueError, TypeError):
                 return False
-        elif operator == 'is_true' or operator == 'Is True':
+        elif operator == 'is_true':
             # For boolean fields, check if the value is True
             return bool(event_value) is True
-        elif operator == 'is_false' or operator == 'Is False':
+        elif operator == 'is_false':
             # For boolean fields, check if the value is False
             return bool(event_value) is False
         elif operator == 'is_empty':
