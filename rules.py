@@ -887,71 +887,60 @@ def evaluate_condition(event, field, operator, value):
 
 
 def process_all_events_for_rules():
-    """Process all events to apply rules and set trigger reasons"""
+    """Process all events to apply rules and set trigger reasons - optimized"""
     logger.info("Starting to process all events for rule triggers...")
 
-    with get_db() as conn:
-        cursor = conn.cursor()
-
-        # Get all events that don't have a trigger_reason set
-        cursor.execute("""
-            SELECT id FROM events 
-            WHERE (trigger_reason IS NULL OR trigger_reason = '') 
-            AND status != 'closed' 
-            AND is_whitelisted = 0 
-            AND follow_up = 0
-        """)
-
-        event_ids = [row[0] for row in cursor.fetchall()]
-
-    processed_count = 0
-    triggered_count = 0
-
-    for event_id in event_ids:
-        try:
-            # Apply rules to this event (this will also update trigger_reason if applicable)
-            actions = apply_rules_to_event(event_id)
-
-            # Check if any rules or keywords were triggered
-            rule_actions = [action for action in actions if action.get('type') == 'rule']
-            if rule_actions:
-                triggered_count += 1
-
-            processed_count += 1
-
-            if processed_count % 100 == 0:
-                logger.info(f"Processed {processed_count} events, {triggered_count} triggered so far...")
-
-        except Exception as e:
-            logger.error(f"Error processing event {event_id} for rules: {e}")
-            continue
-
-    logger.info(f"Completed processing {processed_count} events. {triggered_count} events had rules triggered.")
-    return processed_count, triggered_count
+    # Use the optimized version
+    return process_all_events_for_rules_with_progress()
 
 def process_all_events_for_rules_with_progress():
-    """Process all events to apply rules and set trigger reasons with progress tracking"""
+    """Process all events to apply rules and set trigger reasons with progress tracking - optimized"""
     from flask import current_app
     
     logger.info("Starting to process all events for rule triggers with progress tracking...")
 
+    # Get all enabled rules first to avoid repeated queries
+    rules = get_rules(enabled_only=True)
+    if not rules:
+        logger.info("No enabled rules found")
+        return 0, 0
+
+    # Get keywords once
+    keywords = get_keywords()
+    
+    # Get whitelist data once
+    whitelist_domains = get_whitelist_domains()
+    whitelist_emails = get_whitelist_emails()
+
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # Get all events that don't have a trigger_reason set
+        # Get events with all related data in one query for better performance
         cursor.execute("""
-            SELECT id FROM events 
-            WHERE (trigger_reason IS NULL OR trigger_reason = '') 
-            AND status != 'closed' 
-            AND is_whitelisted = 0 
-            AND follow_up = 0
+            SELECT e.id, e.sender, e.subject, e.bunit, e.department, e.leaver, 
+                   e.termination_date, e.ml_score, e.is_internal_to_external,
+                   GROUP_CONCAT(DISTINCT r.email) as recipients,
+                   GROUP_CONCAT(DISTINCT a.filename) as attachments,
+                   GROUP_CONCAT(DISTINCT p.policy_name) as policies
+            FROM events e
+            LEFT JOIN recipients r ON e.id = r.event_id
+            LEFT JOIN attachments a ON e.id = a.event_id
+            LEFT JOIN policies p ON e.id = p.event_id
+            WHERE (e.trigger_reason IS NULL OR e.trigger_reason = '') 
+            AND e.status != 'closed' 
+            AND e.is_whitelisted = 0 
+            AND e.follow_up = 0
+            GROUP BY e.id
+            ORDER BY e.id
         """)
 
-        event_ids = [row[0] for row in cursor.fetchall()]
+        events_data = cursor.fetchall()
 
-    total_events = len(event_ids)
+    total_events = len(events_data)
     processed_count = 0
     triggered_count = 0
+    batch_size = 100
+    updates = []
 
     # Update total events count in progress tracking
     try:
@@ -959,17 +948,74 @@ def process_all_events_for_rules_with_progress():
     except:
         pass
 
-    for event_id in event_ids:
+    for event_row in events_data:
         try:
-            # Apply rules to this event (this will also update trigger_reason if applicable)
-            actions = apply_rules_to_event(event_id)
+            event = dict(event_row)
+            event_id = event['id']
+            
+            # Parse multi-value fields
+            recipients = [r.strip() for r in (event['recipients'] or '').split(',') if r.strip()]
+            attachments = [a.strip() for a in (event['attachments'] or '').split(',') if a.strip()]
+            policies = [p.strip() for p in (event['policies'] or '').split(',') if p.strip()]
 
-            # Check if any rules or keywords were triggered
-            rule_actions = [action for action in actions if action.get('type') == 'rule']
-            if rule_actions:
+            trigger_reason = None
+            rule_triggered = False
+
+            # Fast whitelist check using preloaded data
+            if _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails):
+                # Skip whitelisted events
+                processed_count += 1
+                continue
+
+            # Fast keyword check using preloaded keywords
+            if _fast_keyword_check(event, keywords):
+                keyword_matches = check_keyword_matches(event)
+                if keyword_matches:
+                    keyword_terms = [match['term'] for match in keyword_matches[:3]]
+                    if len(keyword_matches) > 3:
+                        keyword_terms.append(f"+ {len(keyword_matches) - 3} more")
+                    trigger_reason = f"Keywords: {', '.join(keyword_terms)}"
+                    rule_triggered = True
+
+            # Fast rule evaluation using preloaded rules
+            if not rule_triggered:
+                event_data = {
+                    'event': event,
+                    'recipients': recipients,
+                    'attachments': attachments,
+                    'policies': policies
+                }
+
+                for rule in rules:
+                    try:
+                        conditions_json = rule['conditions_json']
+                        if not conditions_json:
+                            continue
+
+                        conditions = json.loads(conditions_json)
+                        if not conditions:
+                            continue
+
+                        if _evaluate_conditions(conditions, event_data):
+                            trigger_reason = f"Rule: {rule['name']}"
+                            rule_triggered = True
+                            break
+
+                    except Exception as e:
+                        logger.warning(f"Error evaluating rule {rule['id']} for event {event_id}: {e}")
+                        continue
+
+            # Batch the database updates
+            if trigger_reason:
+                updates.append((trigger_reason, event_id))
                 triggered_count += 1
 
             processed_count += 1
+
+            # Process batches for better performance
+            if len(updates) >= batch_size:
+                _execute_batch_updates(updates)
+                updates = []
 
             # Update progress tracking
             try:
@@ -980,12 +1026,102 @@ def process_all_events_for_rules_with_progress():
             except:
                 pass
 
-            if processed_count % 100 == 0:
+            if processed_count % 500 == 0:  # Log less frequently
                 logger.info(f"Processed {processed_count} events, {triggered_count} triggered so far...")
 
         except Exception as e:
-            logger.error(f"Error processing event {event_id} for rules: {e}")
+            logger.error(f"Error processing event {event.get('id', 'unknown')}: {e}")
+            processed_count += 1
             continue
+
+    # Process remaining updates
+    if updates:
+        _execute_batch_updates(updates)
 
     logger.info(f"Completed processing {processed_count} events. {triggered_count} events had rules triggered.")
     return processed_count, triggered_count
+
+def _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails):
+    """Fast whitelist check using preloaded data"""
+    try:
+        # Check sender domain
+        sender_domain = event['sender'].split('@')[-1].lower() if '@' in event['sender'] else ''
+        sender_whitelisted = False
+
+        for domain in whitelist_domains:
+            if sender_domain == domain['domain'].lower():
+                sender_whitelisted = True
+                break
+
+        if not sender_whitelisted:
+            sender_email = event['sender'].lower()
+            for email in whitelist_emails:
+                if sender_email == email['email'].lower():
+                    sender_whitelisted = True
+                    break
+
+        # For recipients, ALL must be whitelisted
+        if recipients:
+            all_recipients_whitelisted = True
+            for recipient in recipients:
+                recipient_lower = recipient.lower()
+                recipient_domain = recipient.split('@')[-1].lower() if '@' in recipient else ''
+                recipient_whitelisted = False
+
+                # Check recipient domain
+                for domain in whitelist_domains:
+                    if recipient_domain == domain['domain'].lower():
+                        recipient_whitelisted = True
+                        break
+
+                # Check recipient email if domain not whitelisted
+                if not recipient_whitelisted:
+                    for email in whitelist_emails:
+                        if recipient_lower == email['email'].lower():
+                            recipient_whitelisted = True
+                            break
+
+                if not recipient_whitelisted:
+                    all_recipients_whitelisted = False
+                    break
+
+            return all_recipients_whitelisted
+        
+        return sender_whitelisted
+
+    except Exception:
+        return False
+
+def _fast_keyword_check(event, keywords):
+    """Fast keyword check using preloaded keywords"""
+    try:
+        subject = (event['subject'] or '').lower()
+        
+        for keyword in keywords:
+            term = keyword['term']
+            is_regex = keyword['is_regex']
+
+            try:
+                if is_regex:
+                    pattern = re.compile(term, re.IGNORECASE)
+                    if pattern.search(subject):
+                        return True
+                else:
+                    if term.lower() in subject:
+                        return True
+            except re.error:
+                continue
+
+        return False
+    except Exception:
+        return False
+
+def _execute_batch_updates(updates):
+    """Execute batch database updates for better performance"""
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.executemany("UPDATE events SET trigger_reason = ? WHERE id = ?", updates)
+            conn.commit()
+    except Exception as e:
+        logger.error(f"Error executing batch updates: {e}")
