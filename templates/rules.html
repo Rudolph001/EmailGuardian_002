@@ -65,10 +65,15 @@
                                             <option value="">Select field...</option>
                                             <option value="sender">Sender Email</option>
                                             <option value="sender_domain">Sender Domain</option>
+                                            <option value="sender_domain_classification">Sender Domain Classification</option>
                                             <option value="subject">Subject</option>
                                             <option value="keywords">Keywords</option>
                                             <option value="recipients">Recipients</option>
                                             <option value="recipient_domain">Recipient Domain</option>
+                                            <option value="recipient_domain_classifications">Recipient Domain Classifications</option>
+                                            <option value="domain_risk_score">Domain Risk Score</option>
+                                            <option value="has_suspicious_domains">Has Suspicious Domains</option>
+                                            <option value="has_external_domains">Has External Domains</option>
                                             <option value="bunit">Business Unit</option>
                                             <option value="department">Department</option>
                                             <option value="leaver">Is Leaver</option>
@@ -286,10 +291,15 @@
                         <ul>
                             <li><strong>Sender Email:</strong> Full sender email address</li>
                             <li><strong>Sender Domain:</strong> Domain part of sender email</li>
+                            <li><strong>Sender Domain Classification:</strong> ML classification of sender domain (e.g., 'trusted', 'suspicious', 'unknown')</li>
                             <li><strong>Subject:</strong> Email subject line</li>
                             <li><strong>Keywords:</strong> Matches against configured keywords in subject/attachments</li>
                             <li><strong>Recipients:</strong> List of recipient emails</li>
                             <li><strong>Recipient Domain:</strong> Domain of recipients</li>
+                            <li><strong>Recipient Domain Classifications:</strong> ML classification of recipient domains</li>
+                            <li><strong>Domain Risk Score:</strong> ML-derived risk score for domains</li>
+                            <li><strong>Has Suspicious Domains:</strong> Boolean - if any recipient domain is flagged as suspicious</li>
+                            <li><strong>Has External Domains:</strong> Boolean - if any recipient domain is external to the organization</li>
                             <li><strong>Business Unit:</strong> Sender's business unit</li>
                             <li><strong>Department:</strong> Sender's department</li>
                             <li><strong>Is Leaver:</strong> Boolean - if sender is leaving</li>
@@ -343,10 +353,15 @@ function addCondition() {
                     <option value="">Select field...</option>
                     <option value="sender">Sender Email</option>
                     <option value="sender_domain">Sender Domain</option>
+                    <option value="sender_domain_classification">Sender Domain Classification</option>
                     <option value="subject">Subject</option>
                     <option value="keywords">Keywords</option>
                     <option value="recipients">Recipients</option>
                     <option value="recipient_domain">Recipient Domain</option>
+                    <option value="recipient_domain_classifications">Recipient Domain Classifications</option>
+                    <option value="domain_risk_score">Domain Risk Score</option>
+                    <option value="has_suspicious_domains">Has Suspicious Domains</option>
+                    <option value="has_external_domains">Has External Domains</option>
                     <option value="bunit">Business Unit</option>
                     <option value="department">Department</option>
                     <option value="leaver">Is Leaver</option>
@@ -397,18 +412,18 @@ function addCondition() {
 function removeCondition(conditionId) {
     const condition = document.querySelector(`[data-condition="${conditionId}"]`);
     const container = document.getElementById('conditions-container');
-    
+
     if (condition && container) {
         // Don't allow removing the last condition if it's the only one
         const allConditions = container.querySelectorAll('.condition-group');
-        
+
         if (allConditions.length > 1) {
             condition.remove();
         } else {
             // If it's the last condition, clear its values instead of removing it
             const selects = condition.querySelectorAll('select');
             const inputs = condition.querySelectorAll('input');
-            
+
             selects.forEach(select => select.selectedIndex = 0);
             inputs.forEach(input => input.value = '');
         }
@@ -425,7 +440,7 @@ document.addEventListener('change', function(e) {
         // Reset operator options
         operatorSelect.innerHTML = '';
 
-        if (['ml_score'].includes(field)) {
+        if (['ml_score', 'domain_risk_score'].includes(field)) {
             // Numeric fields
             operatorSelect.innerHTML = `
                 <option value="equals">Equals</option>
@@ -434,7 +449,8 @@ document.addEventListener('change', function(e) {
             `;
             valueInput.type = 'number';
             valueInput.step = '0.01';
-        } else if (['leaver', 'is_internal_to_external'].includes(field)) {
+            valueInput.style.display = 'block';
+        } else if (['leaver', 'is_internal_to_external'].includes(field) || ['has_suspicious_domains', 'has_external_domains'].includes(field)) {
             // Boolean fields
             operatorSelect.innerHTML = `
                 <option value="is_true">Is True</option>
@@ -451,7 +467,19 @@ document.addEventListener('change', function(e) {
             valueInput.type = 'text';
             valueInput.style.display = 'block';
             valueInput.placeholder = 'Enter keyword term to match...';
-        } else {
+        } else if (field === 'sender_domain_classification' || field === 'recipient_domain_classifications') {
+            // Domain classification fields
+            operatorSelect.innerHTML = `
+                <option value="equals">Equals</option>
+                <option value="contains">Contains</option>
+                <option value="is_empty">Is Empty</option>
+                <option value="is_not_empty">Is Not Empty</option>
+            `;
+            valueInput.type = 'text';
+            valueInput.style.display = 'block';
+            valueInput.placeholder = 'Enter classification (e.g., trusted, suspicious)';
+        }
+        else {
             // Text fields
             operatorSelect.innerHTML = `
                 <option value="equals">Equals</option>
@@ -471,29 +499,29 @@ document.addEventListener('change', function(e) {
 function editRule(ruleId, name, action, priority, enabled, conditions) {
     // Clear any existing edit state first
     resetForm();
-    
+
     // Highlight the rule being edited
     highlightEditingRule(ruleId);
-    
+
     // Populate the form with existing rule data
     const nameElement = document.getElementById('name');
     const actionElement = document.getElementById('rule_action');
     const priorityElement = document.getElementById('priority');
     const enabledElement = document.getElementById('enabled');
-    
+
     if (nameElement) nameElement.value = name;
     if (actionElement) actionElement.value = action;
     if (priorityElement) priorityElement.value = priority;
     if (enabledElement) enabledElement.checked = enabled;
-    
+
     // Change form action to edit
     const form = document.getElementById('ruleForm');
     const actionInput = form.querySelector('input[name="action"]');
-    
+
     if (actionInput) {
         actionInput.value = 'edit';
     }
-    
+
     // Add rule ID for editing
     let ruleIdInput = form.querySelector('input[name="rule_id"]');
     if (!ruleIdInput) {
@@ -503,14 +531,14 @@ function editRule(ruleId, name, action, priority, enabled, conditions) {
         form.appendChild(ruleIdInput);
     }
     ruleIdInput.value = ruleId;
-    
+
     // Clear existing conditions
     const container = document.getElementById('conditions-container');
-    
+
     if (container) {
         container.innerHTML = '';
         conditionCounter = 0;
-        
+
         // Populate conditions if they exist
         if (conditions && Array.isArray(conditions) && conditions.length > 0) {
             conditions.forEach((condition, index) => {
@@ -526,20 +554,20 @@ function editRule(ruleId, name, action, priority, enabled, conditions) {
             addCondition();
         }
     }
-    
+
     // Update submit button text
     const submitBtn = form.querySelector('button[type="submit"]');
-    
+
     if (submitBtn) {
         submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Update Rule';
     }
-    
+
     // Add cancel button if it doesn't exist
     addCancelButton();
-    
+
     // Add visual indicator that we're editing
     addEditingIndicator(name);
-    
+
     // Scroll to form
     form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -550,40 +578,166 @@ function addConditionWithData(field = '', operator = 'equals', value = '', logic
     newCondition.className = 'condition-group border rounded p-3 mb-3';
     newCondition.setAttribute('data-condition', conditionCounter);
 
+    // Helper to generate options with selected attribute
+    const generateOptions = (options, selectedValue) => {
+        return options.map(([val, text]) => `<option value="${val}" ${val === selectedValue ? 'selected' : ''}>${text}</option>`).join('');
+    };
+
+    // Define options for each field type
+    const fieldOptions = [
+        { value: "", text: "Select field..." },
+        { value: "sender", text: "Sender Email" },
+        { value: "sender_domain", text: "Sender Domain" },
+        { value: "sender_domain_classification", text: "Sender Domain Classification" },
+        { value: "subject", text: "Subject" },
+        { value: "keywords", text: "Keywords" },
+        { value: "recipients", text: "Recipients" },
+        { value: "recipient_domain", text: "Recipient Domain" },
+        { value: "recipient_domain_classifications", text: "Recipient Domain Classifications" },
+        { value: "domain_risk_score", text: "Domain Risk Score" },
+        { value: "has_suspicious_domains", text: "Has Suspicious Domains" },
+        { value: "has_external_domains", text: "Has External Domains" },
+        { value: "bunit", text: "Business Unit" },
+        { value: "department", text: "Department" },
+        { value: "leaver", text: "Is Leaver" },
+        { value: "termination_date", text: "Termination Date" },
+        { value: "attachments", text: "Attachments" },
+        { value: "policies", text: "Policy Names" },
+        { value: "ml_score", text: "ML Score" },
+        { value: "is_internal_to_external", text: "Internal to External" },
+    ];
+
+    const operatorOptions = {
+        "sender": [
+            { value: "equals", text: "Equals" },
+            { value: "contains", text: "Contains" },
+            { value: "starts_with", text: "Starts With" },
+            { value: "ends_with", text: "Ends With" },
+            { value: "matches", text: "Matches Pattern" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "sender_domain": [
+            { value: "equals", text: "Equals" },
+            { value: "contains", text: "Contains" },
+            { value: "starts_with", text: "Starts With" },
+            { value: "ends_with", text: "Ends With" },
+            { value: "matches", text: "Matches Pattern" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "sender_domain_classification": [
+            { value: "equals", text: "Equals" },
+            { value: "contains", text: "Contains" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "recipient_domain": [
+            { value: "equals", text: "Equals" },
+            { value: "contains", text: "Contains" },
+            { value: "starts_with", text: "Starts With" },
+            { value: "ends_with", text: "Ends With" },
+            { value: "matches", text: "Matches Pattern" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "recipient_domain_classifications": [
+            { value: "equals", text: "Equals" },
+            { value: "contains", text: "Contains" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "domain_risk_score": [
+            { value: "equals", text: "Equals" },
+            { value: "greater_than", text: "Greater Than" },
+            { value: "less_than", text: "Less Than" }
+        ],
+        "has_suspicious_domains": [
+            { value: "is_true", text: "Is True" },
+            { value: "is_false", text: "Is False" }
+        ],
+        "has_external_domains": [
+            { value: "is_true", text: "Is True" },
+            { value: "is_false", text: "Is False" }
+        ],
+        "subject": [
+            { value: "equals", text: "Equals" },
+            { value: "contains", text: "Contains" },
+            { value: "starts_with", text: "Starts With" },
+            { value: "ends_with", text: "Ends With" },
+            { value: "matches", text: "Matches Pattern" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "keywords": [
+            { value: "contains", text: "Contains Keyword" },
+            { value: "is_not_empty", text: "Has Any Keywords" },
+            { value: "is_empty", text: "No Keywords Match" }
+        ],
+        "recipients": [
+            { value: "contains", text: "Contains Email" },
+            { value: "matches", text: "Matches Pattern" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "bunit": [
+            { value: "equals", text: "Equals" },
+            { value: "contains", text: "Contains" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "department": [
+            { value: "equals", text: "Equals" },
+            { value: "contains", text: "Contains" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "leaver": [
+            { value: "is_true", text: "Is True" },
+            { value: "is_false", text: "Is False" }
+        ],
+        "termination_date": [
+            { value: "before", text: "Before Date" },
+            { value: "after", text: "After Date" },
+            { value: "on", text: "On Date" }
+        ],
+        "attachments": [
+            { value: "contains", text: "Contains Filename" },
+            { value: "matches", text: "Matches Pattern" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "policies": [
+            { value: "contains", text: "Contains Policy" },
+            { value: "matches", text: "Matches Pattern" },
+            { value: "is_empty", text: "Is Empty" },
+            { value: "is_not_empty", text: "Is Not Empty" }
+        ],
+        "ml_score": [
+            { value: "equals", text: "Equals" },
+            { value: "greater_than", text: "Greater Than" },
+            { value: "less_than", text: "Less Than" }
+        ],
+        "is_internal_to_external": [
+            { value: "is_true", text: "Is True" },
+            { value: "is_false", text: "Is False" }
+        ]
+    };
+
+    // Get the currently selected field to determine which operators to show
+    const selectedField = field; // Use the passed field value directly
+    const currentOperators = operatorOptions[selectedField] || operatorOptions["sender"]; // Default to sender if field not found
+
     newCondition.innerHTML = `
         <div class="row align-items-center">
             <div class="col-md-3">
                 <select class="form-select condition-field" name="conditions[${conditionCounter}][field]">
-                    <option value="">Select field...</option>
-                    <option value="sender" ${field === 'sender' ? 'selected' : ''}>Sender Email</option>
-                    <option value="sender_domain" ${field === 'sender_domain' ? 'selected' : ''}>Sender Domain</option>
-                    <option value="subject" ${field === 'subject' ? 'selected' : ''}>Subject</option>
-                    <option value="keywords" ${field === 'keywords' ? 'selected' : ''}>Keywords</option>
-                    <option value="recipients" ${field === 'recipients' ? 'selected' : ''}>Recipients</option>
-                    <option value="recipient_domain" ${field === 'recipient_domain' ? 'selected' : ''}>Recipient Domain</option>
-                    <option value="bunit" ${field === 'bunit' ? 'selected' : ''}>Business Unit</option>
-                    <option value="department" ${field === 'department' ? 'selected' : ''}>Department</option>
-                    <option value="leaver" ${field === 'leaver' ? 'selected' : ''}>Is Leaver</option>
-                    <option value="termination_date" ${field === 'termination_date' ? 'selected' : ''}>Termination Date</option>
-                    <option value="attachments" ${field === 'attachments' ? 'selected' : ''}>Attachments</option>
-                    <option value="policies" ${field === 'policies' ? 'selected' : ''}>Policy Names</option>
-                    <option value="ml_score" ${field === 'ml_score' ? 'selected' : ''}>ML Score</option>
-                    <option value="is_internal_to_external" ${field === 'is_internal_to_external' ? 'selected' : ''}>Internal to External</option>
+                    ${generateOptions(fieldOptions.map(opt => [opt.value, opt.text]), field)}
                 </select>
             </div>
             <div class="col-md-2">
                 <select class="form-select condition-operator" name="conditions[${conditionCounter}][operator]">
-                    <option value="equals" ${operator === 'equals' ? 'selected' : ''}>Equals</option>
-                    <option value="contains" ${operator === 'contains' ? 'selected' : ''}>Contains</option>
-                    <option value="starts_with" ${operator === 'starts_with' ? 'selected' : ''}>Starts With</option>
-                    <option value="ends_with" ${operator === 'ends_with' ? 'selected' : ''}>Ends With</option>
-                    <option value="matches" ${operator === 'matches' ? 'selected' : ''}>Matches Pattern</option>
-                    <option value="greater_than" ${operator === 'greater_than' ? 'selected' : ''}>Greater Than</option>
-                    <option value="less_than" ${operator === 'less_than' ? 'selected' : ''}>Less Than</option>
-                    <option value="is_true" ${operator === 'is_true' ? 'selected' : ''}>Is True</option>
-                    <option value="is_false" ${operator === 'is_false' ? 'selected' : ''}>Is False</option>
-                    <option value="is_empty" ${operator === 'is_empty' ? 'selected' : ''}>Is Empty</option>
-                    <option value="is_not_empty" ${operator === 'is_not_empty' ? 'selected' : ''}>Is Not Empty</option>
+                    ${generateOptions(currentOperators.map(opt => [opt.value, opt.text]), operator)}
                 </select>
             </div>
             <div class="col-md-4">
@@ -612,34 +766,34 @@ function resetForm() {
     const form = document.getElementById('ruleForm');
     if (form) {
         form.reset();
-        
+
         // Reset form action to add
         const actionInput = form.querySelector('input[name="action"]');
         if (actionInput) {
             actionInput.value = 'add';
         }
-        
+
         // Remove rule_id input if it exists
         const ruleIdInput = form.querySelector('input[name="rule_id"]');
         if (ruleIdInput) {
             ruleIdInput.remove();
         }
-        
+
         // Reset submit button text
         const submitBtn = form.querySelector('button[type="submit"]');
         if (submitBtn) {
             submitBtn.innerHTML = '<i class="fas fa-plus me-2"></i>Create Rule';
         }
-        
+
         // Remove cancel button if it exists
         removeCancelButton();
-        
+
         // Remove editing indicator
         removeEditingIndicator();
-        
+
         // Clear rule highlights
         clearRuleHighlights();
-        
+
         // Reset conditions
         const container = document.getElementById('conditions-container');
         if (container) {
@@ -653,7 +807,7 @@ function resetForm() {
 function addCancelButton() {
     const form = document.getElementById('ruleForm');
     const submitBtn = form.querySelector('button[type="submit"]');
-    
+
     // Check if cancel button already exists
     let cancelBtn = form.querySelector('.cancel-edit-btn');
     if (!cancelBtn) {
@@ -664,7 +818,7 @@ function addCancelButton() {
         cancelBtn.onclick = function() {
             resetForm();
         };
-        
+
         // Insert after submit button
         submitBtn.parentNode.insertBefore(cancelBtn, submitBtn.nextSibling);
     }
@@ -680,7 +834,7 @@ function removeCancelButton() {
 function addEditingIndicator(ruleName) {
     // Remove existing indicator
     removeEditingIndicator();
-    
+
     const form = document.getElementById('ruleForm');
     const indicator = document.createElement('div');
     indicator.className = 'alert alert-info mb-3 editing-indicator';
@@ -689,7 +843,7 @@ function addEditingIndicator(ruleName) {
         <strong>Editing Rule:</strong> ${ruleName}
         <button type="button" class="btn-close float-end" onclick="resetForm()"></button>
     `;
-    
+
     // Insert at the top of the form
     form.insertBefore(indicator, form.firstChild);
 }
@@ -704,7 +858,7 @@ function removeEditingIndicator() {
 function highlightEditingRule(ruleId) {
     // Remove existing highlights
     clearRuleHighlights();
-    
+
     // Find and highlight the rule being edited
     const ruleRows = document.querySelectorAll('tr[data-rule-id]');
     ruleRows.forEach(row => {
@@ -723,13 +877,11 @@ function clearRuleHighlights() {
 
 // Initialize the form when the DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
-    // Don't add initial condition here - will be handled later
-    
     // Add event listener for test rule button
     document.getElementById('testRuleBtn').addEventListener('click', function() {
         testRule();
     });
-    
+
     // Add event listeners for edit buttons
     document.addEventListener('click', function(e) {
         if (e.target.closest('.edit-rule-btn')) {
@@ -739,7 +891,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const action = btn.getAttribute('data-rule-action');
             const priority = btn.getAttribute('data-rule-priority');
             const enabled = btn.getAttribute('data-rule-enabled') === 'True';
-            
+
             let conditions;
             try {
                 const conditionsStr = btn.getAttribute('data-rule-conditions');
@@ -760,16 +912,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error parsing conditions:', e);
                 conditions = [];
             }
-            
+
             editRule(ruleId, name, action, priority, enabled, conditions);
         }
-        
+
         // Handle add condition button
         if (e.target.closest('.add-condition-btn')) {
             e.preventDefault();
             addCondition();
         }
-        
+
         // Handle remove condition buttons (for dynamically generated ones)
         if (e.target.closest('.remove-condition')) {
             e.preventDefault();
@@ -780,7 +932,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 removeCondition(conditionId);
             }
         }
-        
+
         // Handle reset form button
         if (e.target.closest('.reset-form-btn')) {
             e.preventDefault();
@@ -789,8 +941,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
-    
-    // Fix initial condition setup - don't add empty condition if we're going to load existing ones
+
+    // Initialize the first condition if the form is not for editing
     const urlParams = new URLSearchParams(window.location.search);
     if (!urlParams.has('edit')) {
         // Only add initial condition if we're not editing
@@ -803,38 +955,38 @@ function testRule() {
     // Collect form data
     const formData = new FormData();
     formData.append('action', 'test');
-    
+
     // Get basic rule info
     const name = document.getElementById('name').value;
     const action = document.getElementById('rule_action').value;
     const priority = document.getElementById('priority').value;
     const enabled = document.getElementById('enabled').checked;
-    
+
     if (!name.trim()) {
         alert('Please enter a rule name to test');
         return;
     }
-    
+
     if (!action) {
         alert('Please select an action to test');
         return;
     }
-    
+
     formData.append('name', name);
     formData.append('rule_action', action);
     formData.append('priority', priority);
     formData.append('enabled', enabled);
-    
+
     // Collect conditions
     const conditions = [];
     const conditionGroups = document.querySelectorAll('.condition-group');
-    
+
     conditionGroups.forEach((group, index) => {
         const field = group.querySelector('.condition-field').value;
         const operator = group.querySelector('.condition-operator').value;
         const value = group.querySelector('.condition-value').value;
         const logic = group.querySelector('.condition-logic').value;
-        
+
         if (field && operator) {
             conditions.push({
                 field: field,
@@ -844,16 +996,16 @@ function testRule() {
             });
         }
     });
-    
+
     // Add conditions to form data
     formData.append('conditions', JSON.stringify(conditions));
-    
+
     // Show loading state
     const testBtn = document.getElementById('testRuleBtn');
     const originalText = testBtn.innerHTML;
     testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testing...';
     testBtn.disabled = true;
-    
+
     // Send test request
     fetch('/rules', {
         method: 'POST',
@@ -878,12 +1030,12 @@ function testRule() {
 function displayTestResults(data) {
     const resultsSection = document.getElementById('testResultsSection');
     const resultsContent = document.getElementById('testResultsContent');
-    
+
     if (data.success) {
         const matchCount = data.matches.length;
         const totalEvents = data.total_events;
         const percentage = totalEvents > 0 ? ((matchCount / totalEvents) * 100).toFixed(1) : 0;
-        
+
         let html = `
             <div class="row mb-3">
                 <div class="col-md-4">
@@ -912,7 +1064,7 @@ function displayTestResults(data) {
                 </div>
             </div>
         `;
-        
+
         if (matchCount > 0) {
             html += `
                 <h6><i class="fas fa-list me-2"></i>Sample Matching Events (showing first 10):</h6>
@@ -930,7 +1082,7 @@ function displayTestResults(data) {
                         </thead>
                         <tbody>
             `;
-            
+
             data.matches.slice(0, 10).forEach(event => {
                 html += `
                     <tr>
@@ -951,13 +1103,13 @@ function displayTestResults(data) {
                     </tr>
                 `;
             });
-            
+
             html += `
                         </tbody>
                     </table>
                 </div>
             `;
-            
+
             if (matchCount > 10) {
                 html += `<p class="text-muted mt-2"><small>... and ${matchCount - 10} more events</small></p>`;
             }
@@ -970,7 +1122,7 @@ function displayTestResults(data) {
                 </div>
             `;
         }
-        
+
         html += `
             <div class="mt-3">
                 <button type="button" class="btn btn-outline-secondary btn-sm" onclick="hideTestResults()">
@@ -978,7 +1130,7 @@ function displayTestResults(data) {
                 </button>
             </div>
         `;
-        
+
         resultsContent.innerHTML = html;
     } else {
         resultsContent.innerHTML = `
@@ -988,7 +1140,7 @@ function displayTestResults(data) {
             </div>
         `;
     }
-    
+
     // Show results section
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth' });

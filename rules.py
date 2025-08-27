@@ -457,6 +457,69 @@ def _get_field_value(field, event_data):
             if '@' in email:
                 domains.add(email.split('@')[1])
         return ', '.join(domains)
+    elif field == 'domain_risk_score':
+        # Get domain risk score for this event
+        try:
+            from domain_ml import classify_event_domains, get_domain_risk_score
+            domain_classifications = classify_event_domains(event['id'])
+            return get_domain_risk_score(domain_classifications)
+        except Exception:
+            return 0.0
+    elif field == 'sender_domain_classification':
+        # Classify sender domain
+        try:
+            from domain_ml import domain_classifier
+            from utils import extract_domain
+            if not domain_classifier.model:
+                domain_classifier.load_model()
+            if domain_classifier.model:
+                sender_domain = extract_domain(event['sender'])
+                if sender_domain:
+                    classification = domain_classifier.classify_domain(sender_domain)
+                    return classification.get('label', 'unknown')
+            return 'unknown'
+        except Exception:
+            return 'unknown'
+    elif field == 'recipient_domain_classifications':
+        # Get all recipient domain classifications
+        try:
+            from domain_ml import domain_classifier
+            from utils import extract_domain
+            if not domain_classifier.model:
+                domain_classifier.load_model()
+            if domain_classifier.model:
+                classifications = []
+                for email in recipients:
+                    domain = extract_domain(email)
+                    if domain:
+                        classification = domain_classifier.classify_domain(domain)
+                        classifications.append(classification.get('label', 'unknown'))
+                return ', '.join(classifications)
+            return 'unknown'
+        except Exception:
+            return 'unknown'
+    elif field == 'has_suspicious_domains':
+        # Check if any domains are classified as suspicious
+        try:
+            from domain_ml import classify_event_domains
+            domain_classifications = classify_event_domains(event['id'])
+            for classification in domain_classifications:
+                if classification.get('label') == 'suspicious':
+                    return True
+            return False
+        except Exception:
+            return False
+    elif field == 'has_external_domains':
+        # Check if any domains are not internal
+        try:
+            from domain_ml import classify_event_domains
+            domain_classifications = classify_event_domains(event['id'])
+            for classification in domain_classifications:
+                if classification.get('label') != 'internal':
+                    return True
+            return False
+        except Exception:
+            return False
     elif field == 'bunit':
         return event['bunit'] or ''
     elif field == 'department':
@@ -692,6 +755,68 @@ def evaluate_condition(event, field, operator, value):
                 event_value = ''
         elif field == 'ml_score':
             event_value = float(event.get('ml_score', 0) or 0)
+        elif field == 'domain_risk_score':
+            # For testing, simulate domain risk score calculation
+            try:
+                from domain_ml import classify_event_domains, get_domain_risk_score
+                domain_classifications = classify_event_domains(event.get('id', 0))
+                event_value = get_domain_risk_score(domain_classifications)
+            except Exception:
+                event_value = 0.0
+        elif field == 'sender_domain_classification':
+            # For testing, simulate sender domain classification
+            try:
+                from domain_ml import domain_classifier
+                from utils import extract_domain
+                if not domain_classifier.model:
+                    domain_classifier.load_model()
+                if domain_classifier.model:
+                    sender_domain = extract_domain(event.get('sender', ''))
+                    if sender_domain:
+                        classification = domain_classifier.classify_domain(sender_domain)
+                        event_value = classification.get('label', 'unknown')
+                    else:
+                        event_value = 'unknown'
+                else:
+                    event_value = 'unknown'
+            except Exception:
+                event_value = 'unknown'
+        elif field == 'recipient_domain_classifications':
+            # For testing, simulate recipient domain classifications
+            try:
+                from domain_ml import domain_classifier
+                from utils import extract_domain
+                if not domain_classifier.model:
+                    domain_classifier.load_model()
+                if domain_classifier.model:
+                    classifications = []
+                    recipients = event.get('recipients', [])
+                    for email in recipients:
+                        domain = extract_domain(email)
+                        if domain:
+                            classification = domain_classifier.classify_domain(domain)
+                            classifications.append(classification.get('label', 'unknown'))
+                    event_value = ', '.join(classifications)
+                else:
+                    event_value = 'unknown'
+            except Exception:
+                event_value = 'unknown'
+        elif field == 'has_suspicious_domains':
+            # For testing, check if any domains are suspicious
+            try:
+                from domain_ml import classify_event_domains
+                domain_classifications = classify_event_domains(event.get('id', 0))
+                event_value = any(c.get('label') == 'suspicious' for c in domain_classifications)
+            except Exception:
+                event_value = False
+        elif field == 'has_external_domains':
+            # For testing, check if any domains are external
+            try:
+                from domain_ml import classify_event_domains
+                domain_classifications = classify_event_domains(event.get('id', 0))
+                event_value = any(c.get('label') != 'internal' for c in domain_classifications)
+            except Exception:
+                event_value = False
         elif field == 'recipient_count':
             event_value = len(event.get('recipients', []))
         elif field == 'attachment_count':
