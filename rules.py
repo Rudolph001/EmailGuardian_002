@@ -476,9 +476,12 @@ def _get_field_value(field, event_data):
                 sender_domain = extract_domain(event['sender'])
                 if sender_domain:
                     classification = domain_classifier.classify_domain(sender_domain)
-                    return classification.get('label', 'unknown')
+                    result = classification.get('label', 'unknown')
+                    logger.debug(f"Sender domain {sender_domain} classified as: {result}")
+                    return result
             return 'unknown'
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Error classifying sender domain: {e}")
             return 'unknown'
     elif field == 'recipient_domain_classifications':
         # Get all recipient domain classifications
@@ -548,10 +551,13 @@ def _evaluate_conditions(conditions, event_data):
     results = []
     operators = []
 
+    logger.debug(f"Evaluating {len(conditions)} conditions for event {event_data['event']['id']}")
+
     for condition in conditions:
         result = _evaluate_condition(condition, event_data)
         results.append(result)
         operators.append(condition.get('logic', 'AND'))
+        logger.debug(f"Condition {condition.get('field')} {condition.get('operator')} {condition.get('value')} = {result}")
 
     # Start with first result
     final_result = results[0]
@@ -564,6 +570,7 @@ def _evaluate_conditions(conditions, event_data):
         else:  # AND
             final_result = final_result and results[i]
 
+    logger.debug(f"Final result for event {event_data['event']['id']}: {final_result}")
     return final_result
 
 def apply_rules_to_event(event_id):
