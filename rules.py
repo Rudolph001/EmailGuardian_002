@@ -777,3 +777,64 @@ def process_all_events_for_rules():
 
     logger.info(f"Completed processing {processed_count} events. {triggered_count} events had rules triggered.")
     return processed_count, triggered_count
+
+def process_all_events_for_rules_with_progress():
+    """Process all events to apply rules and set trigger reasons with progress tracking"""
+    from flask import current_app
+    
+    logger.info("Starting to process all events for rule triggers with progress tracking...")
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Get all events that don't have a trigger_reason set
+        cursor.execute("""
+            SELECT id FROM events 
+            WHERE (trigger_reason IS NULL OR trigger_reason = '') 
+            AND status != 'closed' 
+            AND is_whitelisted = 0 
+            AND follow_up = 0
+        """)
+
+        event_ids = [row[0] for row in cursor.fetchall()]
+
+    total_events = len(event_ids)
+    processed_count = 0
+    triggered_count = 0
+
+    # Update total events count in progress tracking
+    try:
+        current_app.config['rule_processing']['total_events'] = total_events
+    except:
+        pass
+
+    for event_id in event_ids:
+        try:
+            # Apply rules to this event (this will also update trigger_reason if applicable)
+            actions = apply_rules_to_event(event_id)
+
+            # Check if any rules or keywords were triggered
+            rule_actions = [action for action in actions if action.get('type') == 'rule']
+            if rule_actions:
+                triggered_count += 1
+
+            processed_count += 1
+
+            # Update progress tracking
+            try:
+                current_app.config['rule_processing'].update({
+                    'processed_count': processed_count,
+                    'triggered_count': triggered_count
+                })
+            except:
+                pass
+
+            if processed_count % 100 == 0:
+                logger.info(f"Processed {processed_count} events, {triggered_count} triggered so far...")
+
+        except Exception as e:
+            logger.error(f"Error processing event {event_id} for rules: {e}")
+            continue
+
+    logger.info(f"Completed processing {processed_count} events. {triggered_count} events had rules triggered.")
+    return processed_count, triggered_count

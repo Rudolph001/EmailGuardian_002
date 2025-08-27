@@ -116,11 +116,28 @@
                                 <i class="fas fa-calculator me-1"></i>Rescore All Events
                             </button>
                         </form>
-                        <form method="POST" action="{{ url_for('process_rules') }}" class="d-inline ms-2">
-                            <button type="submit" class="btn btn-info btn-sm" onclick="return confirm('This will process all events to apply rules and set trigger reasons. Continue?')">
-                                <i class="fas fa-gavel me-1"></i>Process Rules
-                            </button>
-                        </form>
+                        <button type="button" class="btn btn-info btn-sm" id="processRulesBtn" onclick="processRules()">
+                            <i class="fas fa-cogs me-2"></i>Process Rules
+                        </button>
+
+                        <!-- Progress Bar (initially hidden) -->
+                        <div id="progressContainer" class="mt-3" style="display: none;">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>Processing Rules...
+                                    </h6>
+                                    <div class="progress mb-2">
+                                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                             role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                    <div id="progressText" class="text-muted small">
+                                        Initializing...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -344,4 +361,137 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let progressInterval;
+
+function processRules() {
+    const btn = document.getElementById('processRulesBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+
+    // Disable button and show progress
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Starting...';
+    progressContainer.style.display = 'block';
+
+    // Start the processing
+    fetch('/process_rules', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Start polling for progress
+            progressInterval = setInterval(checkProgress, 500);
+        } else {
+            showError(data.error || 'Failed to start processing');
+        }
+    })
+    .catch(error => {
+        showError('Error starting rule processing: ' + error);
+    });
+}
+
+function checkProgress() {
+    fetch('/process_rules_progress')
+    .then(response => response.json())
+    .then(data => {
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+
+        if (data.completed) {
+            // Processing completed
+            clearInterval(progressInterval);
+
+            progressBar.style.width = '100%';
+            progressBar.setAttribute('aria-valuenow', '100');
+            progressBar.classList.remove('progress-bar-animated');
+            progressBar.classList.add('bg-success');
+
+            progressText.innerHTML = `Completed! Processed ${data.processed_count} events, ${data.triggered_count} rules triggered.`;
+
+            // Re-enable button and hide progress after delay
+            setTimeout(() => {
+                const btn = document.getElementById('processRulesBtn');
+                const progressContainer = document.getElementById('progressContainer');
+
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-cogs me-2"></i>Process Rules';
+                progressContainer.style.display = 'none';
+
+                // Show success message
+                showSuccessMessage(`Processed ${data.processed_count} events. ${data.triggered_count} events had rules triggered.`);
+
+                // Optionally reload the page to show updated stats
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            }, 3000);
+
+        } else if (data.error) {
+            // Error occurred
+            clearInterval(progressInterval);
+            showError(data.error);
+
+        } else {
+            // Update progress
+            const percentage = data.total_events > 0 ? Math.round((data.processed_count / data.total_events) * 100) : 0;
+
+            progressBar.style.width = percentage + '%';
+            progressBar.setAttribute('aria-valuenow', percentage);
+
+            progressText.innerHTML = `Processed ${data.processed_count} of ${data.total_events} events (${data.triggered_count} triggered)`;
+        }
+    })
+    .catch(error => {
+        clearInterval(progressInterval);
+        showError('Error checking progress: ' + error);
+    });
+}
+
+function showError(message) {
+    const btn = document.getElementById('processRulesBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-cogs me-2"></i>Process Rules';
+
+    progressBar.classList.remove('progress-bar-animated');
+    progressBar.classList.add('bg-danger');
+    progressText.innerHTML = 'Error: ' + message;
+
+    setTimeout(() => {
+        progressContainer.style.display = 'none';
+    }, 5000);
+}
+
+function showSuccessMessage(message) {
+    // Create a temporary success alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+    alertDiv.innerHTML = `
+        <i class="fas fa-check-circle me-2"></i>${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
 {% endblock %}

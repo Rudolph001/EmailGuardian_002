@@ -710,14 +710,70 @@ def rescore():
 def process_rules():
     """Process all events to apply rules and set trigger reasons"""
     try:
-        from rules import process_all_events_for_rules
-        processed_count, triggered_count = process_all_events_for_rules()
-        flash(f"Processed {processed_count} events. {triggered_count} events had rules triggered.", "success")
+        # Check if this is an AJAX request
+        if request.is_json or request.headers.get('Content-Type') == 'application/json':
+            # Start processing in background and return immediately
+            import threading
+            from rules import process_all_events_for_rules_with_progress
+            
+            # Reset progress tracking
+            app.config['rule_processing'] = {
+                'in_progress': True,
+                'processed_count': 0,
+                'triggered_count': 0,
+                'total_events': 0,
+                'completed': False,
+                'error': None
+            }
+            
+            def background_process():
+                try:
+                    processed_count, triggered_count = process_all_events_for_rules_with_progress()
+                    app.config['rule_processing'].update({
+                        'completed': True,
+                        'processed_count': processed_count,
+                        'triggered_count': triggered_count
+                    })
+                except Exception as e:
+                    logger.error(f"Background rule processing failed: {e}")
+                    app.config['rule_processing'].update({
+                        'completed': True,
+                        'error': str(e)
+                    })
+            
+            thread = threading.Thread(target=background_process)
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({'success': True, 'message': 'Processing started'})
+        else:
+            # Traditional form submission - process synchronously
+            from rules import process_all_events_for_rules
+            processed_count, triggered_count = process_all_events_for_rules()
+            flash(f"Processed {processed_count} events. {triggered_count} events had rules triggered.", "success")
+            return redirect(url_for('index'))
+            
     except Exception as e:
         logger.error(f"Error processing rules: {e}")
-        flash(f"Error processing rules: {e}", "error")
+        if request.is_json or request.headers.get('Content-Type') == 'application/json':
+            return jsonify({'success': False, 'error': str(e)})
+        else:
+            flash(f"Error processing rules: {e}", "error")
+            return redirect(url_for('index'))
 
-    return redirect(url_for('index'))
+@app.route("/process_rules_progress", methods=["GET"])
+def process_rules_progress():
+    """Get progress of rule processing"""
+    progress = app.config.get('rule_processing', {
+        'in_progress': False,
+        'processed_count': 0,
+        'triggered_count': 0,
+        'total_events': 0,
+        'completed': False,
+        'error': None
+    })
+    
+    return jsonify(progress)
 
 @app.route("/event/<int:event_id>/status", methods=["POST"])
 def update_event_status(event_id):
