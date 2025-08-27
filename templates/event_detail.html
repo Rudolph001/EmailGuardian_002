@@ -196,7 +196,7 @@
             </div>
         </div>
 
-        
+
     </div>
 </div>
 
@@ -348,39 +348,48 @@
                                             <tr>
                                                 <td>
                                                     {% if match.is_regex %}
-                                                        <span class="badge bg-warning">
+                                                        <span class="badge bg-warning text-dark">
                                                             <i class="fas fa-code me-1"></i>Regex
                                                         </span>
                                                     {% else %}
-                                                        <span class="badge bg-info">
-                                                            <i class="fas fa-font me-1"></i>Literal
+                                                        <span class="badge bg-success">
+                                                            <i class="fas fa-text-width me-1"></i>Literal
                                                         </span>
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    <code class="bg-light p-1 rounded">{{ match.term }}</code>
+                                                    <code class="bg-light text-dark p-1 rounded">{{ match.term }}</code>
                                                 </td>
                                                 <td>
-                                                    <span class="badge bg-{{ 'primary' if match.location == 'Subject' else 'success' }}">
-                                                        <i class="fas fa-{{ 'envelope' if match.location == 'Subject' else 'paperclip' }} me-1"></i>
-                                                        {{ match.location }}
-                                                    </span>
+                                                    {% if match.location == 'Subject' %}
+                                                        <span class="badge bg-primary">
+                                                            <i class="fas fa-envelope me-1"></i>Subject
+                                                        </span>
+                                                    {% elif match.location == 'Attachments' %}
+                                                        <span class="badge bg-info">
+                                                            <i class="fas fa-paperclip me-1"></i>Attachments
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">{{ match.location }}</span>
+                                                    {% endif %}
                                                 </td>
                                                 <td>
-                                                    <small class="text-muted">
-                                                        {% if match.is_regex %}
-                                                            Regular expression pattern match
-                                                        {% else %}
-                                                            Case-insensitive text match
-                                                        {% endif %}
-                                                    </small>
+                                                    {% if match.is_regex %}
+                                                        <span class="text-warning">
+                                                            <i class="fas fa-code me-1"></i>Regular Expression
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="text-success">
+                                                            <i class="fas fa-text-width me-1"></i>Case-insensitive text match
+                                                        </span>
+                                                    {% endif %}
                                                 </td>
                                             </tr>
                                         {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
-                            
+
                             <div class="alert alert-warning mt-3">
                                 <i class="fas fa-exclamation-triangle me-2"></i>
                                 <strong>{{ keyword_matches|length }} keyword match(es) found</strong> - 
@@ -465,13 +474,13 @@
                                    }, 1000);">
                                     <i class="fas fa-envelope me-1"></i>Generate Email
                                 </a>
-                                
+
                                 <!-- Hidden form to mark email as sent -->
                                 <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" 
                                       id="markSentForm" style="display: none;">
                                     <input type="hidden" name="action" value="mark_email_sent">
                                 </form>
-                                
+
                                 {% if event.email_sent %}
                                     <span class="badge bg-info ms-2" title="Email sent on {{ event.email_sent_date }}">
                                         <i class="fas fa-paper-plane me-1"></i>Email Sent
