@@ -333,78 +333,68 @@
                     <!-- Keyword Matches Tab -->
                     <div class="tab-pane fade" id="keywords" role="tabpanel">
                         {% if keyword_matches %}
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th>Type</th>
-                                            <th>Keyword/Pattern</th>
-                                            <th>Found In</th>
-                                            <th>Match Type</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for match in keyword_matches %}
-                                            <tr>
-                                                <td>
-                                                    {% if match.is_regex %}
-                                                        <span class="badge bg-warning text-dark">
-                                                            <i class="fas fa-code me-1"></i>Regex
-                                                        </span>
-                                                    {% else %}
-                                                        <span class="badge bg-success">
-                                                            <i class="fas fa-text-width me-1"></i>Literal
-                                                        </span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    <code class="bg-light text-dark p-1 rounded">{{ match.term }}</code>
-                                                </td>
-                                                <td>
-                                                    {% if match.location == 'Subject' %}
-                                                        <span class="badge bg-primary">
-                                                            <i class="fas fa-envelope me-1"></i>Subject
-                                                        </span>
-                                                    {% elif match.location == 'Attachments' %}
-                                                        <span class="badge bg-info">
-                                                            <i class="fas fa-paperclip me-1"></i>Attachments
-                                                        </span>
-                                                    {% else %}
-                                                        <span class="badge bg-secondary">{{ match.location }}</span>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    {% if match.is_regex %}
-                                                        <span class="text-warning">
-                                                            <i class="fas fa-code me-1"></i>Regular Expression
-                                                        </span>
-                                                    {% else %}
-                                                        <span class="text-success">
-                                                            <i class="fas fa-text-width me-1"></i>Case-insensitive text match
-                                                        </span>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>{{ keyword_matches|length }} keyword match(es) found</strong> - This event contains content that matches your configured keywords. Review carefully for potential security concerns.
                             </div>
 
-                            <div class="alert alert-warning mt-3">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <strong>{{ keyword_matches|length }} keyword match(es) found</strong> - 
-                                This event contains content that matches your configured keywords. Review carefully for potential security concerns.
-                            </div>
-                        {% else %}
-                            <div class="text-center py-4">
-                                <i class="fas fa-tags fa-3x text-muted mb-3"></i>
-                                <h5 class="text-muted">No keyword matches</h5>
-                                <p class="text-muted mb-0">This event does not match any of your configured keywords.</p>
-                                <a href="{{ url_for('keywords') }}" class="btn btn-outline-primary mt-3">
-                                    <i class="fas fa-plus me-2"></i>Manage Keywords
-                                </a>
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-search me-2"></i>Keyword Matches 
+                                        <span class="badge bg-warning text-dark ms-2">{{ keyword_matches|length }}</span>
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Type</th>
+                                                    <th>Keyword/Pattern</th>
+                                                    <th>Found In</th>
+                                                    <th>Match Type</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for match in keyword_matches %}
+                                                <tr>
+                                                    <td>
+                                                        <span class="badge bg-primary">{{ match.type }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="text-white bg-dark px-2 py-1 rounded font-monospace">{{ match.term }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-success">{{ match.location }}</span>
+                                                    </td>
+                                                    <td>{{ match.match_type }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         {% endif %}
+
+                        <!-- Domain Classification -->
+                        <div class="card mt-3" id="domainClassificationCard">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-globe me-2"></i>Domain Analysis
+                                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="loadDomainClassification({{ event.id }})">
+                                        <i class="fas fa-sync"></i> Analyze Domains
+                                    </button>
+                                </h6>
+                            </div>
+                            <div class="card-body" id="domainClassificationContent">
+                                <div class="text-center py-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <span class="text-muted">Click "Analyze Domains" to classify recipient domains</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -512,4 +502,144 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadDomainClassification(eventId) {
+    const content = document.getElementById('domainClassificationContent');
+    content.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm me-2"></div>
+            <span>Analyzing domains...</span>
+        </div>
+    `;
+
+    fetch(`/api/classify_domains/${eventId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayDomainClassifications(data.domain_classifications, data.domain_risk_score);
+            } else {
+                content.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error analyzing domains: ${data.error}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Network error: ${error.message}
+                </div>
+            `;
+        });
+}
+
+function displayDomainClassifications(classifications, riskScore) {
+    const content = document.getElementById('domainClassificationContent');
+
+    if (!classifications || classifications.length === 0) {
+        content.innerHTML = `
+            <div class="text-center py-3">
+                <i class="fas fa-info-circle me-2"></i>
+                <span class="text-muted">No domains to classify</span>
+            </div>
+        `;
+        return;
+    }
+
+    const labelColors = {
+        'internal': 'success',
+        'freemail': 'primary', 
+        'partner': 'info',
+        'suspicious': 'danger',
+        'unknown': 'secondary'
+    };
+
+    const labelIcons = {
+        'internal': 'building',
+        'freemail': 'envelope',
+        'partner': 'handshake', 
+        'suspicious': 'exclamation-triangle',
+        'unknown': 'question'
+    };
+
+    let html = `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0">Domain Classifications</h6>
+            <div>
+                <span class="badge bg-${riskScore > 0.6 ? 'danger' : riskScore > 0.3 ? 'warning' : 'success'}">
+                    Risk Score: ${(riskScore * 100).toFixed(1)}%
+                </span>
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Domain</th>
+                        <th>Classification</th>
+                        <th>Confidence</th>
+                        <th>Key Features</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    classifications.forEach(classification => {
+        const label = classification.label || 'unknown';
+        const confidence = classification.confidence || 0;
+        const color = labelColors[label] || 'secondary';
+        const icon = labelIcons[label] || 'question';
+
+        // Build key features string
+        let keyFeatures = [];
+        const features = classification.features || {};
+
+        Object.entries(features).forEach(([key, info]) => {
+            if (info.importance > 0.1) {  // Only show important features
+                keyFeatures.push(`${key}: ${info.value.toFixed(2)}`);
+            }
+        });
+
+        html += `
+            <tr>
+                <td><code>${classification.email || 'N/A'}</code></td>
+                <td><code>${classification.domain || 'N/A'}</code></td>
+                <td>
+                    <span class="badge bg-${color}">
+                        <i class="fas fa-${icon} me-1"></i>${label}
+                    </span>
+                </td>
+                <td>
+                    <div class="progress" style="width: 60px; height: 20px;">
+                        <div class="progress-bar bg-${color}" style="width: ${confidence * 100}%">
+                            ${(confidence * 100).toFixed(0)}%
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <small class="text-muted">
+                        ${keyFeatures.slice(0, 2).join(', ')}
+                        ${keyFeatures.length > 2 ? '...' : ''}
+                    </small>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    content.innerHTML = html;
+}
+</script>
 {% endblock %}

@@ -98,5 +98,17 @@ def calculate_heuristic_score(event_data):
             # Fallback to default scoring if ML policies table doesn't exist yet
             score += 0.7 * len(policies)
 
+    # Domain classification factor (if available)
+    try:
+        event_id = event_data.get('id')
+        if event_id:
+            from domain_ml import classify_event_domains, get_domain_risk_score
+            domain_classifications = classify_event_domains(event_id)
+            domain_risk = get_domain_risk_score(domain_classifications)
+            score += 1.0 * domain_risk  # Add domain risk component
+    except Exception:
+        # Domain classification not available, skip
+        pass
+
     # Normalize to [0, 1] using sigmoid
     return 1 / (1 + math.exp(-score + 2))

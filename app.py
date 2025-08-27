@@ -843,6 +843,28 @@ def update_event_status(event_id):
     else:
         return redirect(url_for("event_detail", event_id=event_id))
 
+@app.route("/api/classify_domains/<int:event_id>")
+def classify_event_domains_api(event_id):
+    """API endpoint to classify domains for an event"""
+    try:
+        from domain_ml import classify_event_domains, get_domain_risk_score
+        
+        domain_classifications = classify_event_domains(event_id)
+        domain_risk_score = get_domain_risk_score(domain_classifications)
+        
+        return jsonify({
+            'success': True,
+            'domain_classifications': domain_classifications,
+            'domain_risk_score': domain_risk_score
+        })
+        
+    except Exception as e:
+        logger.error(f"Error classifying domains for event {event_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        })
+
 @app.route("/batch_update_events", methods=["POST"])
 def batch_update_events():
     """Batch update multiple events"""
@@ -908,6 +930,147 @@ def batch_update_events():
         return redirect(url_for("index"))
     else:
         return redirect(url_for("events"))
+
+@app.route("/domain_labels", methods=["GET", "POST"])
+def domain_labels():
+    """Domain labeling interface for training the ML classifier"""
+    if request.method == "POST":
+        try:
+            action = request.form.get("action")
+            
+            if action == "label_domain":
+                domain = request.form.get("domain", "").strip().lower()
+                label = int(request.form.get("label"))
+                confidence = float(request.form.get("confidence", 1.0))
+                
+                if domain and 0 <= label <= 3:
+                    with get_db() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO domain_labels 
+                            (domain, label, confidence, updated_at) 
+                            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                        """, (domain, label, confidence))
+                        conn.commit()
+                    
+                    label_names = {0: 'Internal', 1: 'Freemail', 2: 'Partner', 3: 'Suspicious'}
+                    flash(f"Domain '{domain}' labeled as {label_names[label]}", "success")
+                else:
+                    flash("Invalid domain or label", "error")
+            
+            elif action == "train_classifier":
+                from domain_ml import train_domain_classifier
+                if train_domain_classifier():
+                    flash("Domain classifier trained successfully", "success")
+                else:
+                    flash("Failed to train domain classifier", "error")
+            
+            elif action == "classify_unlabeled":
+                # Auto-classify unlabeled domains
+                from domain_ml import domain_classifier
+                
+                # Load or train classifier
+                if not domain_classifier.model:
+                    domain_classifier.load_model()
+                
+                if not domain_classifier.model:
+                    flash("Domain classifier not available. Please train it first.", "warning")
+                else:
+                    with get_db() as conn:
+                        cursor = conn.cursor()
+                        
+                        # Get unlabeled domains
+                        cursor.execute("""
+                            SELECT DISTINCT email FROM recipients r
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM domain_labels dl 
+                                WHERE dl.domain = LOWER(SUBSTR(r.email, INSTR(r.email, '@') + 1))
+                            )
+                            LIMIT 50
+                        """)
+                        
+                        emails = cursor.fetchall()
+                        classified_count = 0
+                        
+                        for email_row in emails:
+                            from utils import extract_domain
+                            domain = extract_domain(email_row[0])
+                            
+                            if domain:
+                                classification = domain_classifier.classify_domain(domain)
+                                
+                                # Only auto-label if confidence > 0.8
+                                if classification['confidence'] > 0.8:
+                                    label_map = {'internal': 0, 'freemail': 1, 'partner': 2, 'suspicious': 3}
+                                    label_num = label_map.get(classification['label'])
+                                    
+                                    if label_num is not None:
+                                        cursor.execute("""
+                                            INSERT OR IGNORE INTO domain_labels 
+                                            (domain, label, confidence) 
+                                            VALUES (?, ?, ?)
+                                        """, (domain, label_num, classification['confidence']))
+                                        classified_count += 1
+                        
+                        conn.commit()
+                        flash(f"Auto-classified {classified_count} domains", "info")
+            
+        except Exception as e:
+            logger.error(f"Error managing domain labels: {e}")
+            flash(f"Error: {str(e)}", "error")
+        
+        return redirect(url_for("domain_labels"))
+    
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            
+            # Create domain_labels table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS domain_labels (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    domain TEXT NOT NULL UNIQUE,
+                    label INTEGER NOT NULL,
+                    confidence REAL DEFAULT 1.0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
+            # Get labeled domains
+            cursor.execute("""
+                SELECT id, domain, label, confidence, created_at, updated_at
+                FROM domain_labels 
+                ORDER BY updated_at DESC
+                LIMIT 100
+            """)
+            labeled_domains = cursor.fetchall()
+            
+            # Get some unlabeled domains
+            cursor.execute("""
+                SELECT DISTINCT LOWER(SUBSTR(email, INSTR(email, '@') + 1)) as domain,
+                       COUNT(*) as email_count
+                FROM recipients r
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM domain_labels dl 
+                    WHERE dl.domain = LOWER(SUBSTR(r.email, INSTR(r.email, '@') + 1))
+                )
+                GROUP BY domain
+                ORDER BY email_count DESC
+                LIMIT 20
+            """)
+            unlabeled_domains = cursor.fetchall()
+            
+        label_names = {0: 'Internal', 1: 'Freemail', 2: 'Partner', 3: 'Suspicious'}
+        
+        return render_template("domain_labels.html", 
+                             labeled_domains=labeled_domains,
+                             unlabeled_domains=unlabeled_domains,
+                             label_names=label_names)
+    except Exception as e:
+        logger.error(f"Error loading domain labels: {e}")
+        flash("Error loading domain labels", "error")
+        return render_template("domain_labels.html", labeled_domains=[], unlabeled_domains=[], label_names={})
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_dashboard():

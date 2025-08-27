@@ -1,0 +1,241 @@
+
+{% extends "base.html" %}
+
+{% block title %}Domain Classification - Email Guardian{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-tags me-2"></i>Domain Classification & Training
+        </h1>
+    </div>
+</div>
+
+<!-- Training Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-brain me-2"></i>ML Model Training
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="action" value="train_classifier">
+                        <button type="submit" class="btn btn-primary" onclick="return confirm('This will retrain the domain classifier. Continue?')">
+                            <i class="fas fa-cogs me-1"></i>Train Classifier
+                        </button>
+                    </form>
+                    
+                    <form method="POST" class="d-inline">
+                        <input type="hidden" name="action" value="classify_unlabeled">
+                        <button type="submit" class="btn btn-info">
+                            <i class="fas fa-magic me-1"></i>Auto-Classify Unlabeled
+                        </button>
+                    </form>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Train the classifier after labeling domains to improve accuracy. Auto-classify will use the current model to label high-confidence domains.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Unlabeled Domains -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-question-circle me-2"></i>Unlabeled Domains
+                    <span class="badge bg-secondary ms-2">{{ unlabeled_domains|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if unlabeled_domains %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th>Email Count</th>
+                                    <th>Label As</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for domain in unlabeled_domains %}
+                                <tr>
+                                    <td>
+                                        <code>{{ domain.domain }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ domain.email_count }}</span>
+                                    </td>
+                                    <td>
+                                        <form method="POST" class="d-inline">
+                                            <input type="hidden" name="action" value="label_domain">
+                                            <input type="hidden" name="domain" value="{{ domain.domain }}">
+                                            <input type="hidden" name="confidence" value="1.0">
+                                            
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <button type="submit" name="label" value="0" class="btn btn-outline-success btn-sm" title="Internal">
+                                                    <i class="fas fa-building"></i>
+                                                </button>
+                                                <button type="submit" name="label" value="1" class="btn btn-outline-primary btn-sm" title="Freemail">
+                                                    <i class="fas fa-envelope"></i>
+                                                </button>
+                                                <button type="submit" name="label" value="2" class="btn btn-outline-info btn-sm" title="Partner">
+                                                    <i class="fas fa-handshake"></i>
+                                                </button>
+                                                <button type="submit" name="label" value="3" class="btn btn-outline-danger btn-sm" title="Suspicious">
+                                                    <i class="fas fa-exclamation-triangle"></i>
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                        <p class="text-muted mb-0">All domains are labeled!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Labeled Domains -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-check-circle me-2"></i>Labeled Domains
+                    <span class="badge bg-success ms-2">{{ labeled_domains|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if labeled_domains %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th>Label</th>
+                                    <th>Confidence</th>
+                                    <th>Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for domain in labeled_domains %}
+                                <tr>
+                                    <td>
+                                        <code>{{ domain.domain }}</code>
+                                    </td>
+                                    <td>
+                                        {% set label_class = {0: 'success', 1: 'primary', 2: 'info', 3: 'danger'}[domain.label] %}
+                                        {% set label_icon = {0: 'building', 1: 'envelope', 2: 'handshake', 3: 'exclamation-triangle'}[domain.label] %}
+                                        <span class="badge bg-{{ label_class }}">
+                                            <i class="fas fa-{{ label_icon }} me-1"></i>{{ label_names[domain.label] }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="width: 50px; height: 20px;">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ (domain.confidence * 100)|round }}%">
+                                                {{ (domain.confidence * 100)|round }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ domain.updated_at[:10] }}</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-tags fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No labeled domains yet</p>
+                        <small class="text-muted">Start labeling domains to train the classifier</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Domain Classification Legend
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-success me-2">
+                                <i class="fas fa-building"></i>
+                            </span>
+                            <div>
+                                <strong>Internal</strong>
+                                <small class="d-block text-muted">Company domains</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-primary me-2">
+                                <i class="fas fa-envelope"></i>
+                            </span>
+                            <div>
+                                <strong>Freemail</strong>
+                                <small class="d-block text-muted">Gmail, Yahoo, etc.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-info me-2">
+                                <i class="fas fa-handshake"></i>
+                            </span>
+                            <div>
+                                <strong>Partner</strong>
+                                <small class="d-block text-muted">Trusted external</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge bg-danger me-2">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </span>
+                            <div>
+                                <strong>Suspicious</strong>
+                                <small class="d-block text-muted">Potential threats</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
