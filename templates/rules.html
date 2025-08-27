@@ -353,6 +353,7 @@ function addCondition() {
                     <option value="sender">Sender Email</option>
                     <option value="sender_domain">Sender Domain</option>
                     <option value="subject">Subject</option>
+                    <option value="keywords">Keywords (Subject & Attachments)</option>
                     <option value="recipients">Recipients</option>
                     <option value="recipient_domain">Recipient Domain</option>
                     <option value="ml_score">ML Score</option>
@@ -377,10 +378,6 @@ function addCondition() {
                     <option value="starts_with">Starts With</option>
                     <option value="ends_with">Ends With</option>
                     <option value="matches">Matches Pattern</option>
-                    <option value="greater_than">Greater Than</option>
-                    <option value="less_than">Less Than</option>
-                    <option value="is_true">Is True</option>
-                    <option value="is_false">Is False</option>
                     <option value="is_empty">Is Empty</option>
                     <option value="is_not_empty">Is Not Empty</option>
                 </select>
@@ -1010,6 +1007,7 @@ function testRule() {
         body: formData
     })
     .then(response => response.json())
+    // Add logic to handle the response from the backend.
     .then(data => {
         displayTestResults(data);
     })
