@@ -38,6 +38,7 @@ with app.app_context():
 def index():
     """Dashboard/home page"""
     try:
+        # Force fresh data retrieval by getting new database connection
         total_events = get_event_count()
         recent_events = get_recent_events(10)
 
@@ -46,8 +47,10 @@ def index():
         for event in recent_events:
             recent_events_list.append(dict(event))
 
-        # Get dashboard statistics for all events
+        # Get fresh dashboard statistics
         stats = get_dashboard_stats()
+        
+        logger.debug(f"Dashboard stats: {stats}")
 
         return render_template("index.html", 
                              total_events=total_events,

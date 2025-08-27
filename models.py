@@ -191,7 +191,7 @@ def init_db():
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_follow_up ON events(follow_up)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_recipients_email ON recipients(email)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_policies_name ON policies(policy_name)")
-            
+
             # Additional performance indexes
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_composite ON events(is_whitelisted, status, follow_up, ml_score)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_high_risk ON events(ml_score, is_whitelisted, status, follow_up)")
@@ -200,7 +200,7 @@ def init_db():
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_policies_event_id ON policies(event_id)")
 
             conn.commit()
-            
+
             # Initialize default closure reasons if none exist
             cursor.execute("SELECT COUNT(*) FROM closure_reasons")
             if cursor.fetchone()[0] == 0:
@@ -237,60 +237,71 @@ def init_db():
                 )
                 conn.commit()
                 logger.info("Initialized default ML scoring rules")
-        
+
         logger.info("Database initialized successfully")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
         raise
 
 def get_event_count():
-    """Get total number of events"""
+    """Get total count of events"""
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM events")
-        return cursor.fetchone()[0]
+        count = cursor.fetchone()[0]
+        logger.debug(f"Total events count: {count}")
+        return count
 
 def get_dashboard_stats():
-    """Get dashboard statistics for all events"""
+    """Get dashboard statistics with real-time updates"""
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # High risk events (ML score > 0.7) - simplified count
-        cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0")
-        high_risk_count = cursor.fetchone()[0]
+        stats = {}
 
-        # Low risk events (ML score <= 0.3)
-        cursor.execute("SELECT COUNT(*) FROM events WHERE ml_score <= 0.3 AND ml_score IS NOT NULL")
-        low_risk_count = cursor.fetchone()[0]
+        # High risk events (ml_score > 0.7, not closed, not whitelisted, not follow-up)
+        cursor.execute("""
+            SELECT COUNT(*) FROM events 
+            WHERE CAST(ml_score AS REAL) > 0.7 
+            AND status != 'closed' 
+            AND is_whitelisted = 0 
+            AND follow_up = 0
+        """)
+        stats['high_risk_count'] = cursor.fetchone()[0]
 
-        # Whitelisted events
+        # Low risk events (ml_score <= 0.3, not closed, not whitelisted, not follow-up)  
+        cursor.execute("""
+            SELECT COUNT(*) FROM events 
+            WHERE CAST(ml_score AS REAL) <= 0.3 
+            AND status != 'closed' 
+            AND is_whitelisted = 0 
+            AND follow_up = 0
+        """)
+        stats['low_risk_count'] = cursor.fetchone()[0]
+
+        # Whitelisted events (regardless of status)
         cursor.execute("SELECT COUNT(*) FROM events WHERE is_whitelisted = 1")
-        whitelisted_count = cursor.fetchone()[0]
+        stats['whitelisted_count'] = cursor.fetchone()[0]
 
         # Closed events
         cursor.execute("SELECT COUNT(*) FROM events WHERE status = 'closed'")
-        closed_count = cursor.fetchone()[0]
+        stats['closed_count'] = cursor.fetchone()[0]
 
-        # Follow-up events
-        cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1 AND status != 'closed'")
-        follow_up_count = cursor.fetchone()[0]
-
-        # Rule triggered events - simplified count based on trigger_reason
+        # Rule triggered events (events with trigger_reason set, not closed, not whitelisted, not follow-up)
         cursor.execute("""
             SELECT COUNT(*) FROM events 
-            WHERE status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
-            AND (trigger_reason IS NOT NULL OR ml_score > 0.8)
+            WHERE (trigger_reason IS NOT NULL AND trigger_reason != '') 
+            AND status != 'closed' 
+            AND is_whitelisted = 0 
+            AND follow_up = 0
         """)
-        rule_triggered_count = cursor.fetchone()[0]
+        stats['rule_triggered_count'] = cursor.fetchone()[0]
 
-        return {
-            'high_risk_count': high_risk_count,
-            'low_risk_count': low_risk_count,
-            'whitelisted_count': whitelisted_count,
-            'closed_count': closed_count,
-            'follow_up_count': follow_up_count,
-            'rule_triggered_count': rule_triggered_count
-        }
+        # Follow-up events (regardless of other status)
+        cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1 AND status != 'closed'")
+        stats['follow_up_count'] = cursor.fetchone()[0]
+
+        return stats
 
 
 
@@ -455,7 +466,7 @@ def get_high_risk_events(limit=100):
 
             # Check regular rules
             actions = apply_rules_to_event(event['id'])
-            # If no rule-based actions were triggered, include in high-risk
+            # If no rule-based actions were triggered, include in high risk
             rule_actions = [action for action in actions if action.get('type') == 'rule']
             if not rule_actions:  # No rules triggered - keep in high risk
                 high_risk_not_rule_triggered.append(event)
@@ -595,14 +606,13 @@ def get_remaining_events(limit=100):
     return remaining_events
 
 def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=None, 
-                        follow_up_date=None, closed_date=None, closed_by=None, 
-                        email_sent=None, email_sent_date=None, closure_reason=None,
-                        closure_notes=None, closure_reference=None):
+                        closed_by=None, follow_up_date=None, closure_reason=None, 
+                        closure_notes=None, closure_reference=None, email_sent=None, 
+                        email_sent_date=None):
     """Update event status and related fields"""
     with get_db() as conn:
         cursor = conn.cursor()
 
-        # Build dynamic update query
         updates = []
         params = []
 
@@ -618,25 +628,13 @@ def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=No
             updates.append("follow_up = ?")
             params.append(1 if follow_up else 0)
 
-        if follow_up_date is not None:
-            updates.append("follow_up_date = ?")
-            params.append(follow_up_date)
-
-        if closed_date is not None:
-            updates.append("closed_date = ?")
-            params.append(closed_date)
-
         if closed_by is not None:
             updates.append("closed_by = ?")
             params.append(closed_by)
 
-        if email_sent is not None:
-            updates.append("email_sent = ?")
-            params.append(1 if email_sent else 0)
-
-        if email_sent_date is not None:
-            updates.append("email_sent_date = ?")
-            params.append(email_sent_date)
+        if follow_up_date is not None:
+            updates.append("follow_up_date = ?")
+            params.append(follow_up_date)
 
         if closure_reason is not None:
             updates.append("closure_reason = ?")
@@ -650,11 +648,26 @@ def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=No
             updates.append("closure_reference = ?")
             params.append(closure_reference)
 
+        if email_sent is not None:
+            updates.append("email_sent = ?")
+            params.append(1 if email_sent else 0)
+
+        if email_sent_date is not None:
+            updates.append("email_sent_date = ?")
+            params.append(email_sent_date)
+
         if updates:
-            query = f"UPDATE events SET {', '.join(updates)} WHERE id = ?"
             params.append(event_id)
-            cursor.execute(query, params)
+            sql = f"UPDATE events SET {', '.join(updates)} WHERE id = ?"
+            logger.debug(f"Updating event {event_id} with SQL: {sql} and params: {params}")
+            cursor.execute(sql, params)
             conn.commit()
+
+            # Verify the update worked
+            cursor.execute("SELECT status, is_whitelisted, follow_up FROM events WHERE id = ?", (event_id,))
+            result = cursor.fetchone()
+            logger.debug(f"After update, event {event_id} status: {dict(result) if result else 'not found'}")
+
             return cursor.rowcount > 0
 
         return False
@@ -776,22 +789,22 @@ def update_closure_reason(reason_id, reason=None, requires_reference=None, enabl
     """Update existing closure reason"""
     with get_db() as conn:
         cursor = conn.cursor()
-        
+
         updates = []
         params = []
-        
+
         if reason is not None:
             updates.append("reason = ?")
             params.append(reason.strip())
-        
+
         if requires_reference is not None:
             updates.append("requires_reference = ?")
             params.append(1 if requires_reference else 0)
-        
+
         if enabled is not None:
             updates.append("enabled = ?")
             params.append(1 if enabled else 0)
-        
+
         if updates:
             params.append(reason_id)
             query = f"UPDATE closure_reasons SET {', '.join(updates)} WHERE id = ?"
@@ -801,7 +814,7 @@ def update_closure_reason(reason_id, reason=None, requires_reference=None, enabl
                 return cursor.rowcount > 0
             except sqlite3.IntegrityError:
                 return False
-        
+
         return False
 
 def delete_closure_reason(reason_id):
@@ -843,34 +856,34 @@ def update_ml_scoring_rule(rule_id, rule_name=None, condition_field=None, condit
     """Update existing ML scoring rule"""
     with get_db() as conn:
         cursor = conn.cursor()
-        
+
         updates = []
         params = []
-        
+
         if rule_name is not None:
             updates.append("rule_name = ?")
             params.append(rule_name.strip())
-        
+
         if condition_field is not None:
             updates.append("condition_field = ?")
             params.append(condition_field)
-        
+
         if condition_operator is not None:
             updates.append("condition_operator = ?")
             params.append(condition_operator)
-        
+
         if condition_value is not None:
             updates.append("condition_value = ?")
             params.append(condition_value)
-        
+
         if score_adjustment is not None:
             updates.append("score_adjustment = ?")
             params.append(score_adjustment)
-        
+
         if enabled is not None:
             updates.append("enabled = ?")
             params.append(1 if enabled else 0)
-        
+
         if updates:
             params.append(rule_id)
             query = f"UPDATE ml_scoring_rules SET {', '.join(updates)} WHERE id = ?"
@@ -880,7 +893,7 @@ def update_ml_scoring_rule(rule_id, rule_name=None, condition_field=None, condit
                 return cursor.rowcount > 0
             except sqlite3.IntegrityError:
                 return False
-        
+
         return False
 
 def delete_ml_scoring_rule(rule_id):
