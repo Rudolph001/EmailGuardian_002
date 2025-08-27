@@ -152,7 +152,7 @@ def events():
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM events")
                 total_events = cursor.fetchone()[0]
-                
+
                 cursor.execute("""
                     SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
                            status, is_whitelisted, follow_up, trigger_reason,
@@ -172,7 +172,7 @@ def events():
         # Get closure reasons for the close modal
         from models import get_closure_reasons
         closure_reasons = get_closure_reasons()
-        
+
         return render_template("events.html", 
                              events=events_list,
                              query=query,
@@ -408,12 +408,12 @@ def whitelist():
                     # Handle both newline and pipe separation
                     normalized_input = bulk_domains.replace('|', '\n')
                     lines = [line.strip().lower() for line in normalized_input.split('\n') if line.strip()]
-                    
+
                     if lines:
                         added_count = 0
                         skipped_count = 0
                         failed_count = 0
-                        
+
                         for domain in lines:
                             try:
                                 result = add_whitelist_domain(domain)
@@ -427,7 +427,7 @@ def whitelist():
                             except Exception as e:
                                 logger.error(f"Error adding bulk domain '{domain}': {e}")
                                 failed_count += 1
-                        
+
                         # Provide detailed feedback
                         messages = []
                         if added_count > 0:
@@ -436,7 +436,7 @@ def whitelist():
                             messages.append(f"{skipped_count} duplicate{'s' if skipped_count > 1 else ''} skipped")
                         if failed_count > 0:
                             messages.append(f"{failed_count} failed")
-                        
+
                         if added_count > 0:
                             flash(f"Bulk domain import completed: {', '.join(messages)}", "success")
                         elif skipped_count > 0:
@@ -456,12 +456,12 @@ def whitelist():
                     # Handle both newline and pipe separation
                     normalized_input = bulk_emails.replace('|', '\n')
                     lines = [line.strip().lower() for line in normalized_input.split('\n') if line.strip()]
-                    
+
                     if lines:
                         added_count = 0
                         skipped_count = 0
                         failed_count = 0
-                        
+
                         for email in lines:
                             try:
                                 # Basic email validation
@@ -480,7 +480,7 @@ def whitelist():
                             except Exception as e:
                                 logger.error(f"Error adding bulk email '{email}': {e}")
                                 failed_count += 1
-                        
+
                         # Provide detailed feedback
                         messages = []
                         if added_count > 0:
@@ -489,7 +489,7 @@ def whitelist():
                             messages.append(f"{skipped_count} duplicate{'s' if skipped_count > 1 else ''} skipped")
                         if failed_count > 0:
                             messages.append(f"{failed_count} failed")
-                        
+
                         if added_count > 0:
                             flash(f"Bulk email import completed: {', '.join(messages)}", "success")
                         elif skipped_count > 0:
@@ -544,12 +544,12 @@ def keywords():
                     # Handle both newline and pipe separation
                     normalized_input = bulk_terms.replace('|', '\n')
                     lines = [line.strip() for line in normalized_input.split('\n') if line.strip()]
-                    
+
                     if lines:
                         added_count = 0
                         skipped_count = 0
                         failed_count = 0
-                        
+
                         for term in lines:
                             try:
                                 result = add_keyword(term, bulk_is_regex)
@@ -563,7 +563,7 @@ def keywords():
                             except Exception as e:
                                 logger.error(f"Error adding bulk keyword '{term}': {e}")
                                 failed_count += 1
-                        
+
                         # Provide detailed feedback
                         messages = []
                         if added_count > 0:
@@ -572,7 +572,7 @@ def keywords():
                             messages.append(f"{skipped_count} duplicate{'s' if skipped_count > 1 else ''} skipped")
                         if failed_count > 0:
                             messages.append(f"{failed_count} failed")
-                        
+
                         if added_count > 0:
                             flash(f"Bulk import completed: {', '.join(messages)}", "success")
                         elif skipped_count > 0:
@@ -714,10 +714,10 @@ def process_rules():
         processed_count, triggered_count = process_all_events_for_rules()
         flash(f"Processed {processed_count} events. {triggered_count} events had rules triggered.", "success")
     except Exception as e:
-        logger.error(f"Rule processing failed: {e}")
-        flash(f"Rule processing failed: {str(e)}", "error")
+        logger.error(f"Error processing rules: {e}")
+        flash(f"Error processing rules: {e}", "error")
 
-    return redirect(url_for("index"))
+    return redirect(url_for('index'))
 
 @app.route("/event/<int:event_id>/status", methods=["POST"])
 def update_event_status(event_id):
@@ -752,7 +752,7 @@ def update_event_status(event_id):
             closure_reason = request.form.get("closure_reason", "").strip()
             closure_notes = request.form.get("closure_notes", "").strip()
             closure_reference = request.form.get("closure_reference", "").strip()
-            
+
             if update_status(event_id, status="closed", closed_by="admin", 
                            closure_reason=closure_reason, closure_notes=closure_notes,
                            closure_reference=closure_reference, follow_up=False):
@@ -797,7 +797,7 @@ def batch_update_events():
             return redirect(url_for("index"))
 
         event_ids = [int(id.strip()) for id in event_ids_str.split(",") if id.strip()]
-        
+
         if not event_ids:
             flash("No events selected for batch update", "error")
             return redirect(url_for("index"))
@@ -806,22 +806,22 @@ def batch_update_events():
         from datetime import datetime
 
         success_count = 0
-        
+
         for event_id in event_ids:
             try:
                 if action == "whitelist":
                     if update_status(event_id, is_whitelisted=True):
                         success_count += 1
-                
+
                 elif action == "follow_up":
                     follow_up_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     if update_status(event_id, follow_up=True, follow_up_date=follow_up_date):
                         success_count += 1
-                
+
                 elif action == "clear":
                     if update_status(event_id, status="closed", closed_by="admin"):
                         success_count += 1
-                
+
             except Exception as e:
                 logger.error(f"Error updating event {event_id} in batch: {e}")
                 continue
@@ -855,24 +855,24 @@ def admin_dashboard():
     from models import (get_closure_reasons, add_closure_reason, 
                        update_closure_reason, delete_closure_reason, clear_database, clear_events_only,
                        get_ml_scoring_rules, add_ml_scoring_rule, update_ml_scoring_rule, delete_ml_scoring_rule)
-    
+
     message = None
-    
+
     if request.method == 'POST':
         action = request.form.get('action')
-        
+
         if action == 'clear_db':
             clear_database()
             message = 'Database cleared successfully.'
-            
+
         elif action == 'clear_events':
             clear_events_only()
             flash('All imported events deleted successfully. Rules and configurations preserved.', 'success')
-            
+
         elif action == 'add_reason':
             reason = request.form.get('reason', '').strip()
             requires_reference = request.form.get('requires_reference') == 'on'
-            
+
             if reason:
                 if add_closure_reason(reason, requires_reference):
                     flash(f"Closure reason '{reason}' added successfully", "success")
@@ -880,32 +880,32 @@ def admin_dashboard():
                     flash(f"Closure reason '{reason}' already exists", "warning")
             else:
                 flash("Reason is required", "error")
-                
+
         elif action == 'edit_reason':
             reason_id = int(request.form.get('reason_id'))
             reason = request.form.get('reason', '').strip()
             requires_reference = request.form.get('requires_reference') == 'on'
             enabled = request.form.get('enabled') == 'on'
-            
+
             if update_closure_reason(reason_id, reason, requires_reference, enabled):
                 flash(f"Closure reason updated successfully", "success")
             else:
                 flash("Failed to update closure reason", "error")
-                
+
         elif action == 'delete_reason':
             reason_id = int(request.form.get('reason_id'))
             if delete_closure_reason(reason_id):
                 flash("Closure reason deleted successfully", "success")
             else:
                 flash("Failed to delete closure reason", "error")
-        
+
         elif action == 'add_ml_rule':
             rule_name = request.form.get('rule_name', '').strip()
             condition_field = request.form.get('condition_field', '').strip()
             condition_operator = request.form.get('condition_operator', '').strip()
             condition_value = request.form.get('condition_value', '').strip()
             score_adjustment = float(request.form.get('score_adjustment', 0))
-            
+
             if rule_name and condition_field and condition_operator:
                 if add_ml_scoring_rule(rule_name, condition_field, condition_operator, condition_value, score_adjustment):
                     flash(f"ML scoring rule '{rule_name}' added successfully", "success")
@@ -913,7 +913,7 @@ def admin_dashboard():
                     flash(f"ML scoring rule '{rule_name}' already exists", "warning")
             else:
                 flash("Rule name, field, and operator are required", "error")
-        
+
         elif action == 'edit_ml_rule':
             rule_id = int(request.form.get('ml_rule_id'))
             rule_name = request.form.get('rule_name', '').strip()
@@ -922,22 +922,22 @@ def admin_dashboard():
             condition_value = request.form.get('condition_value', '').strip()
             score_adjustment = float(request.form.get('score_adjustment', 0))
             enabled = request.form.get('enabled') == 'on'
-            
+
             if update_ml_scoring_rule(rule_id, rule_name, condition_field, condition_operator, 
                                      condition_value, score_adjustment, enabled):
                 flash("ML scoring rule updated successfully", "success")
             else:
                 flash("Failed to update ML scoring rule", "error")
-        
+
         elif action == 'delete_ml_rule':
             rule_id = int(request.form.get('ml_rule_id'))
             if delete_ml_scoring_rule(rule_id):
                 flash("ML scoring rule deleted successfully", "success")
             else:
                 flash("Failed to delete ML scoring rule", "error")
-        
+
         return redirect(url_for('admin_dashboard'))
-    
+
     closure_reasons = get_closure_reasons()
     ml_scoring_rules = get_ml_scoring_rules()
     return render_template('admin.html', message=message, closure_reasons=closure_reasons, ml_scoring_rules=ml_scoring_rules)
