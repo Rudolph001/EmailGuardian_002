@@ -402,6 +402,30 @@
     </div>
 </div>
 
+<!-- Event Management->
+                        <div class="card mt-3" id="domainClassificationCard">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-globe me-2"></i>Domain Analysis
+                                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="loadDomainClassification({{ event.id }})">
+                                        <i class="fas fa-sync"></i> Analyze Domains
+                                    </button>
+                                </h6>
+                            </div>
+                            <div class="card-body" id="domainClassificationContent">
+                                <div class="text-center py-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <span class="text-muted">Click "Analyze Domains" to classify recipient domains</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Event Management -->
 <div class="row mt-4">
     <div class="col-12">
@@ -508,6 +532,8 @@
 <script>
 function loadDomainClassification(eventId) {
     const content = document.getElementById('domainClassificationContent');
+    
+    // Clear any existing content and show loading
     content.innerHTML = `
         <div class="text-center py-3">
             <div class="spinner-border spinner-border-sm me-2"></div>
@@ -577,6 +603,52 @@ function displayDomainClassifications(classifications, riskScore) {
                 </span>
             </div>
         </div>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Domain</th>
+                        <th>Classification</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    classifications.forEach(classification => {
+        const color = labelColors[classification.label] || 'secondary';
+        const icon = labelIcons[classification.label] || 'question';
+        
+        html += `
+            <tr>
+                <td><code>${classification.email}</code></td>
+                <td><code>${classification.domain}</code></td>
+                <td>
+                    <span class="badge bg-${color}">
+                        <i class="fas fa-${icon} me-1"></i>
+                        ${classification.label.charAt(0).toUpperCase() + classification.label.slice(1)}
+                    </span>
+                </td>
+                <td>
+                    <div class="progress" style="width: 80px; height: 20px;">
+                        <div class="progress-bar bg-${color}" role="progressbar" 
+                             style="width: ${(classification.confidence * 100).toFixed(0)}%">
+                            ${(classification.confidence * 100).toFixed(0)}%
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    content.innerHTML = html;v>
         <div class="table-responsive">
             <table class="table table-sm">
                 <thead>
