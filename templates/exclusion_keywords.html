@@ -1,4 +1,3 @@
-
 {% extends "base.html" %}
 
 {% block title %}Exclusion Keywords Management - Email Guardian{% endblock %}
@@ -231,30 +230,30 @@
                                             <div class="modal-body">
                                                 <input type="hidden" name="action" value="edit">
                                                 <input type="hidden" name="keyword_id" value="{{ keyword.id }}">
-                                                
+
                                                 <div class="mb-3">
                                                     <label class="form-label">Keyword/Pattern</label>
                                                     <input type="text" class="form-control" name="term" value="{{ keyword.term }}" required>
                                                 </div>
-                                                
+
                                                 <div class="form-check mb-2">
                                                     <input class="form-check-input" type="checkbox" name="is_regex" 
                                                            {% if keyword.is_regex %}checked{% endif %}>
                                                     <label class="form-check-label">Use as Regular Expression</label>
                                                 </div>
-                                                
+
                                                 <div class="form-check mb-2">
                                                     <input class="form-check-input" type="checkbox" name="check_subject" 
                                                            {% if keyword.check_subject %}checked{% endif %}>
                                                     <label class="form-check-label">Check Subject Lines</label>
                                                 </div>
-                                                
+
                                                 <div class="form-check mb-2">
                                                     <input class="form-check-input" type="checkbox" name="check_attachments" 
                                                            {% if keyword.check_attachments %}checked{% endif %}>
                                                     <label class="form-check-label">Check Attachment Names</label>
                                                 </div>
-                                                
+
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" name="enabled" 
                                                            {% if keyword.enabled %}checked{% endif %}>
@@ -280,255 +279,6 @@
                     <p>Use the tabs above to add keywords that will automatically exclude emails.</p>
                 </div>
                 {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-{% extends "base.html" %}
-
-{% block title %}Exclusion Keywords - Email Guardian{% endblock %}
-
-{% block content %}
-<div class="row">
-    <div class="col-12">
-        <h1 class="mb-4">
-            <i class="fas fa-ban me-2"></i>Wordlist Exclusions
-        </h1>
-        <p class="text-muted">Manage keywords that automatically exclude emails from being flagged. When these words are found in subjects or attachments, the email will be ignored by the detection system.</p>
-    </div>
-</div>
-
-<!-- Add Exclusion Keywords -->
-<div class="row mb-4">
-    <div class="col-12">
-        <!-- Nav tabs -->
-        <ul class="nav nav-tabs" id="exclusionTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="single-tab" data-bs-toggle="tab" data-bs-target="#single" type="button" role="tab">
-                    <i class="fas fa-plus me-2"></i>Add Single Exclusion
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="bulk-tab" data-bs-toggle="tab" data-bs-target="#bulk" type="button" role="tab">
-                    <i class="fas fa-file-import me-2"></i>Bulk Import Exclusions
-                </button>
-            </li>
-        </ul>
-
-        <div class="tab-content" id="exclusionTabContent">
-            <!-- Single Exclusion Tab -->
-            <div class="tab-pane fade show active" id="single" role="tabpanel">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-plus me-2"></i>Add Single Exclusion Keyword
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST">
-                            <input type="hidden" name="action" value="add">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <label for="term" class="form-label">Keyword/Pattern</label>
-                                    <input type="text" class="form-control" id="term" name="term" required placeholder="e.g., newsletter, marketing">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="applies_to" class="form-label">Apply To</label>
-                                    <select class="form-select" id="applies_to" name="applies_to" required>
-                                        <option value="both">Subject & Attachments</option>
-                                        <option value="subject">Subject Only</option>
-                                        <option value="attachments">Attachments Only</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="description" class="form-label">Description</label>
-                                    <input type="text" class="form-control" id="description" name="description" placeholder="Optional description">
-                                </div>
-                                <div class="col-md-2 d-flex flex-column">
-                                    <div class="form-check mb-2">
-                                        <input type="checkbox" class="form-check-input" id="is_regex" name="is_regex">
-                                        <label class="form-check-label" for="is_regex">
-                                            Regex Pattern
-                                        </label>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-plus me-2"></i>Add
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bulk Import Tab -->
-            <div class="tab-pane fade" id="bulk" role="tabpanel">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-file-import me-2"></i>Bulk Import Exclusion Keywords
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST">
-                            <input type="hidden" name="action" value="bulk_add">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <label for="bulk_terms" class="form-label">Keywords (one per line or separated by |)</label>
-                                    <textarea class="form-control" id="bulk_terms" name="bulk_terms" rows="6" placeholder="newsletter&#10;marketing&#10;unsubscribe"></textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="bulk_applies_to" class="form-label">Apply To</label>
-                                        <select class="form-select" id="bulk_applies_to" name="bulk_applies_to">
-                                            <option value="both">Subject & Attachments</option>
-                                            <option value="subject">Subject Only</option>
-                                            <option value="attachments">Attachments Only</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-check mb-3">
-                                        <input type="checkbox" class="form-check-input" id="bulk_is_regex" name="bulk_is_regex">
-                                        <label class="form-check-label" for="bulk_is_regex">
-                                            All are regex patterns
-                                        </label>
-                                    </div>
-                                    <div class="form-check mb-3">
-                                        <input type="checkbox" class="form-check-input" id="skip_duplicates" name="skip_duplicates" checked>
-                                        <label class="form-check-label" for="skip_duplicates">
-                                            Skip duplicates silently
-                                        </label>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-upload me-2"></i>Import All
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Existing Exclusion Keywords -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-list me-2"></i>Exclusion Keywords
-                    <span class="badge bg-secondary ms-2">{{ exclusion_keywords|length }}</span>
-                </h5>
-            </div>
-            <div class="card-body">
-                {% if exclusion_keywords %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>Keyword/Pattern</th>
-                                    <th>Type</th>
-                                    <th>Applies To</th>
-                                    <th>Description</th>
-                                    <th>Created</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for keyword in exclusion_keywords %}
-                                <tr>
-                                    <td>
-                                        <code>{{ keyword.term }}</code>
-                                    </td>
-                                    <td>
-                                        {% if keyword.is_regex %}
-                                            <span class="badge bg-info">Regex</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Text</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if keyword.applies_to == 'both' %}
-                                            <span class="badge bg-primary">Subject & Attachments</span>
-                                        {% elif keyword.applies_to == 'subject' %}
-                                            <span class="badge bg-warning">Subject Only</span>
-                                        {% else %}
-                                            <span class="badge bg-success">Attachments Only</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ keyword.description or '-' }}</td>
-                                    <td>
-                                        <small class="text-muted">{{ keyword.created_at }}</small>
-                                    </td>
-                                    <td>
-                                        <form method="POST" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this exclusion keyword?');">
-                                            <input type="hidden" name="action" value="delete">
-                                            <input type="hidden" name="keyword_id" value="{{ keyword.id }}">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-ban fa-3x text-muted mb-3"></i>
-                        <h5 class="text-muted">No Exclusion Keywords</h5>
-                        <p class="text-muted">Add exclusion keywords to automatically filter out emails containing specific terms.</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Help Section -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card border-info">
-            <div class="card-header bg-info text-white">
-                <h6 class="mb-0">
-                    <i class="fas fa-info-circle me-2"></i>How Exclusion Keywords Work
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-filter me-2 text-warning"></i>Automatic Filtering</h6>
-                        <ul class="small">
-                            <li>Emails containing these keywords are automatically excluded</li>
-                            <li>No manual review required</li>
-                            <li>Reduces false positives</li>
-                            <li>Improves detection accuracy</li>
-                        </ul>
-                    </div>
-
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-target me-2 text-success"></i>Application Scope</h6>
-                        <ul class="small">
-                            <li><strong>Subject & Attachments:</strong> Check both areas</li>
-                            <li><strong>Subject Only:</strong> Only check email subjects</li>
-                            <li><strong>Attachments Only:</strong> Only check attachment names</li>
-                            <li>Case-insensitive matching</li>
-                        </ul>
-                    </div>
-
-                    <div class="col-md-4">
-                        <h6><i class="fas fa-examples me-2 text-primary"></i>Common Examples</h6>
-                        <ul class="small">
-                            <li>newsletter, marketing, promotion</li>
-                            <li>unsubscribe, opt-out</li>
-                            <li>system notification, automated</li>
-                            <li>backup, log file</li>
-                        </ul>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
