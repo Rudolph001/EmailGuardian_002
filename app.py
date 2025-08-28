@@ -729,6 +729,100 @@ def keywords():
         flash("Error loading keywords", "error")
         return render_template("keywords.html", keywords=[])
 
+@app.route("/exclusion_keywords", methods=["GET", "POST"])
+def exclusion_keywords():
+    """Exclusion keywords management page"""
+    if request.method == "POST":
+        try:
+            action = request.form.get("action")
+            from models import add_exclusion_keyword, delete_exclusion_keyword
+
+            if action == "add":
+                term = request.form.get("term", "").strip()
+                is_regex = request.form.get("is_regex") == "on"
+                applies_to = request.form.get("applies_to", "both")
+                description = request.form.get("description", "").strip()
+
+                if term:
+                    if add_exclusion_keyword(term, is_regex, applies_to, description):
+                        flash(f"Exclusion keyword '{term}' added", "success")
+                    else:
+                        flash(f"Exclusion keyword '{term}' already exists", "warning")
+                else:
+                    flash("Term is required", "error")
+
+            elif action == "bulk_add":
+                bulk_terms = request.form.get("bulk_terms", "").strip()
+                bulk_is_regex = request.form.get("bulk_is_regex") == "on"
+                bulk_applies_to = request.form.get("bulk_applies_to", "both")
+                skip_duplicates = request.form.get("skip_duplicates") == "on"
+
+                if bulk_terms:
+                    # Handle both newline and pipe separation
+                    normalized_input = bulk_terms.replace('|', '\n')
+                    lines = [line.strip() for line in normalized_input.split('\n') if line.strip()]
+
+                    if lines:
+                        added_count = 0
+                        skipped_count = 0
+                        failed_count = 0
+
+                        for term in lines:
+                            try:
+                                result = add_exclusion_keyword(term, bulk_is_regex, bulk_applies_to, f"Bulk imported: {term}")
+                                if result:
+                                    added_count += 1
+                                else:
+                                    if skip_duplicates:
+                                        skipped_count += 1
+                                    else:
+                                        failed_count += 1
+                            except Exception as e:
+                                logger.error(f"Error adding bulk exclusion keyword '{term}': {e}")
+                                failed_count += 1
+
+                        # Provide detailed feedback
+                        messages = []
+                        if added_count > 0:
+                            messages.append(f"{added_count} exclusion keyword{'s' if added_count > 1 else ''} added")
+                        if skipped_count > 0:
+                            messages.append(f"{skipped_count} duplicate{'s' if skipped_count > 1 else ''} skipped")
+                        if failed_count > 0:
+                            messages.append(f"{failed_count} failed")
+
+                        if added_count > 0:
+                            flash(f"Bulk import completed: {', '.join(messages)}", "success")
+                        elif skipped_count > 0:
+                            flash(f"Bulk import completed: {', '.join(messages)}", "info")
+                        else:
+                            flash(f"Bulk import failed: {', '.join(messages)}", "error")
+                    else:
+                        flash("No valid exclusion keywords found in bulk import", "warning")
+                else:
+                    flash("Bulk terms are required", "error")
+
+            elif action == "delete":
+                keyword_id = int(request.form.get("keyword_id"))
+                if delete_exclusion_keyword(keyword_id):
+                    flash("Exclusion keyword deleted successfully", "success")
+                else:
+                    flash("Failed to delete exclusion keyword", "error")
+
+        except Exception as e:
+            logger.error(f"Error managing exclusion keywords: {e}")
+            flash(f"Error: {str(e)}", "error")
+
+        return redirect(url_for("exclusion_keywords"))
+
+    try:
+        from models import get_exclusion_keywords
+        exclusion_keywords_list = get_exclusion_keywords()
+        return render_template("exclusion_keywords.html", exclusion_keywords=exclusion_keywords_list)
+    except Exception as e:
+        logger.error(f"Error loading exclusion keywords: {e}")
+        flash("Error loading exclusion keywords", "error")
+        return render_template("exclusion_keywords.html", exclusion_keywords=[])
+
 @app.route("/policies", methods=["GET", "POST"])
 def policies():
     """ML Policies management page"""

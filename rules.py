@@ -465,10 +465,88 @@ def check_whitelist_matches(event, recipients):
 
     return matches
 
+def check_exclusion_keywords(event):
+    """Check if event matches any exclusion keywords in subject and attachments"""
+    import re
+    from models import get_exclusion_keywords
+    
+    matches = []
+
+    # Get exclusion keywords
+    exclusion_keywords = get_exclusion_keywords()
+
+    # Check subject for exclusion keyword matches
+    subject = (event['subject'] or '').lower()
+
+    # Get attachments for checking - try to get from event detail
+    attachments = []
+    attachments_text = ''
+
+    try:
+        from models import get_event_detail
+        event_detail = get_event_detail(event['id'])
+        if event_detail and 'attachments' in event_detail:
+            attachments = event_detail['attachments'] or []
+            attachments_text = ' '.join(attachments).lower()
+    except Exception:
+        # If we can't get attachments, just continue with subject checking
+        pass
+
+    for keyword in exclusion_keywords:
+        term = keyword['term']
+        is_regex = keyword['is_regex']
+        applies_to = keyword['applies_to']
+        found_locations = []
+
+        try:
+            if is_regex:
+                # Use regex matching
+                pattern = re.compile(term, re.IGNORECASE)
+
+                # Check subject if applicable
+                if applies_to in ['subject', 'both'] and pattern.search(subject):
+                    found_locations.append('Subject')
+
+                # Check attachments if applicable
+                if applies_to in ['attachments', 'both'] and attachments_text and pattern.search(attachments_text):
+                    found_locations.append('Attachments')
+
+            else:
+                # Simple case-insensitive string matching
+
+                # Check subject if applicable
+                if applies_to in ['subject', 'both'] and term.lower() in subject:
+                    found_locations.append('Subject')
+
+                # Check attachments if applicable
+                if applies_to in ['attachments', 'both'] and attachments_text and term.lower() in attachments_text:
+                    found_locations.append('Attachments')
+
+            # Add matches for each location found
+            for location in found_locations:
+                matches.append({
+                    'term': term,
+                    'is_regex': is_regex,
+                    'location': location,
+                    'applies_to': applies_to
+                })
+
+        except re.error:
+            # Skip invalid regex patterns
+            continue
+
+    return matches
+
 def check_keyword_matches(event):
     """Check if event matches any keywords in subject and attachments"""
     import re
     matches = []
+
+    # First check if event should be excluded
+    exclusion_matches = check_exclusion_keywords(event)
+    if exclusion_matches:
+        # Event matches exclusion keywords, so exclude it
+        return []
 
     # Get keywords
     keywords = get_keywords()

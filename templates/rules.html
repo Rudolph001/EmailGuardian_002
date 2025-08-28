@@ -65,23 +65,23 @@
                                             <option value="">Select field...</option>
                                             <option value="sender">Sender Email</option>
                                             <option value="sender_domain">Sender Domain</option>
+                                            <option value="sender_domain_classification">Sender Domain Classification</option>
                                             <option value="subject">Subject</option>
                                             <option value="keywords">Keywords (Subject & Attachments)</option>
                                             <option value="recipients">Recipients</option>
                                             <option value="recipient_domain">Recipient Domain</option>
-                                            <option value="ml_score">ML Score</option>
-                                            <option value="is_internal_to_external">Internal to External</option>
+                                            <option value="recipient_domain_classifications">Recipient Domain Classifications</option>
+                                            <option value="domain_risk_score">Domain Risk Score</option>
+                                            <option value="has_suspicious_domains">Has Suspicious Domains</option>
+                                            <option value="has_external_domains">Has External Domains</option>
                                             <option value="bunit">Business Unit</option>
                                             <option value="department">Department</option>
                                             <option value="leaver">Is Leaver</option>
                                             <option value="termination_date">Termination Date</option>
                                             <option value="attachments">Attachments</option>
                                             <option value="policies">Policy Names</option>
-                                            <option value="domain_risk_score">Domain Risk Score</option>
-                                            <option value="sender_domain_classification">Sender Domain Classification</option>
-                                            <option value="recipient_domain_classifications">Recipient Domain Classifications</option>
-                                            <option value="has_suspicious_domains">Has Suspicious Domains</option>
-                                            <option value="has_external_domains">Has External Domains</option></option>
+                                            <option value="ml_score">ML Score</option>
+                                            <option value="is_internal_to_external">Internal to External</option>
                                         </select>
                                     </div>
                                     <div class="col-md-2">
@@ -110,9 +110,13 @@
                                         </select>
                                     </div>
                                     <div class="col-md-1">
-                                        <button type="button" class="btn btn-danger btn-sm remove-condition">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
+                                         <div class="form-check">
+                                            <input class="form-check-input condition-negate" type="checkbox" 
+                                                   name="conditions[0][negate]" title="Exclude/NOT condition">
+                                            <label class="form-check-label text-danger" title="Exclude this condition">
+                                                <small>NOT</small>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -395,7 +399,7 @@ function addCondition() {
                 </select>
             </div>
             <div class="col-md-1">
-                 <div class="form-check">
+                <div class="form-check">
                     <input class="form-check-input condition-negate" type="checkbox" 
                            name="conditions[${conditionCounter}][negate]" title="Exclude/NOT condition">
                     <label class="form-check-label text-danger" title="Exclude this condition">
@@ -620,7 +624,7 @@ document.addEventListener('change', function(e) {
             valueInput.style.display = 'block';
             valueInput.placeholder = 'Enter value...';
         }
-        
+
         // Handle negate checkbox visibility
         if (['leaver', 'is_internal_to_external'].includes(field) || ['has_suspicious_domains', 'has_external_domains'].includes(field)) {
              negateCheckbox.closest('.form-check').style.display = 'none';
@@ -1116,7 +1120,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if there's an 'edit' parameter in the URL or if rule_id is already present in the form
     const urlParams = new URLSearchParams(window.location.search);
     const formActionInput = document.getElementById('ruleForm')?.querySelector('input[name="action"]');
-    
+
     if (!urlParams.has('edit') && (!formActionInput || formActionInput.value === 'add')) {
        if (!document.querySelector('#conditions-container .condition-group')) {
            addCondition();

@@ -86,6 +86,15 @@ CREATE TABLE IF NOT EXISTS exclusion_keywords (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     term TEXT NOT NULL UNIQUE,
     is_regex INTEGER DEFAULT 0,
+    applies_to TEXT DEFAULT 'both',
+    description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS exclusion_keywords (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    term TEXT NOT NULL UNIQUE,
+    is_regex INTEGER DEFAULT 0,
     check_subject INTEGER DEFAULT 1,
     check_attachments INTEGER DEFAULT 1,
     enabled INTEGER DEFAULT 1,
@@ -921,6 +930,35 @@ def delete_ml_scoring_rule(rule_id):
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("DELETE FROM ml_scoring_rules WHERE id = ?", (rule_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def get_exclusion_keywords():
+    """Get all exclusion keywords"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, term, is_regex, applies_to, description FROM exclusion_keywords ORDER BY term")
+        return cursor.fetchall()
+
+def add_exclusion_keyword(term, is_regex=False, applies_to='both', description=''):
+    """Add exclusion keyword"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO exclusion_keywords (term, is_regex, applies_to, description) 
+                VALUES (?, ?, ?, ?)
+            """, (term, 1 if is_regex else 0, applies_to, description))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+def delete_exclusion_keyword(keyword_id):
+    """Delete exclusion keyword"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM exclusion_keywords WHERE id = ?", (keyword_id,))
         conn.commit()
         return cursor.rowcount > 0
 

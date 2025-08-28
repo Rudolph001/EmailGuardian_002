@@ -55,8 +55,13 @@
                             <li><a class="dropdown-item" href="{{ url_for('exclusion_keywords') }}"><i class="fas fa-ban me-2"></i>Exclusion Keywords</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('whitelist') }}"><i class="fas fa-shield-alt me-2"></i>Whitelist</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('keywords') }}">
-                                <i class="fas fa-tags me-1"></i>Keywords
+                                <i class="fas fa-tags me-2"></i>Keywords
                             </a></li>
+                            <li>
+                                <a class="dropdown-item" href="{{ url_for('exclusion_keywords') }}">
+                                    <i class="fas fa-ban me-2"></i>Exclusions
+                                </a>
+                            </li>
                             <li><a class="dropdown-item" href="{{ url_for('policies') }}">
                                 <i class="fas fa-shield-alt me-1"></i>Policies
                             </a></li>
