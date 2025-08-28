@@ -705,11 +705,13 @@ def update_event_status(event_id, status=None, is_whitelisted=None, follow_up=No
             conn.commit()
 
             # Verify the update worked
+            rowcount = cursor.rowcount
             cursor.execute("SELECT status, is_whitelisted, follow_up FROM events WHERE id = ?", (event_id,))
             result = cursor.fetchone()
             logger.debug(f"After update, event {event_id} status: {dict(result) if result else 'not found'}")
+            logger.debug(f"Update rowcount for event {event_id}: {rowcount}")
 
-            return cursor.rowcount > 0
+            return rowcount > 0
 
         return False
 
