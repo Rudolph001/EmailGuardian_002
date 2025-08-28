@@ -328,8 +328,11 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
+// Debug: Ensure script is loading
+console.log('Domain labels script loaded');
+
 function editDomainLabel(domainId, domainName, currentLabel, currentConfidence) {
     console.log('editDomainLabel called with:', domainId, domainName, currentLabel, currentConfidence);
     
