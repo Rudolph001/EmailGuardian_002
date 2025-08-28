@@ -74,7 +74,7 @@ def upload():
                 return redirect(url_for("upload"))
 
             # Validate file extension
-            if not file.filename.lower().endswith('.csv'):
+            if not file.filename or not file.filename.lower().endswith('.csv'):
                 flash("Please upload a CSV file", "error")
                 return redirect(url_for("upload"))
 
@@ -523,14 +523,22 @@ def whitelist():
                     flash("Email is required", "error")
 
             elif action == "delete_domain":
-                domain_id = int(request.form.get("domain_id"))
+                domain_id_str = request.form.get("domain_id")
+                if not domain_id_str:
+                    flash("Domain ID is required", "error")
+                    return redirect(url_for("whitelist"))
+                domain_id = int(domain_id_str)
                 if delete_whitelist_domain(domain_id):
                     flash("Domain removed from whitelist", "success")
                 else:
                     flash("Failed to remove domain", "error")
 
             elif action == "delete_email":
-                email_id = int(request.form.get("email_id"))
+                email_id_str = request.form.get("email_id")
+                if not email_id_str:
+                    flash("Email ID is required", "error")
+                    return redirect(url_for("whitelist"))
+                email_id = int(email_id_str)
                 if delete_whitelist_email(email_id):
                     flash("Email removed from whitelist", "success")
                 else:
@@ -678,7 +686,11 @@ def exclusion_keywords():
                     flash("Term is required", "error")
 
             elif action == "edit":
-                keyword_id = int(request.form.get("keyword_id"))
+                keyword_id_str = request.form.get("keyword_id")
+                if not keyword_id_str:
+                    flash("Keyword ID is required", "error")
+                    return redirect(url_for("exclusion_keywords"))
+                keyword_id = int(keyword_id_str)
                 term = request.form.get("term", "").strip()
                 is_regex = request.form.get("is_regex") == "on"
                 check_subject = request.form.get("check_subject") == "on"
@@ -749,7 +761,11 @@ def exclusion_keywords():
                     flash("Bulk terms are required", "error")
 
             elif action == "delete":
-                keyword_id = int(request.form.get("keyword_id"))
+                keyword_id_str = request.form.get("keyword_id")
+                if not keyword_id_str:
+                    flash("Keyword ID is required", "error")
+                    return redirect(url_for("exclusion_keywords"))
+                keyword_id = int(keyword_id_str)
                 from rules import delete_exclusion_keyword
                 if delete_exclusion_keyword(keyword_id):
                     flash("Exclusion keyword deleted successfully", "success")
@@ -840,7 +856,11 @@ def keywords():
                     flash("Bulk terms are required", "error")
 
             elif action == "delete":
-                keyword_id = int(request.form.get("keyword_id"))
+                keyword_id_str = request.form.get("keyword_id")
+                if not keyword_id_str:
+                    flash("Keyword ID is required", "error")
+                    return redirect(url_for("keywords"))
+                keyword_id = int(keyword_id_str)
                 if delete_keyword(keyword_id):
                     flash("Keyword deleted successfully", "success")
                 else:
@@ -918,7 +938,11 @@ def policies():
                         flash(f"Policy '{policy_name}' already exists", "warning")
 
             elif action == "edit":
-                policy_id = int(request.form.get("policy_id"))
+                policy_id_str = request.form.get("policy_id")
+                if not policy_id_str:
+                    flash("Policy ID is required", "error")
+                    return redirect(url_for("policies"))
+                policy_id = int(policy_id_str)
                 policy_name = request.form.get("policy_name", "").strip()
                 risk_weight = float(request.form.get("risk_weight", 1.0))
                 category = request.form.get("category", "other").strip()
@@ -931,7 +955,11 @@ def policies():
                     flash("Failed to update policy", "error")
 
             elif action == "delete":
-                policy_id = int(request.form.get("policy_id"))
+                policy_id_str = request.form.get("policy_id")
+                if not policy_id_str:
+                    flash("Policy ID is required", "error")
+                    return redirect(url_for("policies"))
+                policy_id = int(policy_id_str)
                 if delete_ml_policy(policy_id):
                     flash("Policy deleted successfully", "success")
                 else:
@@ -1035,10 +1063,10 @@ def process_rules_progress():
 @app.route("/event/<int:event_id>/status", methods=["POST"])
 def update_event_status(event_id):
     """Update event status"""
+    redirect_to = request.form.get("redirect_to", "event_detail")
     try:
         from models import update_event_status as update_status
         action = request.form.get("action")
-        redirect_to = request.form.get("redirect_to", "event_detail")
 
         if action == "whitelist":
             if update_status(event_id, is_whitelisted=True):
@@ -1204,7 +1232,11 @@ def domain_labels():
 
             if action == "label_domain":
                 domain = request.form.get("domain", "").strip().lower()
-                label = int(request.form.get("label"))
+                label_str = request.form.get("label")
+                if not label_str:
+                    flash("Label is required", "error")
+                    return redirect(url_for("domain_labels"))
+                label = int(label_str)
                 confidence = float(request.form.get("confidence", 1.0))
 
                 if domain and 0 <= label <= 3:
@@ -1223,8 +1255,13 @@ def domain_labels():
                     flash("Invalid domain or label", "error")
 
             elif action == 'edit_domain_label':
-                domain_id = int(request.form.get("domain_id"))
-                label = int(request.form.get("label"))
+                domain_id_str = request.form.get("domain_id")
+                label_str = request.form.get("label")
+                if not domain_id_str or not label_str:
+                    flash("Domain ID and label are required", "error")
+                    return redirect(url_for("domain_labels"))
+                domain_id = int(domain_id_str)
+                label = int(label_str)
                 confidence = float(request.form.get("confidence", 1.0))
 
                 if 0 <= label <= 3 and 0.1 <= confidence <= 1.0:
@@ -1246,7 +1283,11 @@ def domain_labels():
                     flash("Invalid label or confidence value", "error")
 
             elif action == 'delete_domain_label':
-                domain_id = int(request.form.get("domain_id"))
+                domain_id_str = request.form.get("domain_id")
+                if not domain_id_str:
+                    flash("Domain ID is required", "error")
+                    return redirect(url_for("domain_labels"))
+                domain_id = int(domain_id_str)
 
                 with get_db() as conn:
                     cursor = conn.cursor()
@@ -1260,7 +1301,11 @@ def domain_labels():
 
             elif action == 'bulk_edit_labels':
                 bulk_domains = request.form.get("bulk_domains", "").strip()
-                bulk_label = int(request.form.get("bulk_label"))
+                bulk_label_str = request.form.get("bulk_label")
+                if not bulk_label_str:
+                    flash("Bulk label is required", "error")
+                    return redirect(url_for("domain_labels"))
+                bulk_label = int(bulk_label_str)
                 bulk_confidence = float(request.form.get("bulk_confidence", 1.0))
                 overwrite_existing = request.form.get("overwrite_existing") == "on"
 
@@ -1470,7 +1515,11 @@ def admin_dashboard():
                 flash("Reason is required", "error")
 
         elif action == 'edit_reason':
-            reason_id = int(request.form.get('reason_id'))
+            reason_id_str = request.form.get('reason_id')
+            if not reason_id_str:
+                flash("Reason ID is required", "error")
+                return redirect(url_for("admin_dashboard"))
+            reason_id = int(reason_id_str)
             reason = request.form.get('reason', '').strip()
             requires_reference = request.form.get('requires_reference') == 'on'
             enabled = request.form.get('enabled') == 'on'
@@ -1481,7 +1530,11 @@ def admin_dashboard():
                 flash("Failed to update closure reason", "error")
 
         elif action == 'delete_reason':
-            reason_id = int(request.form.get('reason_id'))
+            reason_id_str = request.form.get('reason_id')
+            if not reason_id_str:
+                flash("Reason ID is required", "error")
+                return redirect(url_for("admin_dashboard"))
+            reason_id = int(reason_id_str)
             if delete_closure_reason(reason_id):
                 flash("Closure reason deleted successfully", "success")
             else:
@@ -1503,7 +1556,11 @@ def admin_dashboard():
                 flash("Rule name, field, and operator are required", "error")
 
         elif action == 'edit_ml_rule':
-            rule_id = int(request.form.get('ml_rule_id'))
+            rule_id_str = request.form.get('ml_rule_id')
+            if not rule_id_str:
+                flash("Rule ID is required", "error")
+                return redirect(url_for("admin_dashboard"))
+            rule_id = int(rule_id_str)
             rule_name = request.form.get('rule_name', '').strip()
             condition_field = request.form.get('condition_field', '').strip()
             condition_operator = request.form.get('condition_operator', '').strip()
@@ -1518,7 +1575,11 @@ def admin_dashboard():
                 flash("Failed to update ML scoring rule", "error")
 
         elif action == 'delete_ml_rule':
-            rule_id = int(request.form.get('ml_rule_id'))
+            rule_id_str = request.form.get('ml_rule_id')
+            if not rule_id_str:
+                flash("Rule ID is required", "error")
+                return redirect(url_for("admin_dashboard"))
+            rule_id = int(rule_id_str)
             if delete_ml_scoring_rule(rule_id):
                 flash("ML scoring rule deleted successfully", "success")
             else:
