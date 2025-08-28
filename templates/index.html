@@ -38,6 +38,18 @@
     </div>
 
     <div class="col-md-3 col-lg-2 mb-3">
+        <a href="{{ url_for('events', filter='medium_risk') }}" class="text-decoration-none">
+            <div class="card h-100 border-warning dashboard-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-minus-circle fa-2x text-warning mb-2"></i>
+                    <h4 class="card-title text-warning">{{ stats.medium_risk_count }}</h4>
+                    <p class="card-text text-muted small">Medium Risk (0.3-0.7)</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-3 col-lg-2 mb-3">
         <a href="{{ url_for('events', filter='low_risk') }}" class="text-decoration-none">
             <div class="card h-100 border-success dashboard-card">
                 <div class="card-body text-center">

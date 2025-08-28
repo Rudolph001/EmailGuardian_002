@@ -60,7 +60,7 @@ def index():
         logger.error(f"Error loading dashboard: {e}")
         flash("Error loading dashboard", "error")
         return render_template("index.html", total_events=0, recent_events=[], 
-                             stats={'high_risk_count': 0, 'low_risk_count': 0, 'whitelisted_count': 0, 
+                             stats={'high_risk_count': 0, 'low_risk_count': 0, 'medium_risk_count': 0, 'whitelisted_count': 0, 
                                    'closed_count': 0, 'rule_triggered_count': 0, 'follow_up_count': 0})
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -166,6 +166,8 @@ def events():
             where_conditions.append("ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '')")
         elif filter_type == "low_risk":
             where_conditions.append("CAST(ml_score AS REAL) <= 0.3 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '')")
+        elif filter_type == "medium_risk":
+            where_conditions.append("CAST(ml_score AS REAL) > 0.3 AND CAST(ml_score AS REAL) <= 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '')")
         elif filter_type == "rule_triggered":
             where_conditions.append("status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND trigger_reason IS NOT NULL AND trigger_reason != ''")
 
