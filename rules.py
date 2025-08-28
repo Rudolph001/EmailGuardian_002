@@ -86,11 +86,15 @@ def _generate_condition_summary(conditions_json):
 
             operator_display = operator_map.get(operator, operator)
 
+            # Check for negation
+            negate = condition.get('negate', False)
+            negate_prefix = "NOT " if negate else ""
+
             # Build condition string
             if operator in ['is_true', 'is_false', 'is_empty', 'is_not_empty']:
-                condition_str = f"{field_display} {operator_display}"
+                condition_str = f"{negate_prefix}{field_display} {operator_display}"
             else:
-                condition_str = f"{field_display} {operator_display} '{value}'"
+                condition_str = f"{negate_prefix}{field_display} {operator_display} '{value}'"
 
             summaries.append(condition_str)
 
@@ -390,6 +394,7 @@ def _evaluate_condition(condition, event_data):
     field = condition.get('field')
     operator = condition.get('operator')
     value = condition.get('value', '')
+    negate = condition.get('negate', False)
 
     if not field or not operator:
         return False
@@ -425,9 +430,15 @@ def _evaluate_condition(condition, event_data):
     elif operator == 'is_empty':
         return not field_value or field_value == ''
     elif operator == 'is_not_empty':
-        return field_value and field_value != ''
+        result = field_value and field_value != ''
+    else:
+        result = False
 
-    return False
+    # Apply negation if specified
+    if negate:
+        result = not result
+
+    return result
 
 def _get_field_value(field, event_data):
     """Extract field value from event data"""
@@ -719,7 +730,14 @@ def test_rule_against_events(conditions):
                     value = condition.get('value', '')
                     logic = condition.get('logic', 'AND')
 
+                    # Get negation flag
+                    negate = condition.get('negate', False)
+                    
                     condition_result = evaluate_condition(event_dict, field, operator, value)
+                    
+                    # Apply negation
+                    if negate:
+                        condition_result = not condition_result
 
                     if i == 0:
                         # First condition sets the result
@@ -850,10 +868,11 @@ def evaluate_condition(event, field, operator, value):
             event_value = event.get(field, '')
 
         # Apply operator
+        result = False
         if operator == 'equals':
-            return str(event_value).lower() == str(value).lower()
+            result = str(event_value).lower() == str(value).lower()
         elif operator == 'contains':
-            return str(value).lower() in str(event_value).lower()
+            result = str(value).lower() in str(event_value).lower()
         elif operator == 'starts_with':
             return str(event_value).lower().startswith(str(value).lower())
         elif operator == 'ends_with':
@@ -877,9 +896,13 @@ def evaluate_condition(event, field, operator, value):
         elif operator == 'is_empty':
             return not event_value or str(event_value).strip() == ''
         elif operator == 'is_not_empty':
-            return event_value and str(event_value).strip() != ''
+            result = event_value and str(event_value).strip() != ''
         else:
-            return False
+            result = False
+
+        # Apply negation if specified (for testing, we need to get negate from somewhere)
+        # For now, we'll assume testing doesn't use negation or we'd need to pass it
+        return result
 
     except Exception as e:
         logger.error(f"Error evaluating condition {field} {operator} {value} against event value {event_value}: {e}")

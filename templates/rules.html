@@ -338,8 +338,9 @@
 </div>
 
 <script>
-let conditionCounter = 1;
+let conditionCounter = 0; // Initialize to 0 to properly index for new conditions
 
+// Function to add a new condition row
 function addCondition() {
     const container = document.getElementById('conditions-container');
     const newCondition = document.createElement('div');
@@ -353,23 +354,23 @@ function addCondition() {
                     <option value="">Select field...</option>
                     <option value="sender">Sender Email</option>
                     <option value="sender_domain">Sender Domain</option>
+                    <option value="sender_domain_classification">Sender Domain Classification</option>
                     <option value="subject">Subject</option>
                     <option value="keywords">Keywords (Subject & Attachments)</option>
                     <option value="recipients">Recipients</option>
                     <option value="recipient_domain">Recipient Domain</option>
-                    <option value="ml_score">ML Score</option>
-                    <option value="is_internal_to_external">Internal to External</option>
+                    <option value="recipient_domain_classifications">Recipient Domain Classifications</option>
+                    <option value="domain_risk_score">Domain Risk Score</option>
+                    <option value="has_suspicious_domains">Has Suspicious Domains</option>
+                    <option value="has_external_domains">Has External Domains</option>
                     <option value="bunit">Business Unit</option>
                     <option value="department">Department</option>
                     <option value="leaver">Is Leaver</option>
                     <option value="termination_date">Termination Date</option>
                     <option value="attachments">Attachments</option>
                     <option value="policies">Policy Names</option>
-                    <option value="domain_risk_score">Domain Risk Score</option>
-                    <option value="sender_domain_classification">Sender Domain Classification</option>
-                    <option value="recipient_domain_classifications">Recipient Domain Classifications</option>
-                    <option value="has_suspicious_domains">Has Suspicious Domains</option>
-                    <option value="has_external_domains">Has External Domains</option></option>
+                    <option value="ml_score">ML Score</option>
+                    <option value="is_internal_to_external">Internal to External</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -394,9 +395,13 @@ function addCondition() {
                 </select>
             </div>
             <div class="col-md-1">
-                <button type="button" class="btn btn-danger btn-sm remove-condition">
-                    <i class="fas fa-trash"></i>
-                </button>
+                 <div class="form-check">
+                    <input class="form-check-input condition-negate" type="checkbox" 
+                           name="conditions[${conditionCounter}][negate]" title="Exclude/NOT condition">
+                    <label class="form-check-label text-danger" title="Exclude this condition">
+                        <small>NOT</small>
+                    </label>
+                </div>
             </div>
         </div>
     `;
@@ -405,6 +410,7 @@ function addCondition() {
     conditionCounter++;
 }
 
+// Function to remove a condition row
 function removeCondition(conditionId) {
     const condition = document.querySelector(`[data-condition="${conditionId}"]`);
     const container = document.getElementById('conditions-container');
@@ -415,6 +421,8 @@ function removeCondition(conditionId) {
 
         if (allConditions.length > 1) {
             condition.remove();
+            // Re-index the remaining conditions
+            updateConditionIndices();
         } else {
             // If it's the last condition, clear its values instead of removing it
             const selects = condition.querySelectorAll('select');
@@ -422,8 +430,28 @@ function removeCondition(conditionId) {
 
             selects.forEach(select => select.selectedIndex = 0);
             inputs.forEach(input => input.value = '');
+            // Also reset the negate checkbox
+            const checkbox = condition.querySelector('.condition-negate');
+            if(checkbox) checkbox.checked = false;
         }
     }
+}
+
+// Helper function to re-index condition inputs after removal
+function updateConditionIndices() {
+    const conditionGroups = document.querySelectorAll('.condition-group');
+    conditionGroups.forEach((group, index) => {
+        group.setAttribute('data-condition', index);
+        const inputs = group.querySelectorAll('input, select');
+        inputs.forEach(input => {
+            const name = input.getAttribute('name');
+            if (name && name.includes('[')) {
+                const newName = name.replace(/conditions\[\d+\]/, `conditions[${index}]`);
+                input.setAttribute('name', newName);
+            }
+        });
+    });
+    conditionCounter = conditionGroups.length; // Ensure counter is up-to-date
 }
 
 // Update operator options based on field selection
@@ -432,66 +460,177 @@ document.addEventListener('change', function(e) {
         const field = e.target.value;
         const operatorSelect = e.target.closest('.row').querySelector('.condition-operator');
         const valueInput = e.target.closest('.row').querySelector('.condition-value');
+        const negateCheckbox = e.target.closest('.row').querySelector('.condition-negate');
 
         // Reset operator options
         operatorSelect.innerHTML = '';
 
+        // Define options for each field type
+        const operatorOptionsMap = {
+            "sender": [
+                { value: "equals", text: "Equals" },
+                { value: "contains", text: "Contains" },
+                { value: "starts_with", text: "Starts With" },
+                { value: "ends_with", text: "Ends With" },
+                { value: "matches", text: "Matches Pattern" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "sender_domain": [
+                { value: "equals", text: "Equals" },
+                { value: "contains", text: "Contains" },
+                { value: "starts_with", text: "Starts With" },
+                { value: "ends_with", text: "Ends With" },
+                { value: "matches", text: "Matches Pattern" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "sender_domain_classification": [
+                { value: "equals", text: "Equals" },
+                { value: "contains", text: "Contains" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "recipient_domain": [
+                { value: "equals", text: "Equals" },
+                { value: "contains", text: "Contains" },
+                { value: "starts_with", text: "Starts With" },
+                { value: "ends_with", text: "Ends With" },
+                { value: "matches", text: "Matches Pattern" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "recipient_domain_classifications": [
+                { value: "equals", text: "Equals" },
+                { value: "contains", text: "Contains" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "domain_risk_score": [
+                { value: "equals", text: "Equals" },
+                { value: "greater_than", text: "Greater Than" },
+                { value: "less_than", text: "Less Than" }
+            ],
+            "has_suspicious_domains": [
+                { value: "is_true", text: "Is True" },
+                { value: "is_false", text: "Is False" }
+            ],
+            "has_external_domains": [
+                { value: "is_true", text: "Is True" },
+                { value: "is_false", text: "Is False" }
+            ],
+            "subject": [
+                { value: "equals", text: "Equals" },
+                { value: "contains", text: "Contains" },
+                { value: "starts_with", text: "Starts With" },
+                { value: "ends_with", text: "Ends With" },
+                { value: "matches", text: "Matches Pattern" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "keywords": [
+                { value: "contains", text: "Contains Keyword" },
+                { value: "is_not_empty", text: "Has Any Keywords" },
+                { value: "is_empty", text: "No Keywords Match" }
+            ],
+            "recipients": [
+                { value: "contains", text: "Contains Email" },
+                { value: "matches", text: "Matches Pattern" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "bunit": [
+                { value: "equals", text: "Equals" },
+                { value: "contains", text: "Contains" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "department": [
+                { value: "equals", text: "Equals" },
+                { value: "contains", text: "Contains" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "leaver": [
+                { value: "is_true", text: "Is True" },
+                { value: "is_false", text: "Is False" }
+            ],
+            "termination_date": [
+                { value: "before", text: "Before Date" },
+                { value: "after", text: "After Date" },
+                { value: "on", text: "On Date" }
+            ],
+            "attachments": [
+                { value: "contains", text: "Contains Filename" },
+                { value: "matches", text: "Matches Pattern" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "policies": [
+                { value: "contains", text: "Contains Policy" },
+                { value: "matches", text: "Matches Pattern" },
+                { value: "is_empty", text: "Is Empty" },
+                { value: "is_not_empty", text: "Is Not Empty" }
+            ],
+            "ml_score": [
+                { value: "equals", text: "Equals" },
+                { value: "greater_than", text: "Greater Than" },
+                { value: "less_than", text: "Less Than" }
+            ],
+            "is_internal_to_external": [
+                { value: "is_true", text: "Is True" },
+                { value: "is_false", text: "Is False" }
+            ]
+        };
+
+        // Helper to generate options with selected attribute
+        const generateOptions = (options, selectedValue) => {
+            return options.map(({ value, text }) => `<option value="${value}" ${value === selectedValue ? 'selected' : ''}>${text}</option>`).join('');
+        };
+
+        const currentOperators = operatorOptionsMap[field] || operatorOptionsMap["sender"]; // Default to sender if field not found
+        operatorSelect.innerHTML = generateOptions(currentOperators, ''); // Set initial operator to default
+
+        // Update value input type and visibility
         if (['ml_score', 'domain_risk_score'].includes(field)) {
-            // Numeric fields
-            operatorSelect.innerHTML = `
-                <option value="equals">Equals</option>
-                <option value="greater_than">Greater Than</option>
-                <option value="less_than">Less Than</option>
-            `;
             valueInput.type = 'number';
             valueInput.step = '0.01';
             valueInput.style.display = 'block';
         } else if (['leaver', 'is_internal_to_external'].includes(field) || ['has_suspicious_domains', 'has_external_domains'].includes(field)) {
-            // Boolean fields
-            operatorSelect.innerHTML = `
-                <option value="is_true">Is True</option>
-                <option value="is_false">Is False</option>
-            `;
             valueInput.style.display = 'none';
+            // Ensure operator is set to is_true or is_false if available
+            if (!currentOperators.some(opt => opt.value === operatorSelect.value)) {
+                 operatorSelect.value = 'is_true'; // default to is_true
+            }
         } else if (field === 'keywords') {
-            // Keywords field - special handling
-            operatorSelect.innerHTML = `
-                <option value="contains">Contains Keyword</option>
-                <option value="is_not_empty">Has Any Keywords</option>
-                <option value="is_empty">No Keywords Match</option>
-            `;
             valueInput.type = 'text';
             valueInput.style.display = 'block';
             valueInput.placeholder = 'Enter keyword term to match...';
         } else if (field === 'sender_domain_classification' || field === 'recipient_domain_classifications') {
-            // Domain classification fields
-            operatorSelect.innerHTML = `
-                <option value="equals">Equals</option>
-                <option value="contains">Contains</option>
-                <option value="is_empty">Is Empty</option>
-                <option value="is_not_empty">Is Not Empty</option>
-            `;
             valueInput.type = 'text';
             valueInput.style.display = 'block';
             valueInput.placeholder = 'Enter classification (e.g., trusted, suspicious)';
         }
+         else if (field === 'termination_date') {
+            valueInput.type = 'date';
+            valueInput.style.display = 'block';
+        }
         else {
-            // Text fields
-            operatorSelect.innerHTML = `
-                <option value="equals">Equals</option>
-                <option value="contains">Contains</option>
-                <option value="starts_with">Starts With</option>
-                <option value="ends_with">Ends With</option>
-                <option value="matches">Matches Pattern</option>
-                <option value="is_empty">Is Empty</option>
-                <option value="is_not_empty">Is Not Empty</option>
-            `;
             valueInput.type = 'text';
             valueInput.style.display = 'block';
+            valueInput.placeholder = 'Enter value...';
+        }
+        
+        // Handle negate checkbox visibility
+        if (['leaver', 'is_internal_to_external'].includes(field) || ['has_suspicious_domains', 'has_external_domains'].includes(field)) {
+             negateCheckbox.closest('.form-check').style.display = 'none';
+        } else {
+            negateCheckbox.closest('.form-check').style.display = 'block';
         }
     }
 });
 
+// Function to populate form for editing
 function editRule(ruleId, name, action, priority, enabled, conditions) {
     // Clear any existing edit state first
     resetForm();
@@ -528,21 +667,20 @@ function editRule(ruleId, name, action, priority, enabled, conditions) {
     }
     ruleIdInput.value = ruleId;
 
-    // Clear existing conditions
+    // Clear existing conditions and populate from data
     const container = document.getElementById('conditions-container');
-
     if (container) {
         container.innerHTML = '';
-        conditionCounter = 0;
+        conditionCounter = 0; // Reset counter for new conditions
 
-        // Populate conditions if they exist
         if (conditions && Array.isArray(conditions) && conditions.length > 0) {
             conditions.forEach((condition, index) => {
                 addConditionWithData(
                     condition.field || '', 
                     condition.operator || 'equals', 
                     condition.value || '', 
-                    condition.logic || 'AND'
+                    condition.logic || 'AND',
+                    condition.negate || false // Pass the negate value
                 );
             });
         } else {
@@ -553,7 +691,6 @@ function editRule(ruleId, name, action, priority, enabled, conditions) {
 
     // Update submit button text
     const submitBtn = form.querySelector('button[type="submit"]');
-
     if (submitBtn) {
         submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>Update Rule';
     }
@@ -568,7 +705,9 @@ function editRule(ruleId, name, action, priority, enabled, conditions) {
     form.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function addConditionWithData(field = '', operator = 'equals', value = '', logic = 'AND') {
+
+// Function to add a condition with pre-filled data, including negate status
+function addConditionWithData(field = '', operator = 'equals', value = '', logic = 'AND', negate = false) {
     const container = document.getElementById('conditions-container');
     const newCondition = document.createElement('div');
     newCondition.className = 'condition-group border rounded p-3 mb-3';
@@ -576,7 +715,7 @@ function addConditionWithData(field = '', operator = 'equals', value = '', logic
 
     // Helper to generate options with selected attribute
     const generateOptions = (options, selectedValue) => {
-        return options.map(([val, text]) => `<option value="${val}" ${val === selectedValue ? 'selected' : ''}>${text}</option>`).join('');
+        return options.map(({ value, text }) => `<option value="${value}" ${value === selectedValue ? 'selected' : ''}>${text}</option>`).join('');
     };
 
     // Define options for each field type
@@ -603,7 +742,7 @@ function addConditionWithData(field = '', operator = 'equals', value = '', logic
         { value: "is_internal_to_external", text: "Internal to External" },
     ];
 
-    const operatorOptions = {
+    const operatorOptionsMap = {
         "sender": [
             { value: "equals", text: "Equals" },
             { value: "contains", text: "Contains" },
@@ -722,23 +861,50 @@ function addConditionWithData(field = '', operator = 'equals', value = '', logic
 
     // Get the currently selected field to determine which operators to show
     const selectedField = field; // Use the passed field value directly
-    const currentOperators = operatorOptions[selectedField] || operatorOptions["sender"]; // Default to sender if field not found
+    const currentOperators = operatorOptionsMap[selectedField] || operatorOptionsMap["sender"]; // Default to sender if field not found
+    const operatorOptionsHtml = generateOptions(currentOperators, operator);
+
+    // Determine value input type and visibility based on selected field
+    let valueInputType = 'text';
+    let valueInputDisplay = 'block';
+    let valueInputPlaceholder = 'Enter value...';
+
+    if (['ml_score', 'domain_risk_score'].includes(selectedField)) {
+        valueInputType = 'number';
+        valueInputPlaceholder = 'Enter numeric value...';
+    } else if (['leaver', 'is_internal_to_external'].includes(selectedField) || ['has_suspicious_domains', 'has_external_domains'].includes(selectedField)) {
+        valueInputDisplay = 'none';
+        // Ensure operator is set to is_true or is_false if available
+        if (!currentOperators.some(opt => opt.value === operator)) {
+            operator = 'is_true'; // default to is_true
+        }
+    } else if (selectedField === 'keywords') {
+        valueInputPlaceholder = 'Enter keyword term to match...';
+    } else if (selectedField === 'sender_domain_classification' || selectedField === 'recipient_domain_classifications') {
+        valueInputPlaceholder = 'Enter classification (e.g., trusted, suspicious)';
+    } else if (selectedField === 'termination_date') {
+        valueInputType = 'date';
+    }
 
     newCondition.innerHTML = `
         <div class="row align-items-center">
             <div class="col-md-3">
                 <select class="form-select condition-field" name="conditions[${conditionCounter}][field]">
-                    ${generateOptions(fieldOptions.map(opt => [opt.value, opt.text]), field)}
+                    ${generateOptions(fieldOptions, field)}
                 </select>
             </div>
             <div class="col-md-2">
                 <select class="form-select condition-operator" name="conditions[${conditionCounter}][operator]">
-                    ${generateOptions(currentOperators.map(opt => [opt.value, opt.text]), operator)}
+                    ${operatorOptionsHtml}
                 </select>
             </div>
             <div class="col-md-4">
                 <input type="text" class="form-control condition-value" 
-                       name="conditions[${conditionCounter}][value]" placeholder="Enter value..." value="${value}">
+                       name="conditions[${conditionCounter}][value]" 
+                       placeholder="${valueInputPlaceholder}" 
+                       value="${value}" 
+                       style="display: ${valueInputDisplay};" 
+                       type="${valueInputType}">
             </div>
             <div class="col-md-2">
                 <select class="form-select condition-logic" name="conditions[${conditionCounter}][logic]">
@@ -747,9 +913,13 @@ function addConditionWithData(field = '', operator = 'equals', value = '', logic
                 </select>
             </div>
             <div class="col-md-1">
-                <button type="button" class="btn btn-danger btn-sm remove-condition">
-                    <i class="fas fa-trash"></i>
-                </button>
+                <div class="form-check">
+                    <input class="form-check-input condition-negate" type="checkbox" 
+                           name="conditions[${conditionCounter}][negate]" title="Exclude/NOT condition" ${negate ? 'checked' : ''}>
+                    <label class="form-check-label text-danger" title="Exclude this condition">
+                        <small>NOT</small>
+                    </label>
+                </div>
             </div>
         </div>
     `;
@@ -758,6 +928,8 @@ function addConditionWithData(field = '', operator = 'equals', value = '', logic
     conditionCounter++;
 }
 
+
+// Function to reset the form to its default state
 function resetForm() {
     const form = document.getElementById('ruleForm');
     if (form) {
@@ -795,11 +967,12 @@ function resetForm() {
         if (container) {
             container.innerHTML = '';
             conditionCounter = 0;
-            addCondition();
+            addCondition(); // Add a single empty condition
         }
     }
 }
 
+// Function to add a cancel button for editing
 function addCancelButton() {
     const form = document.getElementById('ruleForm');
     const submitBtn = form.querySelector('button[type="submit"]');
@@ -820,6 +993,7 @@ function addCancelButton() {
     }
 }
 
+// Function to remove the cancel button
 function removeCancelButton() {
     const cancelBtn = document.querySelector('.cancel-edit-btn');
     if (cancelBtn) {
@@ -827,6 +1001,7 @@ function removeCancelButton() {
     }
 }
 
+// Function to add an indicator when editing a rule
 function addEditingIndicator(ruleName) {
     // Remove existing indicator
     removeEditingIndicator();
@@ -844,6 +1019,7 @@ function addEditingIndicator(ruleName) {
     form.insertBefore(indicator, form.firstChild);
 }
 
+// Function to remove the editing indicator
 function removeEditingIndicator() {
     const indicator = document.querySelector('.editing-indicator');
     if (indicator) {
@@ -851,6 +1027,7 @@ function removeEditingIndicator() {
     }
 }
 
+// Function to highlight the rule being edited in the table
 function highlightEditingRule(ruleId) {
     // Remove existing highlights
     clearRuleHighlights();
@@ -864,6 +1041,7 @@ function highlightEditingRule(ruleId) {
     });
 }
 
+// Function to clear any highlights from previously edited rules
 function clearRuleHighlights() {
     const highlightedRows = document.querySelectorAll('.editing-rule');
     highlightedRows.forEach(row => {
@@ -886,21 +1064,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const name = btn.getAttribute('data-rule-name');
             const action = btn.getAttribute('data-rule-action');
             const priority = btn.getAttribute('data-rule-priority');
-            const enabled = btn.getAttribute('data-rule-enabled') === 'True';
+            const enabled = btn.getAttribute('data-rule-enabled') === 'true'; // Ensure boolean conversion
 
             let conditions;
             try {
                 const conditionsStr = btn.getAttribute('data-rule-conditions');
-                console.log('Raw conditions string:', conditionsStr);
                 if (conditionsStr && conditionsStr.trim() !== '' && conditionsStr !== 'null' && conditionsStr !== '[]') {
-                    // The conditions are double-encoded JSON, so we need to parse twice
-                    const parsed = JSON.parse(conditionsStr);
-                    if (typeof parsed === 'string') {
-                        conditions = JSON.parse(parsed);
-                    } else {
-                        conditions = parsed;
+                    conditions = JSON.parse(conditionsStr);
+                    // Ensure conditions is an array, default to empty array if parsing fails or result is not an array
+                    if (!Array.isArray(conditions)) {
+                        conditions = [];
                     }
-                    console.log('Parsed conditions:', conditions);
                 } else {
                     conditions = [];
                 }
@@ -939,10 +1113,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Initialize the first condition if the form is not for editing
+    // Check if there's an 'edit' parameter in the URL or if rule_id is already present in the form
     const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.has('edit')) {
-        // Only add initial condition if we're not editing
-        addCondition();
+    const formActionInput = document.getElementById('ruleForm')?.querySelector('input[name="action"]');
+    
+    if (!urlParams.has('edit') && (!formActionInput || formActionInput.value === 'add')) {
+       if (!document.querySelector('#conditions-container .condition-group')) {
+           addCondition();
+       }
     }
 });
 
@@ -953,10 +1131,20 @@ function testRule() {
     formData.append('action', 'test');
 
     // Get basic rule info
-    const name = document.getElementById('name').value;
-    const action = document.getElementById('rule_action').value;
-    const priority = document.getElementById('priority').value;
-    const enabled = document.getElementById('enabled').checked;
+    const nameInput = document.getElementById('name');
+    const actionSelect = document.getElementById('rule_action');
+    const priorityInput = document.getElementById('priority');
+    const enabledInput = document.getElementById('enabled');
+
+    if (!nameInput || !actionSelect || !priorityInput || !enabledInput) {
+        alert('Form elements not found. Cannot test rule.');
+        return;
+    }
+
+    const name = nameInput.value;
+    const action = actionSelect.value;
+    const priority = priorityInput.value;
+    const enabled = enabledInput.checked;
 
     if (!name.trim()) {
         alert('Please enter a rule name to test');
@@ -977,18 +1165,32 @@ function testRule() {
     const conditions = [];
     const conditionGroups = document.querySelectorAll('.condition-group');
 
-    conditionGroups.forEach((group, index) => {
-        const field = group.querySelector('.condition-field').value;
-        const operator = group.querySelector('.condition-operator').value;
-        const value = group.querySelector('.condition-value').value;
-        const logic = group.querySelector('.condition-logic').value;
+    conditionGroups.forEach((group) => {
+        const fieldSelect = group.querySelector('.condition-field');
+        const operatorSelect = group.querySelector('.condition-operator');
+        const valueInput = group.querySelector('.condition-value');
+        const logicSelect = group.querySelector('.condition-logic');
+        const negateCheckbox = group.querySelector('.condition-negate');
 
+        if (!fieldSelect || !operatorSelect || !valueInput || !logicSelect || !negateCheckbox) {
+            console.warn('Skipping incomplete condition group.');
+            return; // Skip if essential elements are missing
+        }
+
+        const field = fieldSelect.value;
+        const operator = operatorSelect.value;
+        const value = valueInput.value;
+        const logic = logicSelect.value;
+        const negate = negateCheckbox.checked;
+
+        // Only add if field and operator are selected
         if (field && operator) {
             conditions.push({
                 field: field,
                 operator: operator,
                 value: value,
-                logic: logic
+                logic: logic,
+                negate: negate
             });
         }
     });
@@ -1007,19 +1209,36 @@ function testRule() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
-    // Add logic to handle the response from the backend.
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         displayTestResults(data);
     })
     .catch(error => {
         console.error('Error testing rule:', error);
-        alert('Error testing rule. Please check console for details.');
+        alert(`Error testing rule: ${error.message}. Please check console for details.`);
+        // Display a generic error message in the results section
+        const resultsContent = document.getElementById('testResultsContent');
+        if (resultsContent) {
+            resultsContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Test failed:</strong> An error occurred while processing the request.
+                </div>
+            `;
+            document.getElementById('testResultsSection').style.display = 'block';
+        }
     })
     .finally(() => {
         // Restore button state
-        testBtn.innerHTML = originalText;
-        testBtn.disabled = false;
+        if (testBtn) {
+            testBtn.innerHTML = originalText;
+            testBtn.disabled = false;
+        }
     });
 }
 
@@ -1027,6 +1246,11 @@ function testRule() {
 function displayTestResults(data) {
     const resultsSection = document.getElementById('testResultsSection');
     const resultsContent = document.getElementById('testResultsContent');
+
+    if (!resultsSection || !resultsContent) {
+        console.error('Test results section or content element not found.');
+        return;
+    }
 
     if (data.success) {
         const matchCount = data.matches.length;
@@ -1081,20 +1305,34 @@ function displayTestResults(data) {
             `;
 
             data.matches.slice(0, 10).forEach(event => {
+                const sender = event.sender || 'N/A';
+                const subject = event.subject || 'No subject';
+                const recipientCount = event.recipient_count !== undefined ? event.recipient_count : 'N/A';
+                const mlScore = event.ml_score !== undefined ? event.ml_score : 0;
+                const status = event.status || 'unknown';
+
+                let mlBadgeClass = 'bg-secondary';
+                if (mlScore >= 0.7) mlBadgeClass = 'bg-danger';
+                else if (mlScore >= 0.4) mlBadgeClass = 'bg-warning';
+                else if (mlScore !== undefined) mlBadgeClass = 'bg-success';
+
+                let statusBadgeClass = 'bg-warning';
+                if (status === 'closed') statusBadgeClass = 'bg-success';
+
                 html += `
                     <tr>
                         <td><a href="/event/${event.id}" class="text-decoration-none">#${event.id}</a></td>
-                        <td><small>${event.sender}</small></td>
-                        <td><small>${event.subject || 'No subject'}</small></td>
-                        <td><small>${event.recipient_count} recipient(s)</small></td>
+                        <td><small>${sender}</small></td>
+                        <td><small>${subject}</small></td>
+                        <td><small>${recipientCount} recipient(s)</small></td>
                         <td>
-                            <span class="badge bg-${event.ml_score > 0.7 ? 'danger' : event.ml_score > 0.4 ? 'warning' : 'success'}">
-                                ${(event.ml_score * 100).toFixed(0)}%
+                            <span class="badge ${mlBadgeClass}">
+                                ${(mlScore * 100).toFixed(0)}%
                             </span>
                         </td>
                         <td>
-                            <span class="badge bg-${event.status === 'closed' ? 'success' : 'warning'}">
-                                ${event.status}
+                            <span class="badge ${statusBadgeClass}">
+                                ${status}
                             </span>
                         </td>
                     </tr>
@@ -1133,7 +1371,7 @@ function displayTestResults(data) {
         resultsContent.innerHTML = `
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Test failed:</strong> ${data.error}
+                <strong>Test failed:</strong> ${data.error || 'Unknown error'}
             </div>
         `;
     }
@@ -1145,7 +1383,10 @@ function displayTestResults(data) {
 
 // Function to hide test results
 function hideTestResults() {
-    document.getElementById('testResultsSection').style.display = 'none';
+    const resultsSection = document.getElementById('testResultsSection');
+    if (resultsSection) {
+        resultsSection.style.display = 'none';
+    }
 }
 
 </script>

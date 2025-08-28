@@ -272,13 +272,15 @@ def rules():
                     operator = request.form.get(f'conditions[{idx}][operator]', '').strip()
                     value = request.form.get(f'conditions[{idx}][value]', '').strip()
                     logic = request.form.get(f'conditions[{idx}][logic]', 'AND').strip()
+                    negate = bool(request.form.get(f'conditions[{idx}][negate]'))
 
                     if field and operator:  # Only add if field and operator are selected
                         conditions.append({
                             'field': field,
                             'operator': operator,
                             'value': value,
-                            'logic': logic
+                            'logic': logic,
+                            'negate': negate
                         })
 
             if name and rule_action:
