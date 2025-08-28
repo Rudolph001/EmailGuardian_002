@@ -34,6 +34,13 @@
                 </a>
             </li>
             <li class="nav-item" role="presentation">
+                <a class="nav-link {{ 'active' if request.args.get('filter') == 'low_risk' else '' }}"
+                   href="{{ url_for('events', filter='low_risk') }}"
+                   title="Low risk events that haven't been processed by rules">
+                    <i class="fas fa-check-circle me-1"></i>Low Risk (≤0.3)
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
                 <a class="nav-link {{ 'active' if not request.args.get('filter') or request.args.get('filter') == 'all' else '' }}"
                    href="{{ url_for('events', filter='all') }}"
                    title="All events regardless of risk level or processing status">
