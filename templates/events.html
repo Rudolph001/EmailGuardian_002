@@ -991,9 +991,11 @@
         const selectAllCheckbox = document.getElementById('selectAll');
         const eventCheckboxes = document.querySelectorAll('.event-checkbox');
 
-        eventCheckboxes.forEach(checkbox => {
-            checkbox.checked = selectAllCheckbox.checked;
-        });
+        if (selectAllCheckbox) {
+            eventCheckboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+        }
 
         updateBulkActions();
     }
@@ -1004,10 +1006,12 @@
         const bulkActionsPanel = document.getElementById('bulkActionsPanel');
         const selectedCountSpan = document.getElementById('selectedCount');
 
-        if (selectedCount > 0) {
+        if (bulkActionsPanel && selectedCount > 0) {
             bulkActionsPanel.style.display = 'block';
-            selectedCountSpan.textContent = selectedCount;
-        } else {
+            if (selectedCountSpan) {
+                selectedCountSpan.textContent = selectedCount;
+            }
+        } else if (bulkActionsPanel) {
             bulkActionsPanel.style.display = 'none';
         }
 
@@ -1015,14 +1019,16 @@
         const selectAllCheckbox = document.getElementById('selectAll');
         const totalCheckboxes = document.querySelectorAll('.event-checkbox');
 
-        if (selectedCount === 0) {
-            selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.checked = false;
-        } else if (selectedCount === totalCheckboxes.length) {
-            selectAllCheckbox.indeterminate = false;
-            selectAllCheckbox.checked = true;
-        } else {
-            selectAllCheckbox.indeterminate = true;
+        if (selectAllCheckbox) {
+            if (selectedCount === 0) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = false;
+            } else if (selectedCount === totalCheckboxes.length) {
+                selectAllCheckbox.indeterminate = false;
+                selectAllCheckbox.checked = true;
+            } else {
+                selectAllCheckbox.indeterminate = true;
+            }
         }
     }
 
@@ -1073,8 +1079,10 @@
         const selectAllCheckbox = document.getElementById('selectAll');
         const eventCheckboxes = document.querySelectorAll('.event-checkbox');
 
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.indeterminate = false;
+        if (selectAllCheckbox) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
 
         eventCheckboxes.forEach(checkbox => {
             checkbox.checked = false;
