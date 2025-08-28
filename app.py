@@ -1175,28 +1175,38 @@ def batch_update_events():
         for event_id in event_ids:
             try:
                 if action == "whitelist":
-                    if update_status(event_id, is_whitelisted=True):
+                    result = update_status(event_id, is_whitelisted=True)
+                    logger.debug(f"Whitelist result for event {event_id}: {result}")
+                    if result:
                         success_count += 1
 
                 elif action == "follow_up":
                     follow_up_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    if update_status(event_id, follow_up=True, follow_up_date=follow_up_date):
+                    result = update_status(event_id, follow_up=True, follow_up_date=follow_up_date)
+                    logger.debug(f"Follow-up result for event {event_id}: {result}")
+                    if result:
                         success_count += 1
 
                 elif action == "clear":
-                    if update_status(event_id, status="closed", closed_by="admin"):
+                    result = update_status(event_id, status="closed", closed_by="admin")
+                    logger.debug(f"Clear result for event {event_id}: {result}")
+                    if result:
                         success_count += 1
 
                 elif action == "close":
                     closure_reason = request.form.get("closure_reason", "").strip()
                     closure_notes = request.form.get("closure_notes", "").strip()
 
-                    if update_status(event_id, status="closed", closed_by="admin", 
-                                   closure_reason=closure_reason, closure_notes=closure_notes):
+                    result = update_status(event_id, status="closed", closed_by="admin", 
+                                         closure_reason=closure_reason, closure_notes=closure_notes)
+                    logger.debug(f"Update result for event {event_id}: {result}")
+                    if result:
                         success_count += 1
 
                 elif action == "reopen":
-                    if update_status(event_id, status="open", follow_up=False):
+                    result = update_status(event_id, status="open", follow_up=False)
+                    logger.debug(f"Reopen result for event {event_id}: {result}")
+                    if result:
                         success_count += 1
 
             except Exception as e:
