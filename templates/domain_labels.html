@@ -341,21 +341,62 @@ function editDomainLabel(domainId, domainName, currentLabel, currentConfidence) 
     document.getElementById('edit_label').value = currentLabel;
     document.getElementById('edit_confidence').value = currentConfidence;
 
-    // Show the modal - try multiple approaches for compatibility
-    try {
-        var editModal = new bootstrap.Modal(document.getElementById('editDomainModal'));
-        editModal.show();
-    } catch (e) {
-        console.error('Bootstrap modal error:', e);
-        // Fallback: try jQuery if available
-        if (typeof $ !== 'undefined') {
-            $('#editDomainModal').modal('show');
-        } else {
-            // Last resort: show modal manually
-            document.getElementById('editDomainModal').style.display = 'block';
-            document.getElementById('editDomainModal').classList.add('show');
+    // Show the modal - Bootstrap 5 compatible
+    const modalElement = document.getElementById('editDomainModal');
+    if (modalElement) {
+        try {
+            // Try Bootstrap 5 first
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const editModal = new bootstrap.Modal(modalElement);
+                editModal.show();
+            } else {
+                // Fallback: manual modal display
+                modalElement.style.display = 'block';
+                modalElement.classList.add('show');
+                modalElement.setAttribute('aria-modal', 'true');
+                modalElement.setAttribute('role', 'dialog');
+                
+                // Add backdrop
+                const backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop fade show';
+                backdrop.id = 'manual-backdrop';
+                document.body.appendChild(backdrop);
+                
+                // Prevent body scroll
+                document.body.style.overflow = 'hidden';
+                document.body.classList.add('modal-open');
+                
+                // Close on backdrop click
+                backdrop.addEventListener('click', function() {
+                    closeEditModal();
+                });
+            }
+        } catch (e) {
+            console.error('Modal initialization error:', e);
+            alert('Modal system not available. Domain: ' + domainName + ', Current Label: ' + currentLabel + ', Confidence: ' + currentConfidence);
         }
+    } else {
+        console.error('Modal element not found');
     }
+}
+
+function closeEditModal() {
+    const modalElement = document.getElementById('editDomainModal');
+    const backdrop = document.getElementById('manual-backdrop');
+    
+    if (modalElement) {
+        modalElement.style.display = 'none';
+        modalElement.classList.remove('show');
+        modalElement.removeAttribute('aria-modal');
+        modalElement.removeAttribute('role');
+    }
+    
+    if (backdrop) {
+        backdrop.remove();
+    }
+    
+    document.body.style.overflow = '';
+    document.body.classList.remove('modal-open');
 }
 
 // Quick label change buttons for faster editing
@@ -415,6 +456,32 @@ function processBulkEdit() {
     bulkDataInput.value = JSON.stringify(processedData);
     // The form will be submitted by the button click
 }
+
+// Add event listeners for modal close buttons
+document.addEventListener('DOMContentLoaded', function() {
+    // Close button in modal header
+    const closeButtons = document.querySelectorAll('[data-bs-dismiss="modal"]');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            closeEditModal();
+        });
+    });
+    
+    // Cancel button in modal footer
+    const cancelButton = document.querySelector('#editDomainModal .btn-secondary');
+    if (cancelButton) {
+        cancelButton.addEventListener('click', function() {
+            closeEditModal();
+        });
+    }
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeEditModal();
+        }
+    });
+});
 
 // Add keyboard shortcuts for efficiency
 document.addEventListener('keydown', function(e) {
