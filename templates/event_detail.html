@@ -648,69 +648,6 @@ function displayDomainClassifications(classifications, riskScore) {
         </div>
     `;
 
-    content.innerHTML = html;v>
-        <div class="table-responsive">
-            <table class="table table-sm">
-                <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Domain</th>
-                        <th>Classification</th>
-                        <th>Confidence</th>
-                        <th>Key Features</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-
-    classifications.forEach(classification => {
-        const label = classification.label || 'unknown';
-        const confidence = classification.confidence || 0;
-        const color = labelColors[label] || 'secondary';
-        const icon = labelIcons[label] || 'question';
-
-        // Build key features string
-        let keyFeatures = [];
-        const features = classification.features || {};
-
-        Object.entries(features).forEach(([key, info]) => {
-            if (info.importance > 0.1) {  // Only show important features
-                keyFeatures.push(`${key}: ${info.value.toFixed(2)}`);
-            }
-        });
-
-        html += `
-            <tr>
-                <td><code>${classification.email || 'N/A'}</code></td>
-                <td><code>${classification.domain || 'N/A'}</code></td>
-                <td>
-                    <span class="badge bg-${color}">
-                        <i class="fas fa-${icon} me-1"></i>${label}
-                    </span>
-                </td>
-                <td>
-                    <div class="progress" style="width: 60px; height: 20px;">
-                        <div class="progress-bar bg-${color}" style="width: ${confidence * 100}%">
-                            ${(confidence * 100).toFixed(0)}%
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <small class="text-muted">
-                        ${keyFeatures.slice(0, 2).join(', ')}
-                        ${keyFeatures.length > 2 ? '...' : ''}
-                    </small>
-                </td>
-            </tr>
-        `;
-    });
-
-    html += `
-                </tbody>
-            </table>
-        </div>
-    `;
-
     content.innerHTML = html;
 }
 </script>
