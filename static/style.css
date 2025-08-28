@@ -329,3 +329,31 @@ body:not(.modal-open) .modal-backdrop {
         box-shadow: none !important;
     }
 }
+
+/* Add any additional custom styles here */
+
+.cursor-pointer {
+    cursor: pointer !important;
+}
+
+.cursor-pointer:hover {
+    opacity: 0.8;
+    transform: scale(1.02);
+    transition: all 0.2s ease;
+}
+
+/* Quick filter buttons styling */
+.btn-group-sm .btn-sm {
+    margin: 2px;
+}
+
+/* Filter stats styling */
+#filterStats .card-body h6 {
+    color: #495057;
+    margin-bottom: 15px;
+}
+
+#filterStats .card-body small {
+    display: block;
+    margin-bottom: 2px;
+}

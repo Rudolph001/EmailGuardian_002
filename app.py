@@ -119,12 +119,20 @@ def events():
         # Additional filters
         sender_filter = request.args.get("sender_filter", "").strip()
         subject_filter = request.args.get("subject_filter", "").strip()
+        trigger_reason_filter = request.args.get("trigger_reason_filter", "").strip()
+        recipients_filter = request.args.get("recipients_filter", "").strip()
+        closure_reason_filter = request.args.get("closure_reason_filter", "").strip()
         risk_min = request.args.get("risk_min", "").strip()
         risk_max = request.args.get("risk_max", "").strip()
         status_filter = request.args.get("status_filter", "").strip()
+        email_sent_filter = request.args.get("email_sent_filter", "").strip()
+        whitelisted_filter = request.args.get("whitelisted_filter", "").strip()
+        followup_filter = request.args.get("followup_filter", "").strip()
+        date_from = request.args.get("date_from", "").strip()
+        date_to = request.args.get("date_to", "").strip()
 
         # Valid sort fields and order
-        valid_sort_fields = ["_time", "sender", "subject", "ml_score", "status"]
+        valid_sort_fields = ["_time", "sender", "subject", "ml_score", "status", "trigger_reason", "closure_reason"]
         valid_orders = ["asc", "desc"]
 
         if sort_by not in valid_sort_fields:
@@ -145,6 +153,7 @@ def events():
         # Build WHERE conditions
         where_conditions = []
         where_params = []
+        needs_recipients_join = False
 
         # Base filter type conditions
         if filter_type == "whitelisted":
@@ -155,6 +164,8 @@ def events():
             where_conditions.append("status = 'closed'")
         elif filter_type == "high_risk":
             where_conditions.append("ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '')")
+        elif filter_type == "low_risk":
+            where_conditions.append("ml_score <= 0.3 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0")
         elif filter_type == "rule_triggered":
             where_conditions.append("status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND trigger_reason IS NOT NULL AND trigger_reason != ''")
 
@@ -171,6 +182,19 @@ def events():
         if subject_filter:
             where_conditions.append("subject LIKE ?")
             where_params.append(f"%{subject_filter}%")
+
+        if trigger_reason_filter:
+            where_conditions.append("trigger_reason LIKE ?")
+            where_params.append(f"%{trigger_reason_filter}%")
+
+        if recipients_filter:
+            needs_recipients_join = True
+            where_conditions.append("r.email LIKE ?")
+            where_params.append(f"%{recipients_filter}%")
+
+        if closure_reason_filter:
+            where_conditions.append("closure_reason LIKE ?")
+            where_params.append(f"%{closure_reason_filter}%")
 
         if risk_min:
             try:
@@ -192,25 +216,68 @@ def events():
             where_conditions.append("status = ?")
             where_params.append(status_filter)
 
+        if email_sent_filter:
+            if email_sent_filter == "1":
+                where_conditions.append("email_sent = 1")
+            elif email_sent_filter == "0":
+                where_conditions.append("(email_sent = 0 OR email_sent IS NULL)")
+
+        if whitelisted_filter:
+            if whitelisted_filter == "1":
+                where_conditions.append("is_whitelisted = 1")
+            elif whitelisted_filter == "0":
+                where_conditions.append("is_whitelisted = 0")
+
+        if followup_filter:
+            if followup_filter == "1":
+                where_conditions.append("follow_up = 1")
+            elif followup_filter == "0":
+                where_conditions.append("follow_up = 0")
+
+        if date_from:
+            where_conditions.append("date(_time) >= ?")
+            where_params.append(date_from)
+
+        if date_to:
+            where_conditions.append("date(_time) <= ?")
+            where_params.append(date_to)
+
         # Build final query
         where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+
+        from models import get_closure_reasons # Import get_closure_reasons here to make it available
 
         with get_db() as conn:
             cursor = conn.cursor()
 
+            # Construct the base query
+            base_query = f"""
+                SELECT e.id, e._time, e.sender, e.subject, e.ml_score, e.is_internal_to_external,
+                       e.status, e.is_whitelisted, e.follow_up, e.trigger_reason,
+                       e.closure_reason, e.closure_notes, e.closure_reference,
+                       e.email_sent, e.email_sent_date
+                FROM events e
+            """
+
+            # Add JOIN for recipients if needed
+            if needs_recipients_join:
+                base_query += " JOIN recipients r ON e.id = r.event_id"
+
+            # Add WHERE clause
+            base_query += f" WHERE {where_clause}"
+
             # Get total count
-            count_query = f"SELECT COUNT(*) FROM events WHERE {where_clause}"
+            count_query = f"SELECT COUNT(DISTINCT e.id) FROM events e"
+            if needs_recipients_join:
+                count_query += " JOIN recipients r ON e.id = r.event_id"
+            count_query += f" WHERE {where_clause}"
+            
             cursor.execute(count_query, where_params)
             total_events = cursor.fetchone()[0]
 
             # Get events with sorting and pagination
             events_query = f"""
-                SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                       status, is_whitelisted, follow_up, trigger_reason,
-                       closure_reason, closure_notes, closure_reference,
-                       email_sent, email_sent_date
-                FROM events
-                WHERE {where_clause}
+                {base_query}
                 ORDER BY {order_clause}
                 LIMIT ? OFFSET ?
             """
@@ -223,7 +290,6 @@ def events():
         has_next = page < total_pages
 
         # Get closure reasons for the close modal
-        from models import get_closure_reasons
         closure_reasons = get_closure_reasons()
 
         return render_template("events.html", 
@@ -240,9 +306,17 @@ def events():
                              sort_order=sort_order,
                              sender_filter=sender_filter,
                              subject_filter=subject_filter,
+                             trigger_reason_filter=trigger_reason_filter,
+                             recipients_filter=recipients_filter,
+                             closure_reason_filter=closure_reason_filter,
                              risk_min=risk_min,
                              risk_max=risk_max,
                              status_filter=status_filter,
+                             email_sent_filter=email_sent_filter,
+                             whitelisted_filter=whitelisted_filter,
+                             followup_filter=followup_filter,
+                             date_from=date_from,
+                             date_to=date_to,
                              get_closure_reasons=lambda: closure_reasons)
     except Exception as e:
         logger.error(f"Error loading events: {e}")

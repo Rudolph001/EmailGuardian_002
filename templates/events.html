@@ -21,39 +21,39 @@
     <div class="col-12">
         <ul class="nav nav-tabs" id="eventTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <a class="nav-link {{ 'active' if request.args.get('filter') == 'rule_triggered' else '' }}" 
+                <a class="nav-link {{ 'active' if request.args.get('filter') == 'rule_triggered' else '' }}"
                    href="{{ url_for('events', filter='rule_triggered') }}">
                     <i class="fas fa-gavel me-1"></i>Rule Triggered
                 </a>
             </li>
             <li class="nav-item" role="presentation">
-                <a class="nav-link {{ 'active' if request.args.get('filter') == 'high_risk' else '' }}" 
+                <a class="nav-link {{ 'active' if request.args.get('filter') == 'high_risk' else '' }}"
                    href="{{ url_for('events', filter='high_risk') }}"
                    title="High risk events that haven't been processed by rules">
                     <i class="fas fa-exclamation-triangle me-1"></i>High Risk (>0.7)
                 </a>
             </li>
             <li class="nav-item" role="presentation">
-                <a class="nav-link {{ 'active' if not request.args.get('filter') or request.args.get('filter') == 'all' else '' }}" 
+                <a class="nav-link {{ 'active' if not request.args.get('filter') or request.args.get('filter') == 'all' else '' }}"
                    href="{{ url_for('events', filter='all') }}"
                    title="All events regardless of risk level or processing status">
                     <i class="fas fa-list me-1"></i>All Events
                 </a>
             </li>
             <li class="nav-item" role="presentation">
-                <a class="nav-link {{ 'active' if request.args.get('filter') == 'follow_up' else '' }}" 
+                <a class="nav-link {{ 'active' if request.args.get('filter') == 'follow_up' else '' }}"
                    href="{{ url_for('events', filter='follow_up') }}">
                     <i class="fas fa-flag me-1"></i>Follow-up
                 </a>
             </li>
             <li class="nav-item" role="presentation">
-                <a class="nav-link {{ 'active' if request.args.get('filter') == 'whitelisted' else '' }}" 
+                <a class="nav-link {{ 'active' if request.args.get('filter') == 'whitelisted' else '' }}"
                    href="{{ url_for('events', filter='whitelisted') }}">
                     <i class="fas fa-check-circle me-1"></i>Whitelisted
                 </a>
             </li>
             <li class="nav-item" role="presentation">
-                <a class="nav-link {{ 'active' if request.args.get('filter') == 'closed' else '' }}" 
+                <a class="nav-link {{ 'active' if request.args.get('filter') == 'closed' else '' }}"
                    href="{{ url_for('events', filter='closed') }}">
                     <i class="fas fa-archive me-1"></i>Closed
                 </a>
@@ -63,89 +63,223 @@
 </div>
 
 <!-- Search and Filters -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <form method="GET" class="row g-3">
-                    <input type="hidden" name="filter" value="{{ request.args.get('filter', 'all') }}">
-                    <div class="col-md-6">
-                        <label for="q" class="form-label">Search Events</label>
-                        <input type="text" class="form-control" id="q" name="q" 
-                               value="{{ query }}" placeholder="Search by sender or subject...">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-search me-2"></i>Search & Filters
+                        </h6>
                     </div>
-                    <div class="col-md-3">
-                        <label for="sender_filter" class="form-label">Sender Filter</label>
-                        <input type="text" class="form-control" id="sender_filter" name="sender_filter" 
-                               value="{{ sender_filter }}" placeholder="Filter by sender...">
-                    </div>
-                    <div class="col-md-3">
-                        <label for="subject_filter" class="form-label">Subject Filter</label>
-                        <input type="text" class="form-control" id="subject_filter" name="subject_filter" 
-                               value="{{ subject_filter }}" placeholder="Filter by subject...">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="risk_min" class="form-label">Min Risk</label>
-                        <input type="number" class="form-control" id="risk_min" name="risk_min" 
-                               value="{{ risk_min }}" placeholder="0.0" step="0.1" min="0" max="1">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="risk_max" class="form-label">Max Risk</label>
-                        <input type="number" class="form-control" id="risk_max" name="risk_max" 
-                               value="{{ risk_max }}" placeholder="1.0" step="0.1" min="0" max="1">
-                    </div>
-                    <div class="col-md-2">
-                        <label for="status_filter" class="form-label">Status</label>
-                        <select class="form-select" id="status_filter" name="status_filter">
-                            <option value="">All Statuses</option>
-                            <option value="open" {{ 'selected' if status_filter == 'open' else '' }}>Open</option>
-                            <option value="closed" {{ 'selected' if status_filter == 'closed' else '' }}>Closed</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="sort" class="form-label">Sort By</label>
-                        <select class="form-select" id="sort" name="sort">
-                            <option value="_time" {{ 'selected' if sort_by == '_time' else '' }}>Time</option>
-                            <option value="sender" {{ 'selected' if sort_by == 'sender' else '' }}>Sender</option>
-                            <option value="subject" {{ 'selected' if sort_by == 'subject' else '' }}>Subject</option>
-                            <option value="ml_score" {{ 'selected' if sort_by == 'ml_score' else '' }}>Risk Score</option>
-                            <option value="status" {{ 'selected' if sort_by == 'status' else '' }}>Status</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label for="order" class="form-label">Order</label>
-                        <select class="form-select" id="order" name="order">
-                            <option value="desc" {{ 'selected' if sort_order == 'desc' else '' }}>Descending</option>
-                            <option value="asc" {{ 'selected' if sort_order == 'asc' else '' }}>Ascending</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary me-2">
-                            <i class="fas fa-search me-1"></i>Apply
-                        </button>
-                        <a href="{{ url_for('events', filter=request.args.get('filter', 'all')) }}" class="btn btn-secondary">
-                            <i class="fas fa-times me-1"></i>Clear
-                        </a>
-                    </div>
-                </form>
+                    <div class="card-body">
+                        <form method="GET" id="filterForm">
+                            <input type="hidden" name="filter" value="{{ filter_type }}">
 
-                {% if request.args.get('filter') == 'high_risk' %}
-                <div class="alert alert-info mt-3 mb-0">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>High Risk Filter:</strong> Showing events with ML score >0.7 that haven't been processed by rules. 
-                    Events handled by rules appear in the <a href="{{ url_for('events', filter='rule_triggered') }}" class="alert-link">"Rule Triggered"</a> filter instead.
+                            <div class="row g-3">
+                                <!-- Search Query -->
+                                <div class="col-md-4">
+                                    <label for="q" class="form-label">Search</label>
+                                    <input type="text" class="form-control" id="q" name="q" value="{{ query }}"
+                                           placeholder="Search sender or subject...">
+                                </div>
+
+                                <!-- Sender Filter -->
+                                <div class="col-md-4">
+                                    <label for="sender_filter" class="form-label">Sender</label>
+                                    <input type="text" class="form-control" id="sender_filter" name="sender_filter"
+                                           value="{{ sender_filter }}" placeholder="Filter by sender...">
+                                </div>
+
+                                <!-- Subject Filter -->
+                                <div class="col-md-4">
+                                    <label for="subject_filter" class="form-label">Subject</label>
+                                    <input type="text" class="form-control" id="subject_filter" name="subject_filter"
+                                           value="{{ subject_filter }}" placeholder="Filter by subject...">
+                                </div>
+
+                                <!-- Trigger Reason Filter -->
+                                <div class="col-md-4">
+                                    <label for="trigger_reason_filter" class="form-label">Triggered Rule</label>
+                                    <input type="text" class="form-control" id="trigger_reason_filter" name="trigger_reason_filter"
+                                           value="{{ trigger_reason_filter }}" placeholder="Filter by rule or keyword...">
+                                </div>
+
+                                <!-- Recipients Filter -->
+                                <div class="col-md-4">
+                                    <label for="recipients_filter" class="form-label">Recipients</label>
+                                    <input type="text" class="form-control" id="recipients_filter" name="recipients_filter"
+                                           value="{{ recipients_filter }}" placeholder="Filter by recipients...">
+                                </div>
+
+                                <!-- Closure Reason Filter -->
+                                <div class="col-md-4">
+                                    <label for="closure_reason_filter" class="form-label">Closure Reason</label>
+                                    <input type="text" class="form-control" id="closure_reason_filter" name="closure_reason_filter"
+                                           value="{{ closure_reason_filter }}" placeholder="Filter by closure reason...">
+                                </div>
+
+                                <!-- Risk Score Range -->
+                                <div class="col-md-3">
+                                    <label for="risk_min" class="form-label">Min Risk Score</label>
+                                    <input type="number" class="form-control" id="risk_min" name="risk_min"
+                                           value="{{ risk_min }}" step="0.1" min="0" max="1" placeholder="0.0">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label for="risk_max" class="form-label">Max Risk Score</label>
+                                    <input type="number" class="form-control" id="risk_max" name="risk_max"
+                                           value="{{ risk_max }}" step="0.1" min="0" max="1" placeholder="1.0">
+                                </div>
+
+                                <!-- Status Filter -->
+                                <div class="col-md-3">
+                                    <label for="status_filter" class="form-label">Status</label>
+                                    <select class="form-control" id="status_filter" name="status_filter">
+                                        <option value="">All Statuses</option>
+                                        <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
+                                        <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+                                    </select>
+                                </div>
+
+                                <!-- Sort Options -->
+                                <div class="col-md-3">
+                                    <label for="sort" class="form-label">Sort By</label>
+                                    <select class="form-control" id="sort" name="sort">
+                                        <option value="_time" {% if sort_by == '_time' %}selected{% endif %}>Date/Time</option>
+                                        <option value="sender" {% if sort_by == 'sender' %}selected{% endif %}>Sender</option>
+                                        <option value="subject" {% if sort_by == 'subject' %}selected{% endif %}>Subject</option>
+                                        <option value="ml_score" {% if sort_by == 'ml_score' %}selected{% endif %}>Risk Score</option>
+                                        <option value="status" {% if sort_by == 'status' %}selected{% endif %}>Status</option>
+                                        <option value="trigger_reason" {% if sort_by == 'trigger_reason' %}selected{% endif %}>Trigger Reason</option>
+                                        <option value="closure_reason" {% if sort_by == 'closure_reason' %}selected{% endif %}>Closure Reason</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Advanced Filters -->
+                            <div class="row g-3 mt-3">
+                                <!-- Email Sent Filter -->
+                                <div class="col-md-3">
+                                    <label for="email_sent_filter" class="form-label">Email Sent</label>
+                                    <select class="form-control" id="email_sent_filter" name="email_sent_filter">
+                                        <option value="">All</option>
+                                        <option value="1" {% if email_sent_filter == '1' %}selected{% endif %}>Yes</option>
+                                        <option value="0" {% if email_sent_filter == '0' %}selected{% endif %}>No</option>
+                                    </select>
+                                </div>
+
+                                <!-- Whitelisted Filter -->
+                                <div class="col-md-3">
+                                    <label for="whitelisted_filter" class="form-label">Whitelisted</label>
+                                    <select class="form-control" id="whitelisted_filter" name="whitelisted_filter">
+                                        <option value="">All</option>
+                                        <option value="1" {% if whitelisted_filter == '1' %}selected{% endif %}>Yes</option>
+                                        <option value="0" {% if whitelisted_filter == '0' %}selected{% endif %}>No</option>
+                                    </select>
+                                </div>
+
+                                <!-- Follow-up Filter -->
+                                <div class="col-md-3">
+                                    <label for="followup_filter" class="form-label">Follow-up</label>
+                                    <select class="form-control" id="followup_filter" name="followup_filter">
+                                        <option value="">All</option>
+                                        <option value="1" {% if followup_filter == '1' %}selected{% endif %}>Yes</option>
+                                        <option value="0" {% if followup_filter == '0' %}selected{% endif %}>No</option>
+                                    </select>
+                                </div>
+
+                                <!-- Sort Order -->
+                                <div class="col-md-3">
+                                    <label for="order" class="form-label">Order</label>
+                                    <select class="form-control" id="order" name="order">
+                                        <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descending</option>
+                                        <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Date Range Filters -->
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-3">
+                                    <label for="date_from" class="form-label">Date From</label>
+                                    <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+                                </div>
+
+                                <div class="col-md-3">
+                                    <label for="date_to" class="form-label">Date To</label>
+                                    <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="col-md-6 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary me-2">
+                                        <i class="fas fa-search me-2"></i>Apply Filters
+                                    </button>
+                                    <a href="{{ url_for('events', filter=filter_type) }}" class="btn btn-outline-secondary me-2">
+                                        <i class="fas fa-times me-2"></i>Clear Filters
+                                    </a>
+                                    <button type="button" class="btn btn-info" data-bs-toggle="collapse" data-bs-target="#filterStats">
+                                        <i class="fas fa-chart-bar me-2"></i>Stats
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+
+                        <!-- Filter Statistics -->
+                        <div class="collapse mt-3" id="filterStats">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6>Filter Results:</h6>
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Total Events:</small>
+                                            <strong>{{ total_events }}</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Current Page:</small>
+                                            <strong>{{ page }} of {{ total_pages }}</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Per Page:</small>
+                                            <strong>{{ per_page }}</strong>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <small class="text-muted">Active Filters:</small>
+                                            <strong>{{ active_filter_count|default(0) }}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Filter Buttons -->
+                        <div class="mt-3">
+                            <h6>Quick Filters:</h6>
+                            <div class="btn-group-sm mb-2" role="group">
+                                <button type="button" class="btn btn-outline-primary btn-sm me-1" onclick="quickFilter('trigger_reason_filter', 'Rule:')">
+                                    <i class="fas fa-gavel me-1"></i>Rule Triggered
+                                </button>
+                                <button type="button" class="btn btn-outline-info btn-sm me-1" onclick="quickFilter('trigger_reason_filter', 'Keywords:')">
+                                    <i class="fas fa-key me-1"></i>Keyword Matched
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-sm me-1" onclick="quickFilter('trigger_reason_filter', 'Excluded:')">
+                                    <i class="fas fa-ban me-1"></i>Excluded Events
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-sm me-1" onclick="quickFilter('email_sent_filter', '1')">
+                                    <i class="fas fa-envelope me-1"></i>Email Sent
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm me-1" onclick="quickRiskFilter('0.7', '1.0')">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>High Risk (>0.7)
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="quickRiskFilter('0.0', '0.3')">
+                                    <i class="fas fa-check-circle me-1"></i>Low Risk (≤0.3)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {% elif request.args.get('filter') == 'rule_triggered' %}
-                <div class="alert alert-success mt-3 mb-0">
-                    <i class="fas fa-gavel me-2"></i>
-                    <strong>Rule Triggered Filter:</strong> Showing events that have been processed by your configured rules. 
-                    These events have been automatically handled and are excluded from the <a href="{{ url_for('events', filter='high_risk') }}" class="alert-link">"High Risk"</a> filter.
-                </div>
-                {% endif %}
             </div>
         </div>
-    </div>
-</div>
 
 <!-- Bulk Actions Panel -->
 <div class="row mb-3" id="bulkActionsPanel" style="display: none;">
@@ -201,7 +335,7 @@
                                         <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
                                     </th>
                                     <th>
-                                        <a href="{{ url_for('events', filter=filter_type, sort='_time', order='desc' if sort_by == '_time' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('events', filter=filter_type, sort='_time', order='desc' if sort_by == '_time' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none">
                                             Time
                                             {% if sort_by == '_time' %}
                                                 <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
@@ -209,7 +343,7 @@
                                         </a>
                                     </th>
                                     <th>
-                                        <a href="{{ url_for('events', filter=filter_type, sort='sender', order='desc' if sort_by == 'sender' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('events', filter=filter_type, sort='sender', order='desc' if sort_by == 'sender' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none">
                                             Sender
                                             {% if sort_by == 'sender' %}
                                                 <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
@@ -217,7 +351,7 @@
                                         </a>
                                     </th>
                                     <th>
-                                        <a href="{{ url_for('events', filter=filter_type, sort='subject', order='desc' if sort_by == 'subject' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('events', filter=filter_type, sort='subject', order='desc' if sort_by == 'subject' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none">
                                             Subject
                                             {% if sort_by == 'subject' %}
                                                 <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
@@ -225,7 +359,7 @@
                                         </a>
                                     </th>
                                     <th>
-                                        <a href="{{ url_for('events', filter=filter_type, sort='ml_score', order='desc' if sort_by == 'ml_score' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('events', filter=filter_type, sort='ml_score', order='desc' if sort_by == 'ml_score' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none">
                                             Risk Score
                                             {% if sort_by == 'ml_score' %}
                                                 <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
@@ -233,7 +367,7 @@
                                         </a>
                                     </th>
                                     <th>
-                                        <a href="{{ url_for('events', filter=filter_type, sort='status', order='desc' if sort_by == 'status' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('events', filter=filter_type, sort='status', order='desc' if sort_by == 'status' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none">
                                             Status
                                             {% if sort_by == 'status' %}
                                                 <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
@@ -241,10 +375,25 @@
                                         </a>
                                     </th>
                                     <th>Type</th>
-                                    {% if request.args.get('filter') == 'rule_triggered' %}
-                                    <th>Trigger Reason</th>
-                                    {% elif request.args.get('filter') == 'closed' %}
-                                    <th>Closure Reason</th>
+                                    {% if request.args.get('filter') == 'rule_triggered' or request.args.get('filter') == 'all' or request.args.get('filter') == 'high_risk' or request.args.get('filter') == 'follow_up' %}
+                                    <th>
+                                        <a href="{{ url_for('events', filter=filter_type, sort='trigger_reason', order='desc' if sort_by == 'trigger_reason' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none">
+                                            Trigger Reason
+                                            {% if sort_by == 'trigger_reason' %}
+                                                <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
+                                            {% endif %}
+                                        </a>
+                                    </th>
+                                    {% endif %}
+                                    {% if request.args.get('filter') == 'closed' %}
+                                    <th>
+                                        <a href="{{ url_for('events', filter=filter_type, sort='closure_reason', order='desc' if sort_by == 'closure_reason' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none">
+                                            Closure Reason
+                                            {% if sort_by == 'closure_reason' %}
+                                                <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
+                                            {% endif %}
+                                        </a>
+                                    </th>
                                     <th>Closure Notes</th>
                                     {% endif %}
                                     <th>Actions</th>
@@ -257,7 +406,7 @@
                                             <input type="checkbox" class="event-checkbox" value="{{ event.id }}" onchange="updateBulkActions()">
                                         </td>
                                         <td>
-                                            <small class="text-muted">{{ event._time }}</small>
+                                            <small class="text-muted">{{ event._time.strftime('%Y-%m-%d %H:%M:%S') if event._time else 'N/A' }}</small>
                                         </td>
                                         <td>
                                             <div class="d-flex flex-column">
@@ -266,20 +415,20 @@
                                             </div>
                                         </td>
                                         <td>
-                                            <span class="text-truncate d-inline-block" style="max-width: 400px;" 
+                                            <span class="text-truncate d-inline-block" style="max-width: 400px;"
                                                   title="{{ event.subject or 'No subject' }}">
                                                 {{ event.subject or 'No subject' }}
                                             </span>
                                         </td>
                                         <td>
-                                            {% if event.ml_score %}
+                                            {% if event.ml_score is not none %}
                                                 {% set score = event.ml_score %}
                                                 <div class="d-flex align-items-center">
                                                     <span class="badge bg-{{ 'danger' if score > 0.7 else 'warning' if score > 0.3 else 'success' }} me-2">
                                                         {{ "%.2f"|format(score) }}
                                                     </span>
                                                     <div class="progress" style="width: 60px; height: 8px;">
-                                                        <div class="progress-bar bg-{{ 'danger' if score > 0.7 else 'warning' if score > 0.3 else 'success' }}" 
+                                                        <div class="progress-bar bg-{{ 'danger' if score > 0.7 else 'warning' if score > 0.3 else 'success' }}"
                                                              style="width: {{ (score * 100)|round }}%"></div>
                                                     </div>
                                                 </div>
@@ -317,29 +466,33 @@
                                                 </span>
                                             {% endif %}
                                         </td>
-                                        {% if request.args.get('filter') == 'rule_triggered' %}
+                                        {% if request.args.get('filter') == 'rule_triggered' or request.args.get('filter') == 'all' or request.args.get('filter') == 'high_risk' or request.args.get('filter') == 'follow_up' %}
                                         <td>
                                             {% if event.trigger_reason %}
-                                                <div class="text-truncate" style="max-width: 200px;" title="{{ event.trigger_reason }}">
-                                                    {% if 'keyword' in event.trigger_reason.lower() %}
-                                                        <span class="badge bg-warning">
-                                                            <i class="fas fa-tags me-1"></i>Keyword
-                                                        </span>
-                                                    {% elif 'rule' in event.trigger_reason.lower() %}
-                                                        <span class="badge bg-info">
-                                                            <i class="fas fa-gavel me-1"></i>Rule
-                                                        </span>
-                                                    {% endif %}
-                                                    <small class="ms-1">{{ event.trigger_reason }}</small>
-                                                </div>
+                                                {% if 'keyword' in event.trigger_reason.lower() %}
+                                                    <span class="badge bg-info cursor-pointer" onclick="quickFilter('trigger_reason_filter', '{{ event.trigger_reason|e }}')" title="Click to filter by this keyword match">
+                                                        <i class="fas fa-key me-1"></i>Keyword Match
+                                                    </span>
+                                                {% elif 'rule' in event.trigger_reason.lower() %}
+                                                    <span class="badge bg-primary cursor-pointer" onclick="quickFilter('trigger_reason_filter', '{{ event.trigger_reason|e }}')" title="Click to filter by this rule">
+                                                        <i class="fas fa-gavel me-1"></i>Rule Match
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary cursor-pointer" onclick="quickFilter('trigger_reason_filter', '{{ event.trigger_reason|e }}')" title="Click to filter by this trigger">
+                                                        <i class="fas fa-cog me-1"></i>{{ event.trigger_reason }}
+                                                    </span>
+                                                {% endif %}
                                             {% else %}
-                                                <span class="text-muted">Unknown</span>
+                                                <span class="text-muted">None</span>
                                             {% endif %}
                                         </td>
-                                        {% elif request.args.get('filter') == 'closed' %}
+                                        {% endif %}
+                                        {% if request.args.get('filter') == 'closed' %}
                                         <td>
                                             {% if event.closure_reason %}
-                                                <span class="badge bg-secondary">{{ event.closure_reason }}</span>
+                                                <span class="badge bg-secondary cursor-pointer" onclick="quickFilter('closure_reason_filter', '{{ event.closure_reason|e }}')" title="Click to filter by this closure reason">
+                                                    {{ event.closure_reason }}
+                                                </span>
                                                 {% if event.closure_reference %}
                                                     <br><small class="text-muted">Ref: {{ event.closure_reference }}</small>
                                                 {% endif %}
@@ -359,7 +512,7 @@
                                         {% endif %}
                                         <td>
                                             <div class="btn-group" role="group">
-                                                <a href="{{ url_for('event_detail', event_id=event.id) }}" 
+                                                <a href="{{ url_for('event_detail', event_id=event.id) }}"
                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-eye me-1"></i>View
                                                 </a>
@@ -396,9 +549,9 @@
                                                     <div class="btn-group" role="group">
                                                         {% if not event.email_sent %}
                                                             <!-- Generate Email button for follow-up events -->
-                                                            <a href="mailto:{{ event.sender }}?subject=Follow-up: {{ event.subject | urlencode }}&body=Hi,%0D%0A%0D%0AI am following up on your email regarding '{{ event.subject | urlencode }}'.%0D%0A%0D%0APlease let me know if you need any assistance.%0D%0A%0D%0ABest regards" 
+                                                            <a href="mailto:{{ event.sender }}?subject=Follow-up: {{ event.subject | urlencode }}&body=Hi,%0D%0A%0D%0AI am following up on your email regarding '{{ event.subject | urlencode }}'.%0D%0A%0D%0APlease let me know if you need any assistance.%0D%0A%0D%0ABest regards"
                                                                class="btn btn-sm btn-info" title="Generate Email"
-                                                               onclick="setTimeout(() => { 
+                                                               onclick="setTimeout(() => {
                                                                    if(confirm('Mark this email as sent?')) {
                                                                        document.getElementById('markSentForm{{ event.id }}').submit();
                                                                    }
@@ -407,7 +560,7 @@
                                                             </a>
 
                                                             <!-- Hidden form to mark email as sent -->
-                                                            <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" 
+                                                            <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}"
                                                                   id="markSentForm{{ event.id }}" style="display: none;">
                                                                 <input type="hidden" name="action" value="mark_email_sent">
                                                                 <input type="hidden" name="redirect_to" value="events">
@@ -422,7 +575,7 @@
                                                 {% endif %}
 
                                                 <!-- Close button -->
-                                                <button type="button" class="btn btn-sm btn-outline-secondary me-1" 
+                                                <button type="button" class="btn btn-sm btn-outline-secondary me-1"
                                                         onclick="showCloseModal({{ event.id }})">
                                                     <i class="fas fa-lock"></i> Close
                                                 </button>
@@ -443,7 +596,7 @@
                                     <!-- Previous button -->
                                     <li class="page-item {{ 'disabled' if not has_prev }}">
                                         {% if has_prev %}
-                                            <a class="page-link" href="{{ url_for('events', page=page-1, q=query, filter=filter_type) }}">
+                                            <a class="page-link" href="{{ url_for('events', page=page-1, q=query, filter=filter_type, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}">
                                                 <i class="fas fa-chevron-left me-1"></i>Previous
                                             </a>
                                         {% else %}
@@ -456,10 +609,10 @@
                                     <!-- Page numbers -->
                                     {% set start_page = [1, page - 2]|max %}
                                     {% set end_page = [total_pages, page + 2]|min %}
-                                    
+
                                     {% if start_page > 1 %}
                                         <li class="page-item">
-                                            <a class="page-link" href="{{ url_for('events', page=1, q=query, filter=filter_type) }}">1</a>
+                                            <a class="page-link" href="{{ url_for('events', page=1, q=query, filter=filter_type, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}">1</a>
                                         </li>
                                         {% if start_page > 2 %}
                                             <li class="page-item disabled">
@@ -470,7 +623,7 @@
 
                                     {% for p in range(start_page, end_page + 1) %}
                                         <li class="page-item {{ 'active' if p == page }}">
-                                            <a class="page-link" href="{{ url_for('events', page=p, q=query, filter=filter_type) }}">{{ p }}</a>
+                                            <a class="page-link" href="{{ url_for('events', page=p, q=query, filter=filter_type, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}">{{ p }}</a>
                                         </li>
                                     {% endfor %}
 
@@ -481,14 +634,14 @@
                                             </li>
                                         {% endif %}
                                         <li class="page-item">
-                                            <a class="page-link" href="{{ url_for('events', page=total_pages, q=query, filter=filter_type) }}">{{ total_pages }}</a>
+                                            <a class="page-link" href="{{ url_for('events', page=total_pages, q=query, filter=filter_type, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}">{{ total_pages }}</a>
                                         </li>
                                     {% endif %}
 
                                     <!-- Next button -->
                                     <li class="page-item {{ 'disabled' if not has_next }}">
                                         {% if has_next %}
-                                            <a class="page-link" href="{{ url_for('events', page=page+1, q=query, filter=filter_type) }}">
+                                            <a class="page-link" href="{{ url_for('events', page=page+1, q=query, filter=filter_type, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}">
                                                 Next<i class="fas fa-chevron-right ms-1"></i>
                                             </a>
                                         {% else %}
@@ -511,17 +664,30 @@
                                 {% if query %}
                                     matching "{{ query }}"
                                 {% endif %}
+                                {% if sender_filter %} matching sender "{{ sender_filter }}" {% endif %}
+                                {% if subject_filter %} matching subject "{{ subject_filter }}" {% endif %}
+                                {% if trigger_reason_filter %} matching trigger reason "{{ trigger_reason_filter }}" {% endif %}
+                                {% if recipients_filter %} matching recipients "{{ recipients_filter }}" {% endif %}
+                                {% if closure_reason_filter %} matching closure reason "{{ closure_reason_filter }}" {% endif %}
+                                {% if risk_min is not none %} with min risk {{ risk_min }} {% endif %}
+                                {% if risk_max is not none %} with max risk {{ risk_max }} {% endif %}
+                                {% if status_filter %} with status "{{ status_filter }}" {% endif %}
+                                {% if email_sent_filter is not none %} with email sent status "{{ 'Yes' if email_sent_filter == '1' else 'No' }}" {% endif %}
+                                {% if whitelisted_filter is not none %} whitelisted {% if whitelisted_filter == '1' %} yes {% else %} no {% endif %} {% endif %}
+                                {% if followup_filter is not none %} with follow-up status "{{ 'Yes' if followup_filter == '1' else 'No' }}" {% endif %}
+                                {% if date_from %} from {{ date_from }} {% endif %}
+                                {% if date_to %} to {{ date_to }} {% endif %}
                             </small>
                         </div>
                     </div>
                 {% else %}
                     <div class="text-center py-5">
                         <i class="fas fa-search fa-3x text-muted mb-3"></i>
-                        {% if query %}
+                        {% if query or sender_filter or subject_filter or risk_min or risk_max or status_filter or trigger_reason_filter or recipients_filter or closure_reason_filter or email_sent_filter is not none or whitelisted_filter is not none or followup_filter is not none or date_from or date_to %}
                             <h5 class="text-muted">No events found</h5>
-                            <p class="text-muted">No events match your search criteria.</p>
+                            <p class="text-muted">No events match your current filter criteria.</p>
                             <a href="{{ url_for('events') }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>View All Events
+                                <i class="fas fa-arrow-left me-2"></i>Clear Filters and View All
                             </a>
                         {% else %}
                             <h5 class="text-muted">No events available</h5>
@@ -567,13 +733,13 @@
 
                     <div class="mb-3" id="reference_field" style="display: none;">
                         <label for="reference_number" class="form-label">Reference Number *</label>
-                        <input type="text" class="form-control" id="reference_number" name="reference_number" 
+                        <input type="text" class="form-control" id="reference_number" name="reference_number"
                                placeholder="Enter escalation/reference number">
                     </div>
 
                     <div class="mb-3">
                         <label for="closure_notes" class="form-label">Notes *</label>
-                        <textarea class="form-control" id="closure_notes" name="closure_notes" rows="3" 
+                        <textarea class="form-control" id="closure_notes" name="closure_notes" rows="3"
                                   placeholder="Enter closure notes..." required></textarea>
                     </div>
                 </div>
@@ -602,7 +768,7 @@
 
                 <div class="modal-body">
                     <p>You are about to close <span id="bulk_close_count">0</span> selected events.</p>
-                    
+
                     <div class="mb-3">
                         <label for="bulk_closure_reason" class="form-label">Closure Reason *</label>
                         <select class="form-select" id="bulk_closure_reason" name="closure_reason" required>
@@ -617,7 +783,7 @@
 
                     <div class="mb-3">
                         <label for="bulk_closure_notes" class="form-label">Notes *</label>
-                        <textarea class="form-control" id="bulk_closure_notes" name="closure_notes" rows="3" 
+                        <textarea class="form-control" id="bulk_closure_notes" name="closure_notes" rows="3"
                                   placeholder="Enter closure notes for all selected events..." required></textarea>
                     </div>
                 </div>
@@ -644,6 +810,33 @@
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+
+    // Helper function to get all form parameters
+    function getFilterParams() {
+        const form = document.getElementById('filterForm');
+        const formData = new FormData(form);
+        const params = new URLSearchParams();
+        for (const [key, value] of formData.entries()) {
+            if (value) { // Only add non-empty values
+                params.append(key, value);
+            }
+        }
+        return params.toString();
+    }
+
+    // Function to apply quick filters
+    function quickFilter(filterField, filterValue) {
+        const input = document.getElementById(filterField);
+        input.value = filterValue;
+        document.getElementById('filterForm').submit();
+    }
+
+    // Function to apply quick risk filters
+    function quickRiskFilter(minRisk, maxRisk) {
+        document.getElementById('risk_min').value = minRisk;
+        document.getElementById('risk_max').value = maxRisk;
+        document.getElementById('filterForm').submit();
+    }
 
     // Handle form submission for status updates (follow-up, whitelist, clear)
     document.querySelectorAll('form[action*="/update_event_status"]').forEach(form => {
@@ -797,11 +990,11 @@
     function toggleSelectAll() {
         const selectAllCheckbox = document.getElementById('selectAll');
         const eventCheckboxes = document.querySelectorAll('.event-checkbox');
-        
+
         eventCheckboxes.forEach(checkbox => {
             checkbox.checked = selectAllCheckbox.checked;
         });
-        
+
         updateBulkActions();
     }
 
@@ -810,18 +1003,18 @@
         const selectedCount = selectedCheckboxes.length;
         const bulkActionsPanel = document.getElementById('bulkActionsPanel');
         const selectedCountSpan = document.getElementById('selectedCount');
-        
+
         if (selectedCount > 0) {
             bulkActionsPanel.style.display = 'block';
             selectedCountSpan.textContent = selectedCount;
         } else {
             bulkActionsPanel.style.display = 'none';
         }
-        
+
         // Update select all checkbox state
         const selectAllCheckbox = document.getElementById('selectAll');
         const totalCheckboxes = document.querySelectorAll('.event-checkbox');
-        
+
         if (selectedCount === 0) {
             selectAllCheckbox.indeterminate = false;
             selectAllCheckbox.checked = false;
@@ -840,20 +1033,20 @@
 
     function bulkUpdate(action) {
         const eventIds = getSelectedEventIds();
-        
+
         if (eventIds.length === 0) {
             alert('Please select at least one event.');
             return;
         }
-        
+
         const actionNames = {
             'whitelist': 'whitelist',
             'follow_up': 'mark for follow-up',
             'clear': 'clear and close'
         };
-        
+
         const actionName = actionNames[action] || action;
-        
+
         if (confirm(`Are you sure you want to ${actionName} ${eventIds.length} selected event(s)?`)) {
             document.getElementById('bulk_action').value = action;
             document.getElementById('bulk_event_ids_field').value = eventIds.join(',');
@@ -863,15 +1056,15 @@
 
     function showBulkCloseModal() {
         const eventIds = getSelectedEventIds();
-        
+
         if (eventIds.length === 0) {
             alert('Please select at least one event.');
             return;
         }
-        
+
         document.getElementById('bulk_event_ids').value = eventIds.join(',');
         document.getElementById('bulk_close_count').textContent = eventIds.length;
-        
+
         const modal = new bootstrap.Modal(document.getElementById('bulkCloseModal'));
         modal.show();
     }
@@ -879,14 +1072,14 @@
     function clearSelection() {
         const selectAllCheckbox = document.getElementById('selectAll');
         const eventCheckboxes = document.querySelectorAll('.event-checkbox');
-        
+
         selectAllCheckbox.checked = false;
         selectAllCheckbox.indeterminate = false;
-        
+
         eventCheckboxes.forEach(checkbox => {
             checkbox.checked = false;
         });
-        
+
         updateBulkActions();
     }
 
