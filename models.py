@@ -82,6 +82,16 @@ CREATE TABLE IF NOT EXISTS keywords (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS exclusion_keywords (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    term TEXT NOT NULL UNIQUE,
+    is_regex INTEGER DEFAULT 0,
+    check_subject INTEGER DEFAULT 1,
+    check_attachments INTEGER DEFAULT 1,
+    enabled INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS ml_policies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     policy_name TEXT NOT NULL UNIQUE,
@@ -198,6 +208,7 @@ def init_db():
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_recipients_event_id ON recipients(event_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_attachments_event_id ON attachments(event_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_policies_event_id ON policies(event_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exclusion_keywords_enabled ON exclusion_keywords(enabled)")
 
             conn.commit()
 
@@ -289,15 +300,22 @@ def get_dashboard_stats():
         cursor.execute("SELECT COUNT(*) FROM events WHERE status = 'closed'")
         stats['closed_count'] = cursor.fetchone()[0]
 
-        # Rule triggered events (events with trigger_reason set, not closed, not whitelisted, not follow-up)
+        # Rule triggered events (events with trigger_reason set, not closed, not whitelisted, not follow-up, not excluded)
         cursor.execute("""
             SELECT COUNT(*) FROM events 
-            WHERE (trigger_reason IS NOT NULL AND trigger_reason != '') 
+            WHERE (trigger_reason IS NOT NULL AND trigger_reason != '' AND trigger_reason NOT LIKE 'Excluded:%') 
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
         """)
         stats['rule_triggered_count'] = cursor.fetchone()[0]
+
+        # Excluded events (events with exclusion trigger_reason)
+        cursor.execute("""
+            SELECT COUNT(*) FROM events 
+            WHERE trigger_reason LIKE 'Excluded:%'
+        """)
+        stats['excluded_count'] = cursor.fetchone()[0]
 
         # Follow-up events (regardless of other status)
         cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1 AND status != 'closed'")

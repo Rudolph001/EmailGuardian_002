@@ -239,6 +239,150 @@ def delete_keyword(keyword_id):
         conn.commit()
         return cursor.rowcount > 0
 
+def get_exclusion_keywords():
+    """Get all exclusion keywords"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, term, is_regex, check_subject, check_attachments, enabled 
+            FROM exclusion_keywords 
+            ORDER BY term
+        """)
+        return cursor.fetchall()
+
+def add_exclusion_keyword(term, is_regex=False, check_subject=True, check_attachments=True, enabled=True):
+    """Add exclusion keyword"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO exclusion_keywords (term, is_regex, check_subject, check_attachments, enabled) 
+                VALUES (?, ?, ?, ?, ?)
+            """, (term, 1 if is_regex else 0, 1 if check_subject else 0, 
+                  1 if check_attachments else 0, 1 if enabled else 0))
+            conn.commit()
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+def update_exclusion_keyword(keyword_id, term=None, is_regex=None, check_subject=None, 
+                           check_attachments=None, enabled=None):
+    """Update exclusion keyword"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        updates = []
+        params = []
+        
+        if term is not None:
+            updates.append("term = ?")
+            params.append(term)
+        if is_regex is not None:
+            updates.append("is_regex = ?")
+            params.append(1 if is_regex else 0)
+        if check_subject is not None:
+            updates.append("check_subject = ?")
+            params.append(1 if check_subject else 0)
+        if check_attachments is not None:
+            updates.append("check_attachments = ?")
+            params.append(1 if check_attachments else 0)
+        if enabled is not None:
+            updates.append("enabled = ?")
+            params.append(1 if enabled else 0)
+        
+        if updates:
+            params.append(keyword_id)
+            cursor.execute(f"UPDATE exclusion_keywords SET {', '.join(updates)} WHERE id = ?", params)
+            conn.commit()
+            return cursor.rowcount > 0
+        
+        return False
+
+def delete_exclusion_keyword(keyword_id):
+    """Delete exclusion keyword"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM exclusion_keywords WHERE id = ?", (keyword_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
+def check_exclusion_keywords(event):
+    """Check if event matches any exclusion keywords in subject and/or attachments"""
+    import re
+    
+    # Get exclusion keywords
+    exclusion_keywords = get_exclusion_keywords()
+    
+    # Filter to only enabled keywords
+    exclusion_keywords = [kw for kw in exclusion_keywords if kw['enabled']]
+    
+    if not exclusion_keywords:
+        return []
+    
+    matches = []
+    
+    # Check subject for exclusion keyword matches
+    subject = (event['subject'] or '').lower()
+    
+    # Get attachments for checking
+    attachments = []
+    attachments_text = ''
+    
+    try:
+        from models import get_event_detail
+        event_detail = get_event_detail(event['id'])
+        if event_detail and 'attachments' in event_detail:
+            attachments = event_detail['attachments'] or []
+            attachments_text = ' '.join(attachments).lower()
+    except Exception:
+        # If we can't get attachments, just continue with subject checking
+        pass
+    
+    for keyword in exclusion_keywords:
+        term = keyword['term']
+        is_regex = keyword['is_regex']
+        check_subject = keyword['check_subject']
+        check_attachments = keyword['check_attachments']
+        found_locations = []
+        
+        try:
+            if is_regex:
+                # Use regex matching
+                pattern = re.compile(term, re.IGNORECASE)
+                
+                # Check subject if enabled
+                if check_subject and pattern.search(subject):
+                    found_locations.append('Subject')
+                
+                # Check attachments if enabled
+                if check_attachments and attachments_text and pattern.search(attachments_text):
+                    found_locations.append('Attachments')
+            
+            else:
+                # Simple case-insensitive string matching
+                
+                # Check subject if enabled
+                if check_subject and term.lower() in subject:
+                    found_locations.append('Subject')
+                
+                # Check attachments if enabled
+                if check_attachments and attachments_text and term.lower() in attachments_text:
+                    found_locations.append('Attachments')
+            
+            # Add matches for each location found
+            for location in found_locations:
+                matches.append({
+                    'term': term,
+                    'is_regex': is_regex,
+                    'location': location
+                })
+        
+        except re.error:
+            # Skip invalid regex patterns
+            continue
+    
+    return matches
+
 def check_whitelist_matches(event, recipients):
     """Check if event matches whitelist entries - requires ALL recipients to be whitelisted"""
     matches = []
@@ -596,6 +740,32 @@ def apply_rules_to_event(event_id):
     recipients = event_data['recipients']
     actions = []
     trigger_reason = None
+
+    # Check exclusion keywords first - if matched, exclude the event
+    exclusion_matches = check_exclusion_keywords(event)
+    if exclusion_matches:
+        exclusion_terms = [match['term'] for match in exclusion_matches[:3]]  # Show first 3
+        if len(exclusion_matches) > 3:
+            exclusion_terms.append(f"+ {len(exclusion_matches) - 3} more")
+        
+        actions.append({
+            'type': 'exclusion',
+            'action': 'exclude',
+            'rule_name': 'Exclusion Keywords',
+            'reason': f"Excluded by keywords: {', '.join(exclusion_terms)}"
+        })
+        
+        # Mark event as excluded (you could add a new status or use existing mechanisms)
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE events SET trigger_reason = ? WHERE id = ?", 
+                             (f"Excluded: {', '.join(exclusion_terms)}", event_id))
+                conn.commit()
+        except Exception as e:
+            logger.warning(f"Failed to update exclusion reason for event {event_id}: {e}")
+        
+        return actions  # Return early - excluded events don't get processed further
 
     # Check whitelist using new logic that requires ALL recipients to be whitelisted
     whitelist_matches = check_whitelist_matches(event, recipients)
