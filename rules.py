@@ -479,9 +479,16 @@ def check_keyword_matches(event):
 
     # Get keywords
     keywords = get_keywords()
+    
+    if not keywords:
+        logger.debug("No keywords configured")
+        return []
+
+    logger.debug(f"Checking {len(keywords)} keywords against event {event.get('id', 'unknown')}")
 
     # Check subject for keyword matches
-    subject = (event['subject'] or '').lower()
+    subject = (event.get('subject') or '').lower()
+    logger.debug(f"Event subject: '{subject}'")
 
     # Get attachments for checking - try to get from event detail
     attachments = []
@@ -493,14 +500,16 @@ def check_keyword_matches(event):
         if event_detail and 'attachments' in event_detail:
             attachments = event_detail['attachments'] or []
             attachments_text = ' '.join(attachments).lower()
-    except Exception:
-        # If we can't get attachments, just continue with subject checking
-        pass
+            logger.debug(f"Event attachments: {attachments}")
+    except Exception as e:
+        logger.debug(f"Could not get attachments for event {event.get('id')}: {e}")
 
     for keyword in keywords:
-        term = keyword['term']
+        term = keyword['term'].lower()
         is_regex = keyword['is_regex']
         found_locations = []
+        
+        logger.debug(f"Checking keyword '{term}' (regex: {is_regex})")
 
         try:
             if is_regex:
@@ -508,36 +517,42 @@ def check_keyword_matches(event):
                 pattern = re.compile(term, re.IGNORECASE)
 
                 # Check subject
-                if pattern.search(subject):
+                if subject and pattern.search(subject):
                     found_locations.append('Subject')
+                    logger.debug(f"Regex keyword '{term}' matched in subject")
 
                 # Check attachments
                 if attachments_text and pattern.search(attachments_text):
                     found_locations.append('Attachments')
+                    logger.debug(f"Regex keyword '{term}' matched in attachments")
 
             else:
                 # Simple case-insensitive string matching
 
                 # Check subject
-                if term.lower() in subject:
+                if subject and term in subject:
                     found_locations.append('Subject')
+                    logger.debug(f"Literal keyword '{term}' matched in subject")
 
                 # Check attachments
-                if attachments_text and term.lower() in attachments_text:
+                if attachments_text and term in attachments_text:
                     found_locations.append('Attachments')
+                    logger.debug(f"Literal keyword '{term}' matched in attachments")
 
             # Add matches for each location found
             for location in found_locations:
                 matches.append({
-                    'term': term,
-                    'is_regex': is_regex,
-                    'location': location
+                    'term': keyword['term'],  # Use original case
+                    'type': 'regex' if is_regex else 'literal',
+                    'location': location,
+                    'match_type': 'Regex Pattern' if is_regex else 'Literal Text'
                 })
 
-        except re.error:
-            # Skip invalid regex patterns
+        except re.error as e:
+            logger.warning(f"Invalid regex pattern '{term}': {e}")
             continue
 
+    logger.debug(f"Total keyword matches found: {len(matches)}")
     return matches
 
 def _evaluate_condition(condition, event_data):
@@ -609,7 +624,10 @@ def _get_field_value(field, event_data):
         keyword_matches = check_keyword_matches(event)
         if keyword_matches:
             # Return the matched keywords as a comma-separated string
-            return ', '.join([match['term'] for match in keyword_matches])
+            matched_terms = [match['term'] for match in keyword_matches]
+            logger.debug(f"Keywords field returning: {', '.join(matched_terms)}")
+            return ', '.join(matched_terms)
+        logger.debug("Keywords field returning empty string")
         return ''
     elif field == 'recipients':
         return ', '.join(recipients)

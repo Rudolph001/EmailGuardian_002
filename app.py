@@ -351,10 +351,15 @@ def event_detail(event_id):
             whitelist_matches = []
 
         # Check keyword matches
-        from rules import check_keyword_matches
+        from rules import check_keyword_matches, get_keywords
         try:
+            # Debug: Check what keywords are configured
+            configured_keywords = get_keywords()
+            logger.debug(f"Configured keywords: {[(k['term'], k['is_regex']) for k in configured_keywords]}")
+            
             keyword_matches = check_keyword_matches(event_data['event'])
             logger.debug(f"Found {len(keyword_matches)} keyword matches for event {event_id}")
+            logger.debug(f"Keyword matches details: {keyword_matches}")
         except Exception as e:
             logger.error(f"Error checking keyword matches for event {event_id}: {e}")
             keyword_matches = []
