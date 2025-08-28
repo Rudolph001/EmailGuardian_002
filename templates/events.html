@@ -62,224 +62,162 @@
     </div>
 </div>
 
-<!-- Search and Filters -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0">
-                            <i class="fas fa-search me-2"></i>Search & Filters
-                        </h6>
+<!-- Search and Quick Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="GET" id="filterForm">
+                    <input type="hidden" name="filter" value="{{ filter_type }}">
+                    
+                    <!-- Primary Search Row -->
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="q" name="q" value="{{ query }}"
+                                       placeholder="Search sender or subject...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" name="status_filter">
+                                <option value="">All Statuses</option>
+                                <option value="open" {{ 'selected' if status_filter == 'open' else '' }}>Open</option>
+                                <option value="closed" {{ 'selected' if status_filter == 'closed' else '' }}>Closed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <span class="input-group-text">Risk</span>
+                                <input type="number" class="form-control" name="risk_min" value="{{ risk_min }}"
+                                       step="0.1" min="0" max="1" placeholder="Min" style="max-width: 80px;">
+                                <span class="input-group-text">-</span>
+                                <input type="number" class="form-control" name="risk_max" value="{{ risk_max }}"
+                                       step="0.1" min="0" max="1" placeholder="Max" style="max-width: 80px;">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="btn-group w-100" role="group">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-1"></i>Search
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="toggleAdvanced">
+                                    <i class="fas fa-sliders-h"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <form method="GET" id="filterForm">
-                            <input type="hidden" name="filter" value="{{ filter_type }}">
 
-                            <div class="row g-3">
-                                <!-- Search Query -->
-                                <div class="col-md-4">
-                                    <label for="q" class="form-label">Search</label>
-                                    <input type="text" class="form-control" id="q" name="q" value="{{ query }}"
-                                           placeholder="Search sender or subject...">
-                                </div>
-
-                                <!-- Sender Filter -->
-                                <div class="col-md-4">
-                                    <label for="sender_filter" class="form-label">Sender</label>
-                                    <input type="text" class="form-control" id="sender_filter" name="sender_filter"
-                                           value="{{ sender_filter }}" placeholder="Filter by sender...">
-                                </div>
-
-                                <!-- Subject Filter -->
-                                <div class="col-md-4">
-                                    <label for="subject_filter" class="form-label">Subject</label>
-                                    <input type="text" class="form-control" id="subject_filter" name="subject_filter"
-                                           value="{{ subject_filter }}" placeholder="Filter by subject...">
-                                </div>
-
-                                <!-- Trigger Reason Filter -->
-                                <div class="col-md-4">
-                                    <label for="trigger_reason_filter" class="form-label">Triggered Rule</label>
-                                    <input type="text" class="form-control" id="trigger_reason_filter" name="trigger_reason_filter"
-                                           value="{{ trigger_reason_filter }}" placeholder="Filter by rule or keyword...">
-                                </div>
-
-                                <!-- Recipients Filter -->
-                                <div class="col-md-4">
-                                    <label for="recipients_filter" class="form-label">Recipients</label>
-                                    <input type="text" class="form-control" id="recipients_filter" name="recipients_filter"
-                                           value="{{ recipients_filter }}" placeholder="Filter by recipients...">
-                                </div>
-
-                                <!-- Closure Reason Filter -->
-                                <div class="col-md-4">
-                                    <label for="closure_reason_filter" class="form-label">Closure Reason</label>
-                                    <input type="text" class="form-control" id="closure_reason_filter" name="closure_reason_filter"
-                                           value="{{ closure_reason_filter }}" placeholder="Filter by closure reason...">
-                                </div>
-
-                                <!-- Risk Score Range -->
-                                <div class="col-md-3">
-                                    <label for="risk_min" class="form-label">Min Risk Score</label>
-                                    <input type="number" class="form-control" id="risk_min" name="risk_min"
-                                           value="{{ risk_min }}" step="0.1" min="0" max="1" placeholder="0.0">
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label for="risk_max" class="form-label">Max Risk Score</label>
-                                    <input type="number" class="form-control" id="risk_max" name="risk_max"
-                                           value="{{ risk_max }}" step="0.1" min="0" max="1" placeholder="1.0">
-                                </div>
-
-                                <!-- Status Filter -->
-                                <div class="col-md-3">
-                                    <label for="status_filter" class="form-label">Status</label>
-                                    <select class="form-control" id="status_filter" name="status_filter">
-                                        <option value="">All Statuses</option>
-                                        <option value="open" {% if status_filter == 'open' %}selected{% endif %}>Open</option>
-                                        <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
-                                    </select>
-                                </div>
-
-                                <!-- Sort Options -->
-                                <div class="col-md-3">
-                                    <label for="sort" class="form-label">Sort By</label>
-                                    <select class="form-control" id="sort" name="sort">
-                                        <option value="_time" {% if sort_by == '_time' %}selected{% endif %}>Date/Time</option>
-                                        <option value="sender" {% if sort_by == 'sender' %}selected{% endif %}>Sender</option>
-                                        <option value="subject" {% if sort_by == 'subject' %}selected{% endif %}>Subject</option>
-                                        <option value="ml_score" {% if sort_by == 'ml_score' %}selected{% endif %}>Risk Score</option>
-                                        <option value="status" {% if sort_by == 'status' %}selected{% endif %}>Status</option>
-                                        <option value="trigger_reason" {% if sort_by == 'trigger_reason' %}selected{% endif %}>Trigger Reason</option>
-                                        <option value="closure_reason" {% if sort_by == 'closure_reason' %}selected{% endif %}>Closure Reason</option>
-                                    </select>
-                                </div>
+                    <!-- Advanced Filters (Collapsible) -->
+                    <div id="advancedFilters" class="collapse">
+                        <hr class="my-3">
+                        <div class="row g-2">
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Sender</label>
+                                <input type="text" class="form-control form-control-sm" name="sender_filter"
+                                       value="{{ sender_filter }}" placeholder="Filter by sender...">
                             </div>
-
-                            <!-- Advanced Filters -->
-                            <div class="row g-3 mt-3">
-                                <!-- Email Sent Filter -->
-                                <div class="col-md-3">
-                                    <label for="email_sent_filter" class="form-label">Email Sent</label>
-                                    <select class="form-control" id="email_sent_filter" name="email_sent_filter">
-                                        <option value="">All</option>
-                                        <option value="1" {% if email_sent_filter == '1' %}selected{% endif %}>Yes</option>
-                                        <option value="0" {% if email_sent_filter == '0' %}selected{% endif %}>No</option>
-                                    </select>
-                                </div>
-
-                                <!-- Whitelisted Filter -->
-                                <div class="col-md-3">
-                                    <label for="whitelisted_filter" class="form-label">Whitelisted</label>
-                                    <select class="form-control" id="whitelisted_filter" name="whitelisted_filter">
-                                        <option value="">All</option>
-                                        <option value="1" {% if whitelisted_filter == '1' %}selected{% endif %}>Yes</option>
-                                        <option value="0" {% if whitelisted_filter == '0' %}selected{% endif %}>No</option>
-                                    </select>
-                                </div>
-
-                                <!-- Follow-up Filter -->
-                                <div class="col-md-3">
-                                    <label for="followup_filter" class="form-label">Follow-up</label>
-                                    <select class="form-control" id="followup_filter" name="followup_filter">
-                                        <option value="">All</option>
-                                        <option value="1" {% if followup_filter == '1' %}selected{% endif %}>Yes</option>
-                                        <option value="0" {% if followup_filter == '0' %}selected{% endif %}>No</option>
-                                    </select>
-                                </div>
-
-                                <!-- Sort Order -->
-                                <div class="col-md-3">
-                                    <label for="order" class="form-label">Order</label>
-                                    <select class="form-control" id="order" name="order">
-                                        <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descending</option>
-                                        <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascending</option>
-                                    </select>
-                                </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Subject</label>
+                                <input type="text" class="form-control form-control-sm" name="subject_filter"
+                                       value="{{ subject_filter }}" placeholder="Filter by subject...">
                             </div>
-
-                            <!-- Date Range Filters -->
-                            <div class="row g-3 mt-3">
-                                <div class="col-md-3">
-                                    <label for="date_from" class="form-label">Date From</label>
-                                    <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
-                                </div>
-
-                                <div class="col-md-3">
-                                    <label for="date_to" class="form-label">Date To</label>
-                                    <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
-                                </div>
-
-                                <!-- Action Buttons -->
-                                <div class="col-md-6 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-primary me-2">
-                                        <i class="fas fa-search me-2"></i>Apply Filters
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Recipients</label>
+                                <input type="text" class="form-control form-control-sm" name="recipients_filter"
+                                       value="{{ recipients_filter }}" placeholder="Filter by recipients...">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Rule/Keyword</label>
+                                <input type="text" class="form-control form-control-sm" name="trigger_reason_filter"
+                                       value="{{ trigger_reason_filter }}" placeholder="Filter by rule...">
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-2">
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Date From</label>
+                                <input type="date" class="form-control form-control-sm" name="date_from" value="{{ date_from }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Date To</label>
+                                <input type="date" class="form-control form-control-sm" name="date_to" value="{{ date_to }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Whitelisted</label>
+                                <select class="form-select form-select-sm" name="whitelisted_filter">
+                                    <option value="">All</option>
+                                    <option value="1" {{ 'selected' if whitelisted_filter == '1' else '' }}>Yes</option>
+                                    <option value="0" {{ 'selected' if whitelisted_filter == '0' else '' }}>No</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Follow-up</label>
+                                <select class="form-select form-select-sm" name="followup_filter">
+                                    <option value="">All</option>
+                                    <option value="1" {{ 'selected' if followup_filter == '1' else '' }}>Yes</option>
+                                    <option value="0" {{ 'selected' if followup_filter == '0' else '' }}>No</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-2">
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Sort By</label>
+                                <select class="form-select form-select-sm" name="sort">
+                                    <option value="_time" {{ 'selected' if sort_by == '_time' else '' }}>Date/Time</option>
+                                    <option value="sender" {{ 'selected' if sort_by == 'sender' else '' }}>Sender</option>
+                                    <option value="subject" {{ 'selected' if sort_by == 'subject' else '' }}>Subject</option>
+                                    <option value="ml_score" {{ 'selected' if sort_by == 'ml_score' else '' }}>Risk Score</option>
+                                    <option value="status" {{ 'selected' if sort_by == 'status' else '' }}>Status</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Order</label>
+                                <select class="form-select form-select-sm" name="order">
+                                    <option value="desc" {{ 'selected' if sort_order == 'desc' else '' }}>Newest First</option>
+                                    <option value="asc" {{ 'selected' if sort_order == 'asc' else '' }}>Oldest First</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small text-muted">Email Sent</label>
+                                <select class="form-select form-select-sm" name="email_sent_filter">
+                                    <option value="">All</option>
+                                    <option value="1" {{ 'selected' if email_sent_filter == '1' else '' }}>Yes</option>
+                                    <option value="0" {{ 'selected' if email_sent_filter == '0' else '' }}>No</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="pt-4">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="fas fa-filter me-1"></i>Apply Filters
                                     </button>
-                                    <a href="{{ url_for('events', filter=filter_type) }}" class="btn btn-outline-secondary me-2">
-                                        <i class="fas fa-times me-2"></i>Clear Filters
+                                    <a href="{{ url_for('events', filter=filter_type) }}" class="btn btn-outline-secondary btn-sm ms-1">
+                                        <i class="fas fa-times me-1"></i>Clear
                                     </a>
-                                    <button type="button" class="btn btn-info" data-bs-toggle="collapse" data-bs-target="#filterStats">
-                                        <i class="fas fa-chart-bar me-2"></i>Stats
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-
-                        <!-- Filter Statistics -->
-                        <div class="collapse mt-3" id="filterStats">
-                            <div class="card bg-light">
-                                <div class="card-body">
-                                    <h6>Filter Results:</h6>
-                                    <div class="row">
-                                        <div class="col-md-3">
-                                            <small class="text-muted">Total Events:</small>
-                                            <strong>{{ total_events }}</strong>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <small class="text-muted">Current Page:</small>
-                                            <strong>{{ page }} of {{ total_pages }}</strong>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <small class="text-muted">Per Page:</small>
-                                            <strong>{{ per_page }}</strong>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <small class="text-muted">Active Filters:</small>
-                                            <strong>{{ active_filter_count|default(0) }}</strong>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Quick Filter Buttons -->
-                        <div class="mt-3">
-                            <h6>Quick Filters:</h6>
-                            <div class="btn-group-sm mb-2" role="group">
-                                <button type="button" class="btn btn-outline-primary btn-sm me-1" onclick="quickFilter('trigger_reason_filter', 'Rule:')">
-                                    <i class="fas fa-gavel me-1"></i>Rule Triggered
-                                </button>
-                                <button type="button" class="btn btn-outline-info btn-sm me-1" onclick="quickFilter('trigger_reason_filter', 'Keywords:')">
-                                    <i class="fas fa-key me-1"></i>Keyword Matched
-                                </button>
-                                <button type="button" class="btn btn-outline-warning btn-sm me-1" onclick="quickFilter('trigger_reason_filter', 'Excluded:')">
-                                    <i class="fas fa-ban me-1"></i>Excluded Events
-                                </button>
-                                <button type="button" class="btn btn-outline-success btn-sm me-1" onclick="quickFilter('email_sent_filter', '1')">
-                                    <i class="fas fa-envelope me-1"></i>Email Sent
-                                </button>
-                                <button type="button" class="btn btn-outline-danger btn-sm me-1" onclick="quickRiskFilter('0.7', '1.0')">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>High Risk (>0.7)
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="quickRiskFilter('0.0', '0.3')">
-                                    <i class="fas fa-check-circle me-1"></i>Low Risk (≤0.3)
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                </form>
+                
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const toggleAdvanced = document.getElementById('toggleAdvanced');
+                    const advancedFilters = document.getElementById('advancedFilters');
+                    
+                    toggleAdvanced.addEventListener('click', function() {
+                        if (advancedFilters.classList.contains('show')) {
+                            advancedFilters.classList.remove('show');
+                            toggleAdvanced.innerHTML = '<i class="fas fa-sliders-h"></i>';
+                        } else {
+                            advancedFilters.classList.add('show');
+                            toggleAdvanced.innerHTML = '<i class="fas fa-times"></i>';
+                        }
+                    });
+                });
+                </script>
             </div>
         </div>
+    </div>
+</div>
 
 <!-- Bulk Actions Panel -->
 <div class="row mb-3" id="bulkActionsPanel" style="display: none;">

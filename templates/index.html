@@ -14,75 +14,100 @@
 <!-- Statistics Cards -->
 <div class="row mb-4">
     <div class="col-md-3 col-lg-2 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-envelope fa-2x text-primary mb-2"></i>
-                <h4 class="card-title">{{ total_events }}</h4>
-                <p class="card-text text-muted small">Total Events</p>
+        <a href="{{ url_for('events') }}" class="text-decoration-none">
+            <div class="card h-100 border-primary dashboard-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-envelope fa-2x text-primary mb-2"></i>
+                    <h4 class="card-title text-primary">{{ total_events }}</h4>
+                    <p class="card-text text-muted small">Total Events</p>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-md-3 col-lg-2 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
-                <h4 class="card-title">{{ stats.high_risk_count }}</h4>
-                <p class="card-text text-muted small">High Risk (>0.7)</p>
+        <a href="{{ url_for('events', filter='high_risk') }}" class="text-decoration-none">
+            <div class="card h-100 border-danger dashboard-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle fa-2x text-danger mb-2"></i>
+                    <h4 class="card-title text-danger">{{ stats.high_risk_count }}</h4>
+                    <p class="card-text text-muted small">High Risk (>0.7)</p>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-md-3 col-lg-2 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
-                <h4 class="card-title">{{ stats.low_risk_count }}</h4>
-                <p class="card-text text-muted small">Low Risk (≤0.3)</p>
+        <a href="{{ url_for('events', filter='low_risk') }}" class="text-decoration-none">
+            <div class="card h-100 border-success dashboard-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-chart-line fa-2x text-success mb-2"></i>
+                    <h4 class="card-title text-success">{{ stats.low_risk_count }}</h4>
+                    <p class="card-text text-muted small">Low Risk (≤0.3)</p>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-md-3 col-lg-2 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-shield-alt fa-2x text-info mb-2"></i>
-                <h4 class="card-title">{{ stats.whitelisted_count }}</h4>
-                <p class="card-text text-muted small">Whitelisted</p>
+        <a href="{{ url_for('events', filter='whitelisted') }}" class="text-decoration-none">
+            <div class="card h-100 border-info dashboard-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-shield-alt fa-2x text-info mb-2"></i>
+                    <h4 class="card-title text-info">{{ stats.whitelisted_count }}</h4>
+                    <p class="card-text text-muted small">Whitelisted</p>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-md-3 col-lg-2 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-check-circle fa-2x text-secondary mb-2"></i>
-                <h4 class="card-title">{{ stats.closed_count }}</h4>
-                <p class="card-text text-muted small">Closed</p>
+        <a href="{{ url_for('events', filter='closed') }}" class="text-decoration-none">
+            <div class="card h-100 border-secondary dashboard-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x text-secondary mb-2"></i>
+                    <h4 class="card-title text-secondary">{{ stats.closed_count }}</h4>
+                    <p class="card-text text-muted small">Closed</p>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-md-3 col-lg-2 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-gavel fa-2x text-warning mb-2"></i>
-                <h4 class="card-title">{{ stats.rule_triggered_count }}</h4>
-                <p class="card-text text-muted small">Rules Triggered</p>
+        <a href="{{ url_for('events', filter='rule_triggered') }}" class="text-decoration-none">
+            <div class="card h-100 border-warning dashboard-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-gavel fa-2x text-warning mb-2"></i>
+                    <h4 class="card-title text-warning">{{ stats.rule_triggered_count }}</h4>
+                    <p class="card-text text-muted small">Rules Triggered</p>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <div class="col-md-3 col-lg-2 mb-3">
-        <div class="card">
-            <div class="card-body text-center">
-                <i class="fas fa-clock fa-2x text-orange mb-2"></i>
-                <h4 class="card-title">{{ stats.follow_up_count }}</h4>
-                <p class="card-text text-muted small">Follow-up</p>
+        <a href="{{ url_for('events', filter='follow_up') }}" class="text-decoration-none">
+            <div class="card h-100 border-warning dashboard-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                    <h4 class="card-title text-warning">{{ stats.follow_up_count }}</h4>
+                    <p class="card-text text-muted small">Follow-up</p>
+                </div>
             </div>
-        </div>
+        </a>
     </div>
 </div>
+
+<style>
+.dashboard-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+.dashboard-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
 
 <!-- Quick Actions -->
 <div class="row mb-4">
