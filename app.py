@@ -49,7 +49,7 @@ def index():
 
         # Get fresh dashboard statistics
         stats = get_dashboard_stats()
-        
+
         logger.debug(f"Dashboard stats: {stats}")
 
         return render_template("index.html", 
@@ -126,7 +126,7 @@ def events():
         # Valid sort fields and order
         valid_sort_fields = ["_time", "sender", "subject", "ml_score", "status"]
         valid_orders = ["asc", "desc"]
-        
+
         if sort_by not in valid_sort_fields:
             sort_by = "_time"
         if sort_order not in valid_orders:
@@ -584,14 +584,14 @@ def exclusion_keywords():
     if request.method == "POST":
         try:
             action = request.form.get("action")
-            
+
             if action == "add":
                 term = request.form.get("term", "").strip()
                 is_regex = request.form.get("is_regex") == "on"
                 check_subject = request.form.get("check_subject") == "on"
                 check_attachments = request.form.get("check_attachments") == "on"
                 enabled = request.form.get("enabled") == "on"
-                
+
                 if not check_subject and not check_attachments:
                     flash("Must check at least Subject or Attachments", "error")
                 elif term:
@@ -602,7 +602,7 @@ def exclusion_keywords():
                         flash(f"Exclusion keyword '{term}' already exists", "warning")
                 else:
                     flash("Term is required", "error")
-            
+
             elif action == "edit":
                 keyword_id = int(request.form.get("keyword_id"))
                 term = request.form.get("term", "").strip()
@@ -610,7 +610,7 @@ def exclusion_keywords():
                 check_subject = request.form.get("check_subject") == "on"
                 check_attachments = request.form.get("check_attachments") == "on"
                 enabled = request.form.get("enabled") == "on"
-                
+
                 if not check_subject and not check_attachments:
                     flash("Must check at least Subject or Attachments", "error")
                 else:
@@ -619,27 +619,27 @@ def exclusion_keywords():
                         flash(f"Exclusion keyword updated", "success")
                     else:
                         flash("Failed to update exclusion keyword", "error")
-            
+
             elif action == "bulk_add":
                 bulk_terms = request.form.get("bulk_terms", "").strip()
                 bulk_is_regex = request.form.get("bulk_is_regex") == "on"
                 bulk_check_subject = request.form.get("bulk_check_subject") == "on"
                 bulk_check_attachments = request.form.get("bulk_check_attachments") == "on"
                 skip_duplicates = request.form.get("skip_duplicates") == "on"
-                
+
                 if not bulk_check_subject and not bulk_check_attachments:
                     flash("Must check at least Subject or Attachments for bulk import", "error")
                 elif bulk_terms:
                     # Handle both newline and pipe separation
                     normalized_input = bulk_terms.replace('|', '\n')
                     lines = [line.strip() for line in normalized_input.split('\n') if line.strip()]
-                    
+
                     if lines:
                         from rules import add_exclusion_keyword
                         added_count = 0
                         skipped_count = 0
                         failed_count = 0
-                        
+
                         for term in lines:
                             try:
                                 result = add_exclusion_keyword(term, bulk_is_regex, bulk_check_subject, bulk_check_attachments, True)
@@ -653,7 +653,7 @@ def exclusion_keywords():
                             except Exception as e:
                                 logger.error(f"Error adding bulk exclusion keyword '{term}': {e}")
                                 failed_count += 1
-                        
+
                         # Provide detailed feedback
                         messages = []
                         if added_count > 0:
@@ -662,7 +662,7 @@ def exclusion_keywords():
                             messages.append(f"{skipped_count} duplicate{'s' if skipped_count > 1 else ''} skipped")
                         if failed_count > 0:
                             messages.append(f"{failed_count} failed")
-                        
+
                         if added_count > 0:
                             flash(f"Bulk import completed: {', '.join(messages)}", "success")
                         elif skipped_count > 0:
@@ -673,7 +673,7 @@ def exclusion_keywords():
                         flash("No valid exclusion keywords found in bulk import", "warning")
                 else:
                     flash("Bulk terms are required", "error")
-            
+
             elif action == "delete":
                 keyword_id = int(request.form.get("keyword_id"))
                 from rules import delete_exclusion_keyword
@@ -681,13 +681,13 @@ def exclusion_keywords():
                     flash("Exclusion keyword deleted successfully", "success")
                 else:
                     flash("Failed to delete exclusion keyword", "error")
-            
+
         except Exception as e:
             logger.error(f"Error managing exclusion keywords: {e}")
             flash(f"Error: {str(e)}", "error")
-        
+
         return redirect(url_for("exclusion_keywords"))
-    
+
     try:
         from rules import get_exclusion_keywords
         exclusion_keywords_list = get_exclusion_keywords()
@@ -898,7 +898,7 @@ def process_rules():
             # Start processing in background and return immediately
             import threading
             from rules import process_all_events_for_rules_with_progress
-            
+
             # Reset progress tracking
             app.config['rule_processing'] = {
                 'in_progress': True,
@@ -908,7 +908,7 @@ def process_rules():
                 'completed': False,
                 'error': None
             }
-            
+
             def background_process():
                 try:
                     processed_count, triggered_count = process_all_events_for_rules_with_progress()
@@ -923,11 +923,11 @@ def process_rules():
                         'completed': True,
                         'error': str(e)
                     })
-            
+
             thread = threading.Thread(target=background_process)
             thread.daemon = True
             thread.start()
-            
+
             return jsonify({'success': True, 'message': 'Processing started'})
         else:
             # Traditional form submission - process synchronously
@@ -935,7 +935,7 @@ def process_rules():
             processed_count, triggered_count = process_all_events_for_rules()
             flash(f"Processed {processed_count} events. {triggered_count} events had rules triggered.", "success")
             return redirect(url_for('index'))
-            
+
     except Exception as e:
         logger.error(f"Error processing rules: {e}")
         if request.is_json or request.headers.get('Content-Type') == 'application/json':
@@ -955,7 +955,7 @@ def process_rules_progress():
         'completed': False,
         'error': None
     })
-    
+
     return jsonify(progress)
 
 @app.route("/event/<int:event_id>/status", methods=["POST"])
@@ -1028,16 +1028,16 @@ def classify_event_domains_api(event_id):
     """API endpoint to classify domains for an event"""
     try:
         from domain_ml import classify_event_domains, get_domain_risk_score
-        
+
         domain_classifications = classify_event_domains(event_id)
         domain_risk_score = get_domain_risk_score(domain_classifications)
-        
+
         return jsonify({
             'success': True,
             'domain_classifications': domain_classifications,
             'domain_risk_score': domain_risk_score
         })
-        
+
     except Exception as e:
         logger.error(f"Error classifying domains for event {event_id}: {e}")
         return jsonify({
@@ -1086,7 +1086,7 @@ def batch_update_events():
                 elif action == "close":
                     closure_reason = request.form.get("closure_reason", "").strip()
                     closure_notes = request.form.get("closure_notes", "").strip()
-                    
+
                     if update_status(event_id, status="closed", closed_by="admin", 
                                    closure_reason=closure_reason, closure_notes=closure_notes):
                         success_count += 1
@@ -1127,12 +1127,12 @@ def domain_labels():
     if request.method == "POST":
         try:
             action = request.form.get("action")
-            
+
             if action == "label_domain":
                 domain = request.form.get("domain", "").strip().lower()
                 label = int(request.form.get("label"))
                 confidence = float(request.form.get("confidence", 1.0))
-                
+
                 if domain and 0 <= label <= 3:
                     with get_db() as conn:
                         cursor = conn.cursor()
@@ -1142,33 +1142,135 @@ def domain_labels():
                             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
                         """, (domain, label, confidence))
                         conn.commit()
-                    
+
                     label_names = {0: 'Internal', 1: 'Freemail', 2: 'Partner', 3: 'Suspicious'}
                     flash(f"Domain '{domain}' labeled as {label_names[label]}", "success")
                 else:
                     flash("Invalid domain or label", "error")
-            
+
+            elif action == 'edit_domain_label':
+                domain_id = int(request.form.get("domain_id"))
+                label = int(request.form.get("label"))
+                confidence = float(request.form.get("confidence", 1.0))
+
+                if 0 <= label <= 3 and 0.1 <= confidence <= 1.0:
+                    with get_db() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            UPDATE domain_labels 
+                            SET label = ?, confidence = ?, updated_at = CURRENT_TIMESTAMP 
+                            WHERE id = ?
+                        """, (label, confidence, domain_id))
+                        conn.commit()
+
+                        if cursor.rowcount > 0:
+                            label_names = {0: 'Internal', 1: 'Freemail', 2: 'Partner', 3: 'Suspicious'}
+                            flash(f"Domain classification updated to {label_names[label]}", "success")
+                        else:
+                            flash("Domain classification not found", "error")
+                else:
+                    flash("Invalid label or confidence value", "error")
+
+            elif action == 'delete_domain_label':
+                domain_id = int(request.form.get("domain_id"))
+
+                with get_db() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM domain_labels WHERE id = ?", (domain_id,))
+                    conn.commit()
+
+                    if cursor.rowcount > 0:
+                        flash("Domain classification deleted successfully", "success")
+                    else:
+                        flash("Domain classification not found", "error")
+
+            elif action == 'bulk_edit_labels':
+                bulk_domains = request.form.get("bulk_domains", "").strip()
+                bulk_label = int(request.form.get("bulk_label"))
+                bulk_confidence = float(request.form.get("bulk_confidence", 1.0))
+                overwrite_existing = request.form.get("overwrite_existing") == "on"
+
+                if bulk_domains and 0 <= bulk_label <= 3:
+                    lines = [line.strip().lower() for line in bulk_domains.split('\n') if line.strip()]
+
+                    if lines:
+                        updated_count = 0
+                        skipped_count = 0
+                        failed_count = 0
+
+                        with get_db() as conn:
+                            cursor = conn.cursor()
+
+                            for domain in lines:
+                                try:
+                                    if overwrite_existing:
+                                        cursor.execute("""
+                                            INSERT OR REPLACE INTO domain_labels 
+                                            (domain, label, confidence, updated_at) 
+                                            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                                        """, (domain, bulk_label, bulk_confidence))
+                                        updated_count += 1
+                                    else:
+                                        # Check if domain already exists
+                                        cursor.execute("SELECT id FROM domain_labels WHERE domain = ?", (domain,))
+                                        if cursor.fetchone():
+                                            skipped_count += 1
+                                        else:
+                                            cursor.execute("""
+                                                INSERT INTO domain_labels 
+                                                (domain, label, confidence, updated_at) 
+                                                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                                            """, (domain, bulk_label, bulk_confidence))
+                                            updated_count += 1
+                                except Exception as e:
+                                    logger.error(f"Error updating domain '{domain}': {e}")
+                                    failed_count += 1
+
+                            conn.commit()
+
+                        # Provide detailed feedback
+                        messages = []
+                        if updated_count > 0:
+                            messages.append(f"{updated_count} domain{'s' if updated_count > 1 else ''} updated")
+                        if skipped_count > 0:
+                            messages.append(f"{skipped_count} existing domain{'s' if skipped_count > 1 else ''} skipped")
+                        if failed_count > 0:
+                            messages.append(f"{failed_count} failed")
+
+                        label_names = {0: 'Internal', 1: 'Freemail', 2: 'Partner', 3: 'Suspicious'}
+                        if updated_count > 0:
+                            flash(f"Bulk edit completed: {', '.join(messages)} - set to {label_names[bulk_label]}", "success")
+                        elif skipped_count > 0:
+                            flash(f"Bulk edit completed: {', '.join(messages)}", "info")
+                        else:
+                            flash(f"Bulk edit failed: {', '.join(messages)}", "error")
+                    else:
+                        flash("No valid domains found in bulk edit", "warning")
+                else:
+                    flash("Bulk domains and label are required", "error")
+
+
             elif action == "train_classifier":
                 from domain_ml import train_domain_classifier
                 if train_domain_classifier():
                     flash("Domain classifier trained successfully", "success")
                 else:
                     flash("Failed to train domain classifier", "error")
-            
+
             elif action == "classify_unlabeled":
                 # Auto-classify unlabeled domains
                 from domain_ml import domain_classifier
-                
+
                 # Load or train classifier
                 if not domain_classifier.model:
                     domain_classifier.load_model()
-                
+
                 if not domain_classifier.model:
                     flash("Domain classifier not available. Please train it first.", "warning")
                 else:
                     with get_db() as conn:
                         cursor = conn.cursor()
-                        
+
                         # Get unlabeled domains
                         cursor.execute("""
                             SELECT DISTINCT email FROM recipients r
@@ -1178,22 +1280,22 @@ def domain_labels():
                             )
                             LIMIT 50
                         """)
-                        
+
                         emails = cursor.fetchall()
                         classified_count = 0
-                        
+
                         for email_row in emails:
                             from utils import extract_domain
                             domain = extract_domain(email_row[0])
-                            
+
                             if domain:
                                 classification = domain_classifier.classify_domain(domain)
-                                
+
                                 # Only auto-label if confidence > 0.8
                                 if classification['confidence'] > 0.8:
                                     label_map = {'internal': 0, 'freemail': 1, 'partner': 2, 'suspicious': 3}
                                     label_num = label_map.get(classification['label'])
-                                    
+
                                     if label_num is not None:
                                         cursor.execute("""
                                             INSERT OR IGNORE INTO domain_labels 
@@ -1201,20 +1303,20 @@ def domain_labels():
                                             VALUES (?, ?, ?)
                                         """, (domain, label_num, classification['confidence']))
                                         classified_count += 1
-                        
+
                         conn.commit()
                         flash(f"Auto-classified {classified_count} domains", "info")
-            
+
         except Exception as e:
             logger.error(f"Error managing domain labels: {e}")
             flash(f"Error: {str(e)}", "error")
-        
+
         return redirect(url_for("domain_labels"))
-    
+
     try:
         with get_db() as conn:
             cursor = conn.cursor()
-            
+
             # Create domain_labels table if it doesn't exist
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS domain_labels (
@@ -1226,7 +1328,7 @@ def domain_labels():
                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
+
             # Get labeled domains
             cursor.execute("""
                 SELECT id, domain, label, confidence, created_at, updated_at
@@ -1235,7 +1337,7 @@ def domain_labels():
                 LIMIT 100
             """)
             labeled_domains = cursor.fetchall()
-            
+
             # Get some unlabeled domains
             cursor.execute("""
                 SELECT DISTINCT LOWER(SUBSTR(email, INSTR(email, '@') + 1)) as domain,
@@ -1250,9 +1352,9 @@ def domain_labels():
                 LIMIT 20
             """)
             unlabeled_domains = cursor.fetchall()
-            
+
         label_names = {0: 'Internal', 1: 'Freemail', 2: 'Partner', 3: 'Suspicious'}
-        
+
         return render_template("domain_labels.html", 
                              labeled_domains=labeled_domains,
                              unlabeled_domains=unlabeled_domains,
