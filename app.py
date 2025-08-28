@@ -106,66 +106,116 @@ def upload():
 
 @app.route("/events")
 def events():
-    """Events listing page with search and filtering"""
+    """Events listing page with search, filtering, and sorting"""
     try:
         query = request.args.get("q", "").strip()
         filter_type = request.args.get("filter", "all")
+        sort_by = request.args.get("sort", "_time")
+        sort_order = request.args.get("order", "desc")
         page = int(request.args.get("page", 1))
         per_page = 10  # Set 10 records per page
         offset = (page - 1) * per_page
+
+        # Additional filters
+        sender_filter = request.args.get("sender_filter", "").strip()
+        subject_filter = request.args.get("subject_filter", "").strip()
+        risk_min = request.args.get("risk_min", "").strip()
+        risk_max = request.args.get("risk_max", "").strip()
+        status_filter = request.args.get("status_filter", "").strip()
+
+        # Valid sort fields and order
+        valid_sort_fields = ["_time", "sender", "subject", "ml_score", "status"]
+        valid_orders = ["asc", "desc"]
+        
+        if sort_by not in valid_sort_fields:
+            sort_by = "_time"
+        if sort_order not in valid_orders:
+            sort_order = "desc"
+
+        # Build ORDER BY clause
+        if sort_by == "_time":
+            order_clause = f"datetime(_time) {sort_order.upper()}"
+        else:
+            order_clause = f"{sort_by} {sort_order.upper()}"
 
         # Get total count and events for the current page
         total_events = 0
         events_list = []
 
-        if query:
-            events_list = search_events(query, limit=per_page, offset=offset)
-            # Get total count for search
-            with get_db() as conn:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT COUNT(*)
-                    FROM events
-                    WHERE sender LIKE ? OR subject LIKE ?
-                """, (f"%{query}%", f"%{query}%"))
-                total_events = cursor.fetchone()[0]
-        elif filter_type == "whitelisted":
-            from models import get_whitelisted_events, get_whitelisted_events_count
-            events_list = get_whitelisted_events(per_page, offset)
-            total_events = get_whitelisted_events_count()
-        elif filter_type == "follow_up":
-            from models import get_follow_up_events, get_follow_up_events_count
-            events_list = get_follow_up_events(per_page, offset)
-            total_events = get_follow_up_events_count()
-        elif filter_type == "closed":
-            from models import get_closed_events, get_closed_events_count
-            events_list = get_closed_events(per_page, offset)
-            total_events = get_closed_events_count()
-        elif filter_type == "high_risk":
-            from models import get_high_risk_events, get_high_risk_events_count
-            events_list = get_high_risk_events(per_page, offset)
-            total_events = get_high_risk_events_count()
-        elif filter_type == "rule_triggered":
-            from models import get_rule_triggered_events, get_rule_triggered_events_count
-            events_list = get_rule_triggered_events(per_page, offset)
-            total_events = get_rule_triggered_events_count()
-        else:
-            # For "all" events, show everything regardless of categorization
-            with get_db() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM events")
-                total_events = cursor.fetchone()[0]
+        # Build WHERE conditions
+        where_conditions = []
+        where_params = []
 
-                cursor.execute("""
-                    SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                           status, is_whitelisted, follow_up, trigger_reason,
-                           closure_reason, closure_notes, closure_reference,
-                           email_sent, email_sent_date
-                    FROM events
-                    ORDER BY datetime(_time) DESC
-                    LIMIT ? OFFSET ?
-                """, (per_page, offset))
-                events_list = cursor.fetchall()
+        # Base filter type conditions
+        if filter_type == "whitelisted":
+            where_conditions.append("is_whitelisted = 1")
+        elif filter_type == "follow_up":
+            where_conditions.append("follow_up = 1 AND status != 'closed'")
+        elif filter_type == "closed":
+            where_conditions.append("status = 'closed'")
+        elif filter_type == "high_risk":
+            where_conditions.append("ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '')")
+        elif filter_type == "rule_triggered":
+            where_conditions.append("status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND trigger_reason IS NOT NULL AND trigger_reason != ''")
+
+        # Search query
+        if query:
+            where_conditions.append("(sender LIKE ? OR subject LIKE ?)")
+            where_params.extend([f"%{query}%", f"%{query}%"])
+
+        # Additional filters
+        if sender_filter:
+            where_conditions.append("sender LIKE ?")
+            where_params.append(f"%{sender_filter}%")
+
+        if subject_filter:
+            where_conditions.append("subject LIKE ?")
+            where_params.append(f"%{subject_filter}%")
+
+        if risk_min:
+            try:
+                risk_min_val = float(risk_min)
+                where_conditions.append("ml_score >= ?")
+                where_params.append(risk_min_val)
+            except ValueError:
+                pass
+
+        if risk_max:
+            try:
+                risk_max_val = float(risk_max)
+                where_conditions.append("ml_score <= ?")
+                where_params.append(risk_max_val)
+            except ValueError:
+                pass
+
+        if status_filter:
+            where_conditions.append("status = ?")
+            where_params.append(status_filter)
+
+        # Build final query
+        where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+
+        with get_db() as conn:
+            cursor = conn.cursor()
+
+            # Get total count
+            count_query = f"SELECT COUNT(*) FROM events WHERE {where_clause}"
+            cursor.execute(count_query, where_params)
+            total_events = cursor.fetchone()[0]
+
+            # Get events with sorting and pagination
+            events_query = f"""
+                SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                       status, is_whitelisted, follow_up, trigger_reason,
+                       closure_reason, closure_notes, closure_reference,
+                       email_sent, email_sent_date
+                FROM events
+                WHERE {where_clause}
+                ORDER BY {order_clause}
+                LIMIT ? OFFSET ?
+            """
+            cursor.execute(events_query, where_params + [per_page, offset])
+            events_list = cursor.fetchall()
 
         # Calculate pagination info
         total_pages = (total_events + per_page - 1) // per_page  # Ceiling division
@@ -186,6 +236,13 @@ def events():
                              has_prev=has_prev,
                              has_next=has_next,
                              filter_type=filter_type,
+                             sort_by=sort_by,
+                             sort_order=sort_order,
+                             sender_filter=sender_filter,
+                             subject_filter=subject_filter,
+                             risk_min=risk_min,
+                             risk_max=risk_max,
+                             status_filter=status_filter,
                              get_closure_reasons=lambda: closure_reasons)
     except Exception as e:
         logger.error(f"Error loading events: {e}")
@@ -729,99 +786,7 @@ def keywords():
         flash("Error loading keywords", "error")
         return render_template("keywords.html", keywords=[])
 
-@app.route("/exclusion_keywords", methods=["GET", "POST"])
-def exclusion_keywords():
-    """Exclusion keywords management page"""
-    if request.method == "POST":
-        try:
-            action = request.form.get("action")
-            from models import add_exclusion_keyword, delete_exclusion_keyword
 
-            if action == "add":
-                term = request.form.get("term", "").strip()
-                is_regex = request.form.get("is_regex") == "on"
-                applies_to = request.form.get("applies_to", "both")
-                description = request.form.get("description", "").strip()
-
-                if term:
-                    if add_exclusion_keyword(term, is_regex, applies_to, description):
-                        flash(f"Exclusion keyword '{term}' added", "success")
-                    else:
-                        flash(f"Exclusion keyword '{term}' already exists", "warning")
-                else:
-                    flash("Term is required", "error")
-
-            elif action == "bulk_add":
-                bulk_terms = request.form.get("bulk_terms", "").strip()
-                bulk_is_regex = request.form.get("bulk_is_regex") == "on"
-                bulk_applies_to = request.form.get("bulk_applies_to", "both")
-                skip_duplicates = request.form.get("skip_duplicates") == "on"
-
-                if bulk_terms:
-                    # Handle both newline and pipe separation
-                    normalized_input = bulk_terms.replace('|', '\n')
-                    lines = [line.strip() for line in normalized_input.split('\n') if line.strip()]
-
-                    if lines:
-                        added_count = 0
-                        skipped_count = 0
-                        failed_count = 0
-
-                        for term in lines:
-                            try:
-                                result = add_exclusion_keyword(term, bulk_is_regex, bulk_applies_to, f"Bulk imported: {term}")
-                                if result:
-                                    added_count += 1
-                                else:
-                                    if skip_duplicates:
-                                        skipped_count += 1
-                                    else:
-                                        failed_count += 1
-                            except Exception as e:
-                                logger.error(f"Error adding bulk exclusion keyword '{term}': {e}")
-                                failed_count += 1
-
-                        # Provide detailed feedback
-                        messages = []
-                        if added_count > 0:
-                            messages.append(f"{added_count} exclusion keyword{'s' if added_count > 1 else ''} added")
-                        if skipped_count > 0:
-                            messages.append(f"{skipped_count} duplicate{'s' if skipped_count > 1 else ''} skipped")
-                        if failed_count > 0:
-                            messages.append(f"{failed_count} failed")
-
-                        if added_count > 0:
-                            flash(f"Bulk import completed: {', '.join(messages)}", "success")
-                        elif skipped_count > 0:
-                            flash(f"Bulk import completed: {', '.join(messages)}", "info")
-                        else:
-                            flash(f"Bulk import failed: {', '.join(messages)}", "error")
-                    else:
-                        flash("No valid exclusion keywords found in bulk import", "warning")
-                else:
-                    flash("Bulk terms are required", "error")
-
-            elif action == "delete":
-                keyword_id = int(request.form.get("keyword_id"))
-                if delete_exclusion_keyword(keyword_id):
-                    flash("Exclusion keyword deleted successfully", "success")
-                else:
-                    flash("Failed to delete exclusion keyword", "error")
-
-        except Exception as e:
-            logger.error(f"Error managing exclusion keywords: {e}")
-            flash(f"Error: {str(e)}", "error")
-
-        return redirect(url_for("exclusion_keywords"))
-
-    try:
-        from models import get_exclusion_keywords
-        exclusion_keywords_list = get_exclusion_keywords()
-        return render_template("exclusion_keywords.html", exclusion_keywords=exclusion_keywords_list)
-    except Exception as e:
-        logger.error(f"Error loading exclusion keywords: {e}")
-        flash("Error loading exclusion keywords", "error")
-        return render_template("exclusion_keywords.html", exclusion_keywords=[])
 
 @app.route("/policies", methods=["GET", "POST"])
 def policies():
@@ -1090,13 +1055,13 @@ def batch_update_events():
 
         if not event_ids_str or not action:
             flash("Invalid batch update request", "error")
-            return redirect(url_for("index"))
+            return redirect(url_for("events"))
 
         event_ids = [int(id.strip()) for id in event_ids_str.split(",") if id.strip()]
 
         if not event_ids:
             flash("No events selected for batch update", "error")
-            return redirect(url_for("index"))
+            return redirect(url_for("events"))
 
         from models import update_event_status as update_status
         from datetime import datetime
@@ -1118,6 +1083,18 @@ def batch_update_events():
                     if update_status(event_id, status="closed", closed_by="admin"):
                         success_count += 1
 
+                elif action == "close":
+                    closure_reason = request.form.get("closure_reason", "").strip()
+                    closure_notes = request.form.get("closure_notes", "").strip()
+                    
+                    if update_status(event_id, status="closed", closed_by="admin", 
+                                   closure_reason=closure_reason, closure_notes=closure_notes):
+                        success_count += 1
+
+                elif action == "reopen":
+                    if update_status(event_id, status="open", follow_up=False):
+                        success_count += 1
+
             except Exception as e:
                 logger.error(f"Error updating event {event_id} in batch: {e}")
                 continue
@@ -1128,9 +1105,11 @@ def batch_update_events():
             action_names = {
                 'whitelist': 'whitelisted',
                 'follow_up': 'marked for follow-up',
-                'clear': 'cleared and moved to closed'
+                'clear': 'cleared and moved to closed',
+                'close': 'closed',
+                'reopen': 'reopened'
             }
-            flash(f"Successfully {action_names[action]} {success_count} event{'s' if success_count > 1 else ''}", "success")
+            flash(f"Successfully {action_names.get(action, action)} {success_count} event{'s' if success_count > 1 else ''}", "success")
         elif success_count > 0:
             flash(f"Partially successful: {success_count}/{total_events} events updated", "warning")
         else:
@@ -1140,11 +1119,7 @@ def batch_update_events():
         logger.error(f"Batch update failed: {e}")
         flash(f"Batch update failed: {str(e)}", "error")
 
-    # Handle different redirect destinations
-    if redirect_to == "index":
-        return redirect(url_for("index"))
-    else:
-        return redirect(url_for("events"))
+    return redirect(url_for("events"))
 
 @app.route("/domain_labels", methods=["GET", "POST"])
 def domain_labels():
