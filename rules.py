@@ -330,7 +330,7 @@ def check_exclusion_keywords(event):
     
     try:
         from models import get_event_detail
-        event_detail = get_event_detail(event['id'])
+        event_detail = get_event_detail(event_id)
         if event_detail and 'attachments' in event_detail:
             attachments = event_detail['attachments'] or []
             attachments_text = ' '.join(attachments).lower()
@@ -484,10 +484,14 @@ def check_keyword_matches(event):
         logger.debug("No keywords configured")
         return []
 
-    logger.debug(f"Checking {len(keywords)} keywords against event {event.get('id', 'unknown')}")
+    # Handle both dict and sqlite3.Row objects
+    event_id = event['id'] if hasattr(event, '__getitem__') else getattr(event, 'id', 'unknown')
+    event_subject = event['subject'] if hasattr(event, '__getitem__') else getattr(event, 'subject', '')
+    
+    logger.debug(f"Checking {len(keywords)} keywords against event {event_id}")
 
     # Check subject for keyword matches
-    subject = (event.get('subject') or '').lower()
+    subject = (event_subject or '').lower()
     logger.debug(f"Event subject: '{subject}'")
 
     # Get attachments for checking - try to get from event detail
@@ -496,7 +500,7 @@ def check_keyword_matches(event):
 
     try:
         from models import get_event_detail
-        event_detail = get_event_detail(event['id'])
+        event_detail = get_event_detail(event_id)
         if event_detail and 'attachments' in event_detail:
             attachments = event_detail['attachments'] or []
             attachments_text = ' '.join(attachments).lower()
