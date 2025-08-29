@@ -330,10 +330,10 @@ def check_exclusion_keywords(event):
     
     try:
         from models import get_event_detail
-        event_detail = get_event_detail(event_id)
+        event_detail = get_event_detail(event['id'])
         if event_detail and 'attachments' in event_detail:
             attachments = event_detail['attachments'] or []
-            attachments_text = ' '.join(attachments).lower()
+            attachments_text = ' '.join([att['filename'] for att in attachments]).lower()
     except Exception:
         # If we can't get attachments, just continue with subject checking
         pass

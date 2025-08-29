@@ -98,6 +98,18 @@
     </div>
 
     <div class="col-md-3 col-lg-2 mb-3">
+        <a href="{{ url_for('events', filter='excluded') }}" class="text-decoration-none">
+            <div class="card h-100 border-dark dashboard-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-ban fa-2x text-dark mb-2"></i>
+                    <h4 class="card-title text-dark">{{ stats.excluded_count }}</h4>
+                    <p class="card-text text-muted small">Excluded</p>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-3 col-lg-2 mb-3">
         <a href="{{ url_for('events', filter='follow_up') }}" class="text-decoration-none">
             <div class="card h-100 border-warning dashboard-card">
                 <div class="card-body text-center">

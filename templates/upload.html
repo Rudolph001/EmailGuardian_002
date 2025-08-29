@@ -152,26 +152,45 @@ document.addEventListener('DOMContentLoaded', function() {
         const progressText = document.getElementById('progressText');
         const progressStatus = document.getElementById('progressStatus');
         
-        if (!fileInput.files[0]) {
+        console.log('Elements found:', {
+            form: !!form,
+            fileInput: !!fileInput,
+            uploadBtn: !!uploadBtn,
+            progressContainer: !!progressContainer,
+            progressBar: !!progressBar,
+            progressText: !!progressText,
+            progressStatus: !!progressStatus
+        });
+        
+        if (!fileInput || !fileInput.files[0]) {
             alert('Please select a file');
             return;
         }
         
         console.log('Starting upload with progress bar');
+        console.log('File selected:', fileInput.files[0].name, fileInput.files[0].size + ' bytes');
     
     // Show progress bar and disable button immediately
+    console.log('Showing progress bar...');
     progressContainer.style.display = 'block';
     uploadBtn.disabled = true;
     uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
     
-    // Set initial progress to 1% to make it visible
-    progressBar.style.width = '1%';
+    // Set initial progress to 5% to make it visible immediately  
+    progressBar.style.width = '5%';
     progressText.textContent = '0%';
     progressStatus.textContent = 'Starting upload...';
     
-    // Create FormData and XMLHttpRequest for progress tracking
-    const formData = new FormData(form);
-    const xhr = new XMLHttpRequest();
+    console.log('Progress container visible:', progressContainer.style.display);
+    console.log('Progress bar width:', progressBar.style.width);
+    
+    // Add a small delay to ensure visibility
+    setTimeout(function() {
+        console.log('Starting actual upload...');
+        
+        // Create FormData and XMLHttpRequest for progress tracking
+        const formData = new FormData(form);
+        const xhr = new XMLHttpRequest();
     
     // Track upload progress
     xhr.upload.addEventListener('progress', function(e) {
@@ -221,9 +240,11 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload and Process';
     });
     
-    // Send the request
-    xhr.open('POST', form.action);
-    xhr.send(formData);
+        // Send the request
+        xhr.open('POST', form.action);
+        xhr.send(formData);
+        
+    }, 100); // 100ms delay to ensure progress bar is visible
     });
 });
 </script>
