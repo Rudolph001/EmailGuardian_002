@@ -525,28 +525,52 @@ def get_high_risk_events(limit=100):
     return high_risk_not_rule_triggered
 
 def get_rule_triggered_events(limit=100):
-    """Get events that have actually triggered configured rules, keyword matches, or are not whitelisted"""
+    """Get events that have actually triggered configured rules or keyword matches"""
     from rules import get_rules, apply_rules_to_event, check_keyword_matches
 
-    # Get recent events to check against rules (excluding whitelisted, closed, and follow-up)
+    # First, get events that already have trigger_reason set in the database
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                   status, is_whitelisted, follow_up
+                   status, is_whitelisted, follow_up, trigger_reason
             FROM events
             WHERE is_whitelisted = 0 
             AND status != 'closed'
             AND follow_up = 0
+            AND trigger_reason IS NOT NULL
+            AND trigger_reason != ''
             ORDER BY datetime(_time) DESC
             LIMIT ?
-        """, (limit * 2,))  # Get more events to filter through
+        """, (limit,))
+        
+        triggered_events_with_reason = cursor.fetchall()
+        
+        # If we have enough events with trigger_reason, return them
+        if len(triggered_events_with_reason) >= limit:
+            return [dict(event) for event in triggered_events_with_reason]
+        
+        # Otherwise, also check recent events that might need keyword/rule checking
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up, trigger_reason
+            FROM events
+            WHERE is_whitelisted = 0 
+            AND status != 'closed'
+            AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '')
+            ORDER BY datetime(_time) DESC
+            LIMIT ?
+        """, (limit * 2,))
         all_events = cursor.fetchall()
 
-    triggered_events = []
+    triggered_events = [dict(event) for event in triggered_events_with_reason]
 
-    # Check each event against rules and keywords
+    # Check additional events against rules and keywords
     for event in all_events:
+        if len(triggered_events) >= limit:
+            break
+            
         try:
             # Convert to dict so we can add trigger_reason
             event_dict = dict(event)

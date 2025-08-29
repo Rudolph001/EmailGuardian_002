@@ -832,6 +832,14 @@ def apply_rules_to_event(event_id):
         except Exception as e:
             logger.warning(f"Failed to update trigger_reason for event {event_id}: {e}")
 
+        # Return keyword-based action
+        actions.append({
+            'type': 'keyword',
+            'action': 'flag',
+            'rule_name': 'Keyword Detection',
+            'reason': trigger_reason
+        })
+
     # Apply rules
     rules = get_rules(enabled_only=True)
 
