@@ -21,7 +21,7 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
                     <div class="mb-3">
                         <label for="csvfile" class="form-label">Select CSV File</label>
                         <input type="file" class="form-control" id="csvfile" name="csvfile" 
@@ -31,8 +31,22 @@
                         </div>
                     </div>
                     
+                    <!-- Progress Bar -->
+                    <div class="mb-3" id="progressContainer" style="display: none;">
+                        <label class="form-label">Upload Progress</label>
+                        <div class="progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%" id="progressBar">
+                                <span id="progressText">0%</span>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted" id="progressStatus">Preparing upload...</small>
+                        </div>
+                    </div>
+                    
                     <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
+                        <button type="submit" class="btn btn-primary" id="uploadBtn">
                             <i class="fas fa-upload me-2"></i>Upload and Process
                         </button>
                     </div>
@@ -87,6 +101,7 @@
                 <ul class="list-unstyled">
                     <li><i class="fas fa-check text-success me-2"></i>Streaming processing for large files</li>
                     <li><i class="fas fa-check text-success me-2"></i>Automatic ML risk scoring</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Automatic keyword/rule processing</li>
                     <li><i class="fas fa-check text-success me-2"></i>Internal/external email detection</li>
                     <li><i class="fas fa-check text-success me-2"></i>Batch processing (1000 rows at a time)</li>
                     <li><i class="fas fa-check text-success me-2"></i>Error handling with dead letter file</li>
@@ -105,6 +120,7 @@
 
 {% block scripts %}
 <script>
+// File size validation
 document.getElementById('csvfile').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file) {
@@ -114,6 +130,85 @@ document.getElementById('csvfile').addEventListener('change', function(e) {
             e.target.value = '';
         }
     }
+});
+
+// Progress bar upload handler
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const fileInput = document.getElementById('csvfile');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressStatus = document.getElementById('progressStatus');
+    
+    if (!fileInput.files[0]) {
+        alert('Please select a file');
+        return;
+    }
+    
+    // Show progress bar and disable button
+    progressContainer.style.display = 'block';
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+    
+    // Create FormData and XMLHttpRequest for progress tracking
+    const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
+    
+    // Track upload progress
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            progressBar.style.width = percentComplete + '%';
+            progressText.textContent = Math.round(percentComplete) + '%';
+            
+            if (percentComplete < 100) {
+                progressStatus.textContent = `Uploading... ${Math.round(e.loaded / 1024 / 1024)}MB of ${Math.round(e.total / 1024 / 1024)}MB`;
+            } else {
+                progressStatus.textContent = 'Processing data...';
+                progressBar.classList.add('bg-info');
+                progressText.textContent = 'Processing...';
+            }
+        }
+    });
+    
+    // Handle completion
+    xhr.addEventListener('load', function() {
+        if (xhr.status === 200) {
+            progressBar.style.width = '100%';
+            progressBar.classList.remove('bg-info');
+            progressBar.classList.add('bg-success');
+            progressText.textContent = 'Complete!';
+            progressStatus.textContent = 'Upload and processing completed successfully!';
+            
+            // Redirect after a brief delay
+            setTimeout(function() {
+                window.location.href = '/events';
+            }, 1500);
+        } else {
+            progressBar.classList.add('bg-danger');
+            progressText.textContent = 'Error!';
+            progressStatus.textContent = 'Upload failed. Please try again.';
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload and Process';
+        }
+    });
+    
+    // Handle errors
+    xhr.addEventListener('error', function() {
+        progressBar.classList.add('bg-danger');
+        progressText.textContent = 'Error!';
+        progressStatus.textContent = 'Upload failed. Please check your connection and try again.';
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<i class="fas fa-upload me-2"></i>Upload and Process';
+    });
+    
+    // Send the request
+    xhr.open('POST', form.action);
+    xhr.send(formData);
 });
 </script>
 {% endblock %}

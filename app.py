@@ -94,6 +94,17 @@ def upload():
             except Exception as e:
                 logger.warning(f"Auto-rescoring failed: {e}")
                 flash("Import successful, but risk scoring failed", "warning")
+            
+            # Auto-process rules and keywords after import
+            try:
+                from rules import process_all_events_for_rules
+                processed_count, triggered_count = process_all_events_for_rules()
+                if triggered_count > 0:
+                    flash(f"Processed {processed_count} events - {triggered_count} triggered by keywords/rules", "info")
+                else:
+                    logger.info(f"Processed {processed_count} events - no keyword/rule matches found")
+            except Exception as e:
+                logger.warning(f"Auto-processing rules failed: {e}")
 
             return redirect(url_for("events"))
 
