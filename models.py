@@ -1070,3 +1070,35 @@ def get_rule_triggered_events_count():
             AND trigger_reason IS NOT NULL AND trigger_reason != ''
         """)
         return cursor.fetchone()[0]
+
+def get_triggered_keywords():
+    """Get list of all keywords that have triggered in events"""
+    import re
+    
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # Get all unique trigger_reason values that start with "Keywords:"
+        cursor.execute("""
+            SELECT DISTINCT trigger_reason 
+            FROM events 
+            WHERE trigger_reason LIKE 'Keywords:%' 
+            ORDER BY trigger_reason
+        """)
+        
+        triggered_keywords = set()
+        
+        for row in cursor.fetchall():
+            trigger_reason = row[0]
+            if trigger_reason and trigger_reason.startswith('Keywords: '):
+                # Extract keywords from "Keywords: keyword1, keyword2, + 2 more" format
+                keywords_part = trigger_reason[10:]  # Remove "Keywords: " prefix
+                
+                # Split by comma and clean up each keyword
+                parts = keywords_part.split(', ')
+                for part in parts:
+                    part = part.strip()
+                    # Skip "X more" entries
+                    if not (part.startswith('+') and part.endswith('more')):
+                        triggered_keywords.add(part)
+        
+        return sorted(list(triggered_keywords))

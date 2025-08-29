@@ -132,6 +132,7 @@ def events():
         sender_filter = request.args.get("sender_filter", "").strip()
         subject_filter = request.args.get("subject_filter", "").strip()
         trigger_reason_filter = request.args.get("trigger_reason_filter", "").strip()
+        keyword_filter = request.args.get("keyword_filter", "").strip()
         recipients_filter = request.args.get("recipients_filter", "").strip()
         closure_reason_filter = request.args.get("closure_reason_filter", "").strip()
         risk_min = request.args.get("risk_min", "").strip()
@@ -202,6 +203,10 @@ def events():
         if trigger_reason_filter:
             where_conditions.append("trigger_reason LIKE ?")
             where_params.append(f"%{trigger_reason_filter}%")
+
+        if keyword_filter:
+            where_conditions.append("trigger_reason LIKE ?")
+            where_params.append(f"%Keywords: %{keyword_filter}%")
 
         if recipients_filter:
             needs_recipients_join = True
@@ -307,6 +312,10 @@ def events():
 
         # Get closure reasons for the close modal
         closure_reasons = get_closure_reasons()
+        
+        # Get triggered keywords for the dropdown filter
+        from models import get_triggered_keywords
+        triggered_keywords = get_triggered_keywords()
 
         return render_template("events.html", 
                              events=events_list,
@@ -323,6 +332,8 @@ def events():
                              sender_filter=sender_filter,
                              subject_filter=subject_filter,
                              trigger_reason_filter=trigger_reason_filter,
+                             keyword_filter=keyword_filter,
+                             triggered_keywords=triggered_keywords,
                              recipients_filter=recipients_filter,
                              closure_reason_filter=closure_reason_filter,
                              risk_min=risk_min,
