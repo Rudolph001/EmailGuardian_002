@@ -148,8 +148,14 @@
                             <div class="mt-1">
                                 {% if action.type == 'rule' %}
                                     <strong>{{ action.rule_name }}</strong>
-                                {% else %}
+                                {% elif action.type == 'whitelist' %}
                                     <strong>Whitelist</strong>
+                                {% elif action.type == 'keyword' %}
+                                    <strong>Keywords</strong>
+                                {% elif action.type == 'exclusion' %}
+                                    <strong>Exclusion Keywords</strong>
+                                {% else %}
+                                    <strong>{{ action.rule_name or 'Unknown Action' }}</strong>
                                 {% endif %}
                             </div>
                             <small class="text-muted">{{ action.reason }}</small>
