@@ -103,7 +103,66 @@
 
     <!-- Main content -->
     <main class="container my-4">
-        {% block content %}{% endblock %}
+        {% block content %}
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card text-white bg-primary">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-envelope-open-text me-2"></i>Total Events</h5>
+                        <p class="card-text display-5">{{ total_events }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white bg-success">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-check-circle me-2"></i>Scored Events</h5>
+                        <p class="card-text display-5">{{ scored_events }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white bg-warning">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-ban me-2"></i>Excluded Events</h5>
+                        <p class="card-text display-5">{{ excluded_events }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card bg-body-tertiary">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar me-2"></i>Event Score Distribution
+                    </div>
+                    <div class="card-body">
+                        <canvas id="scoreDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-body-tertiary">
+                    <div class="card-header">
+                        <i class="fas fa-list-alt me-2"></i>Recent Events
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            {% for event in recent_events %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <i class="fas fa-{{ event.icon }} me-2"></i> {{ event.description | truncate(30) }}
+                                </span>
+                                <small class="text-muted">{{ event.timestamp }}</small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
     </main>
 
     <!-- Footer -->
@@ -118,6 +177,51 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    {% block extra_js %}{% endblock %}
+    {% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Score Distribution Chart
+        const scoreCtx = document.getElementById('scoreDistributionChart').getContext('2d');
+        const scoreDistributionChart = new Chart(scoreCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ score_distribution.labels | tojson }},
+                datasets: [{
+                    label: 'Count',
+                    data: {{ score_distribution.data | tojson }},
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.6)',
+                        'rgba(255, 99, 132, 0.6)',
+                        'rgba(75, 192, 192, 0.6)',
+                        'rgba(255, 206, 86, 0.6)',
+                        'rgba(153, 102, 255, 0.6)',
+                        'rgba(255, 159, 64, 0.6)'
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 206, 86, 1)',
+                        'rgba(153, 102, 255, 1)',
+                        'rgba(255, 159, 64, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Event Score Distribution'
+                    }
+                }
+            }
+        });
+    </script>
+    {% endblock %}
 </body>
 </html>

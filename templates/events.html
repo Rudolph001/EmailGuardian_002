@@ -72,8 +72,14 @@
                     <i class="fas fa-archive me-1"></i>Closed
                 </a>
             </li>
-        </ul>
-    </div>
+            <li class="nav-item">
+                    <a href="{{ url_for('events', filter='excluded') }}" 
+                       class="nav-link {% if filter_type == 'excluded' %}active{% endif %}">
+                        <i class="fas fa-ban me-1"></i>Excluded
+                    </a>
+                </li>
+            </ul>
+        </div>
 </div>
 
 <!-- Search and Quick Filters -->
@@ -83,7 +89,7 @@
             <div class="card-body">
                 <form method="GET" id="filterForm">
                     <input type="hidden" name="filter" value="{{ filter_type }}">
-                    
+
                     <!-- Primary Search Row -->
                     <div class="row g-2 mb-3">
                         <div class="col-md-4">
@@ -211,12 +217,12 @@
                             </div>
                         </div>
                 </form>
-                
+
                 <script>
                 document.addEventListener('DOMContentLoaded', function() {
                     const toggleAdvanced = document.getElementById('toggleAdvanced');
                     const advancedFilters = document.getElementById('advancedFilters');
-                    
+
                     toggleAdvanced.addEventListener('click', function() {
                         if (advancedFilters.classList.contains('show')) {
                             advancedFilters.classList.remove('show');

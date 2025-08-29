@@ -181,6 +181,8 @@ def events():
             where_conditions.append("CAST(ml_score AS REAL) > 0.3 AND CAST(ml_score AS REAL) <= 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '')")
         elif filter_type == "rule_triggered":
             where_conditions.append("status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND trigger_reason IS NOT NULL AND trigger_reason != ''")
+        elif filter_type == "excluded":
+            where_conditions.append("trigger_reason LIKE 'Excluded:%'")
 
         # Search query
         if query:
