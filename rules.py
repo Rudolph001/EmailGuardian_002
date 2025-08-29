@@ -410,7 +410,8 @@ def check_exclusion_keywords(event):
         event_detail = get_event_detail(event['id'])
         if event_detail and 'attachments' in event_detail:
             attachments = event_detail['attachments'] or []
-            attachments_text = ' '.join([att['filename'] for att in attachments]).lower()
+            # attachments is already a list of strings (filenames), not dicts
+            attachments_text = ' '.join(attachments).lower()
     except Exception:
         # If we can't get attachments, just continue with subject checking
         pass
@@ -694,6 +695,10 @@ def _get_field_value(field, event_data):
     attachments = event_data['attachments']
     policies = event_data['policies']
 
+    # Ensure event is a dict for consistent access
+    if hasattr(event, '_fields'):  # sqlite3.Row detection
+        event = dict(event)
+
     if field == 'sender':
         return event['sender']
     elif field == 'sender_domain':
@@ -701,15 +706,27 @@ def _get_field_value(field, event_data):
     elif field == 'subject':
         return event['subject'] or ''
     elif field == 'keywords':
-        # Check if any keywords match this event
-        keyword_matches = check_keyword_matches(event)
-        if keyword_matches:
-            # Return the matched keywords as a comma-separated string
-            matched_terms = [match['term'] for match in keyword_matches]
-            logger.debug(f"Keywords field returning: {', '.join(matched_terms)}")
-            return ', '.join(matched_terms)
-        logger.debug("Keywords field returning empty string")
-        return ''
+        # For keyword field, search in subject and attachments
+        content_parts = []
+        
+        # Add subject content
+        if event['subject']:
+            content_parts.append(event['subject'])
+        
+        # Add attachment filenames
+        if attachments:
+            for attachment in attachments:
+                if isinstance(attachment, dict) and 'filename' in attachment:
+                    content_parts.append(attachment['filename'])
+                elif hasattr(attachment, 'filename'):
+                    content_parts.append(attachment.filename)
+                else:
+                    content_parts.append(str(attachment))
+        
+        # Return combined content for searching
+        combined_content = ' '.join(content_parts)
+        logger.debug(f"Keywords field returning content: {combined_content}")
+        return combined_content
     elif field == 'recipients':
         return ', '.join(recipients)
     elif field == 'recipient_domain':
@@ -853,20 +870,22 @@ def check_exclusion_rules(event, recipients, attachments, policies):
     
     # Check each exclusion rule
     for rule in exclusion_rules:
-        if not rule['conditions_json']:
+        # Convert sqlite3.Row to dict for proper access
+        rule_dict = dict(rule)
+        if not rule_dict['conditions_json']:
             continue
             
         try:
-            conditions = json.loads(rule['conditions_json'])
+            conditions = json.loads(rule_dict['conditions_json'])
             if _evaluate_conditions(conditions, event_data):
-                logger.debug(f"Exclusion rule '{rule['name']}' matched for event {event['id']}")
+                logger.debug(f"Exclusion rule '{rule_dict['name']}' matched for event {event['id']}")
                 return [{
-                    'rule_id': rule['id'],
-                    'rule_name': rule['name'],
-                    'priority': rule['priority']
+                    'rule_id': rule_dict['id'],
+                    'rule_name': rule_dict['name'],
+                    'priority': rule_dict['priority']
                 }]
         except Exception as e:
-            logger.warning(f"Error evaluating exclusion rule {rule['id']}: {e}")
+            logger.warning(f"Error evaluating exclusion rule {rule_dict['id']}: {e}")
             continue
     
     return []
@@ -886,6 +905,10 @@ def apply_rules_to_event(event_id):
     actions = []
     trigger_reason = None
 
+    # Convert sqlite3.Row objects to dicts for proper access
+    if hasattr(event, '_fields'):  # sqlite3.Row detection
+        event = dict(event)
+    
     # Check exclusion rules first - if matched, exclude the event
     exclusion_rule_matches = check_exclusion_rules(event, recipients, attachments, policies)
     if exclusion_rule_matches:
