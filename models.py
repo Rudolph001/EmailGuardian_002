@@ -511,10 +511,7 @@ def get_high_risk_events(limit=100):
     # Check each high-risk event to see if it would be caught by rules or keywords
     for event in all_high_risk:
         try:
-            # Check if event has keyword matches - if so, it should be in rule triggered instead
-            keyword_matches = check_keyword_matches(event)
-            if keyword_matches:
-                continue  # Skip this event - it should appear in rule triggered
+            # Keywords are now only processed through explicit rules
 
             # Check regular rules
             actions = apply_rules_to_event(event['id'])
@@ -586,19 +583,7 @@ def get_rule_triggered_events(limit=100):
             # Convert to dict so we can add trigger_reason
             event_dict = dict(event)
 
-            # Check if event has keyword matches
-            keyword_matches = check_keyword_matches(event)
-            if keyword_matches:
-                # Build keyword reason string
-                keyword_terms = [match['term'] for match in keyword_matches[:3]]  # Show first 3
-                if len(keyword_matches) > 3:
-                    keyword_terms.append(f"+ {len(keyword_matches) - 3} more")
-                event_dict['trigger_reason'] = f"Keywords: {', '.join(keyword_terms)}"
-                triggered_events.append(event_dict)
-                # Stop when we have enough results
-                if len(triggered_events) >= limit:
-                    break
-                continue
+            # Skip automatic keyword checking - keywords only work through rules now
 
             # Check regular rules
             actions = apply_rules_to_event(event['id'])
@@ -656,10 +641,7 @@ def get_remaining_events(limit=100):
                 else:
                     continue  # Skip - would be in High Risk
 
-            # Skip if this would be in Rule Triggered
-            keyword_matches = check_keyword_matches(event)
-            if keyword_matches:
-                continue  # Skip - would be in Rule Triggered
+            # Keywords are now only processed through explicit rules
 
             actions = apply_rules_to_event(event['id'])
             rule_actions = [action for action in actions if action.get('type') == 'rule']

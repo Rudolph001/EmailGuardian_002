@@ -981,31 +981,6 @@ def apply_rules_to_event(event_id):
         })
         return actions
 
-    # Check keyword matches first
-    keyword_matches = check_keyword_matches(event)
-    if keyword_matches:
-        keyword_terms = [match['term'] for match in keyword_matches[:3]]  # Show first 3
-        if len(keyword_matches) > 3:
-            keyword_terms.append(f"+ {len(keyword_matches) - 3} more")
-        trigger_reason = f"Keywords: {', '.join(keyword_terms)}"
-
-        # Update the event with trigger reason
-        try:
-            with get_db() as conn:
-                cursor = conn.cursor()
-                cursor.execute("UPDATE events SET trigger_reason = ? WHERE id = ?", (trigger_reason, event_id))
-                conn.commit()
-        except Exception as e:
-            logger.warning(f"Failed to update trigger_reason for event {event_id}: {e}")
-
-        # Return keyword-based action
-        actions.append({
-            'type': 'keyword',
-            'action': 'flag',
-            'rule_name': 'Keyword Detection',
-            'reason': trigger_reason
-        })
-
     # Apply rules
     rules = get_rules(enabled_only=True)
 
@@ -1359,15 +1334,7 @@ def process_all_events_for_rules_with_progress():
                 processed_count += 1
                 continue
 
-            # Fast keyword check using preloaded keywords
-            if _fast_keyword_check(event, keywords):
-                keyword_matches = check_keyword_matches(event)
-                if keyword_matches:
-                    keyword_terms = [match['term'] for match in keyword_matches[:3]]
-                    if len(keyword_matches) > 3:
-                        keyword_terms.append(f"+ {len(keyword_matches) - 3} more")
-                    trigger_reason = f"Keywords: {', '.join(keyword_terms)}"
-                    rule_triggered = True
+            # Skip automatic keyword processing - keywords only work through rules now
 
             # Fast rule evaluation using preloaded rules
             if not rule_triggered:
