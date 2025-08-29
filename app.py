@@ -12,6 +12,7 @@ from ingest import ingest_csv
 from ml import rescore_all_events
 from rules import (
     get_rules, add_rule, update_rule, delete_rule,
+    get_exclusion_rules, add_exclusion_rule, update_exclusion_rule, delete_exclusion_rule,
     get_whitelist_domains, get_whitelist_emails,
     add_whitelist_domain, add_whitelist_email,
     delete_whitelist_domain, delete_whitelist_email,
@@ -511,9 +512,112 @@ def rules():
 
         return redirect(url_for('rules'))
 
-    # Get all rules
+    # Get all rules and exclusion rules
     rules = get_rules(enabled_only=False)
-    return render_template('rules.html', rules=rules)
+    exclusion_rules = get_exclusion_rules(enabled_only=False)
+    return render_template('rules.html', rules=rules, exclusion_rules=exclusion_rules)
+
+@app.route("/exclusion_rules", methods=["POST"])
+def exclusion_rules():
+    """Handle exclusion rule operations"""
+    action = request.form.get('action')
+
+    if action in ['add', 'edit']:
+        # Create or edit exclusion rule
+        name = request.form.get('name', '').strip()
+        priority = int(request.form.get('priority', 100))
+        enabled = bool(request.form.get('enabled'))
+        rule_id = request.form.get('rule_id') if action == 'edit' else None
+
+        # Parse conditions
+        conditions = []
+        condition_keys = [k for k in request.form.keys() if k.startswith('conditions[') and k.endswith('][field]')]
+
+        for key in condition_keys:
+            # Extract condition index
+            import re
+            match = re.search(r'conditions\[(\d+)\]', key)
+            if match:
+                idx = match.group(1)
+                field = request.form.get(f'conditions[{idx}][field]', '').strip()
+                operator = request.form.get(f'conditions[{idx}][operator]', '').strip()
+                value = request.form.get(f'conditions[{idx}][value]', '').strip()
+                logic = request.form.get(f'conditions[{idx}][logic]', 'AND').strip()
+                negate = bool(request.form.get(f'conditions[{idx}][negate]'))
+
+                if field and operator:  # Only add if field and operator are selected
+                    conditions.append({
+                        'field': field,
+                        'operator': operator,
+                        'value': value,
+                        'logic': logic,
+                        'negate': negate
+                    })
+
+        if name:
+            try:
+                if action == 'edit' and rule_id:
+                    update_exclusion_rule(rule_id, name=name, conditions=conditions, priority=priority, enabled=enabled)
+                    flash(f'Exclusion rule "{name}" updated successfully!', 'success')
+                else:
+                    add_exclusion_rule(name, conditions, priority, enabled)
+                    flash(f'Exclusion rule "{name}" created successfully!', 'success')
+            except Exception as e:
+                flash(f'Error saving exclusion rule: {str(e)}', 'error')
+        else:
+            flash('Exclusion rule name is required', 'error')
+
+    elif action == 'delete':
+        rule_id = request.form.get('rule_id')
+        if rule_id:
+            try:
+                delete_exclusion_rule(rule_id)
+                flash('Exclusion rule deleted successfully!', 'success')
+            except Exception as e:
+                flash(f'Error deleting exclusion rule: {str(e)}', 'error')
+        else:
+            flash('Rule ID is required', 'error')
+
+    elif action == 'toggle':
+        rule_id = request.form.get('rule_id')
+        enabled = bool(request.form.get('enabled'))
+        if rule_id:
+            try:
+                update_exclusion_rule(rule_id, enabled=enabled)
+                status = 'enabled' if enabled else 'disabled'
+                flash(f'Exclusion rule {status} successfully!', 'success')
+            except Exception as e:
+                flash(f'Error updating exclusion rule: {str(e)}', 'error')
+        else:
+            flash('Rule ID is required', 'error')
+
+    elif action == 'test':
+        # Test exclusion rule against existing events
+        try:
+            # Parse rule conditions from form data
+            conditions_json = request.form.get('conditions')
+            if conditions_json:
+                conditions = json.loads(conditions_json)
+            else:
+                conditions = []
+
+            # Test the rule against events
+            matches, total_events = test_rule_against_events(conditions)
+
+            return jsonify({
+                'success': True,
+                'matches': matches,
+                'total_events': total_events
+            })
+
+        except Exception as e:
+            logger.error(f"Error testing exclusion rule: {e}")
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            })
+
+    return redirect(url_for('rules'))
 
 @app.route("/whitelist", methods=["GET", "POST"])
 def whitelist():

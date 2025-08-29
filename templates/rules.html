@@ -11,6 +11,29 @@
     </div>
 </div>
 
+<!-- Navigation Tabs -->
+<ul class="nav nav-tabs mb-4" id="rulesTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="regular-rules-tab" data-bs-toggle="tab" 
+                data-bs-target="#regular-rules" type="button" role="tab" 
+                aria-controls="regular-rules" aria-selected="true">
+            <i class="fas fa-gavel me-2"></i>Regular Rules
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="exclusion-rules-tab" data-bs-toggle="tab" 
+                data-bs-target="#exclusion-rules" type="button" role="tab" 
+                aria-controls="exclusion-rules" aria-selected="false">
+            <i class="fas fa-ban me-2"></i>Exclusion Rules
+        </button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="rulesTabContent">
+    <!-- Regular Rules Tab -->
+    <div class="tab-pane fade show active" id="regular-rules" role="tabpanel" aria-labelledby="regular-rules-tab">
+
 <!-- Rule Builder -->
 <div class="row mb-4">
     <div class="col-12">
@@ -1394,4 +1417,356 @@ function hideTestResults() {
 }
 
 </script>
+
+    </div> <!-- End Regular Rules Tab -->
+
+    <!-- Exclusion Rules Tab -->
+    <div class="tab-pane fade" id="exclusion-rules" role="tabpanel" aria-labelledby="exclusion-rules-tab">
+
+<!-- Exclusion Rule Builder -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-ban me-2"></i>Build New Exclusion Rule
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('exclusion_rules') }}" id="exclusionRuleForm">
+                    <input type="hidden" name="action" value="add">
+
+                    <!-- Basic Rule Info -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="exclusion_name" class="form-label">Exclusion Rule Name *</label>
+                                <input type="text" class="form-control" id="exclusion_name" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="exclusion_priority" class="form-label">Priority</label>
+                                <input type="number" class="form-control" id="exclusion_priority" name="priority" 
+                                       value="100" min="1" max="1000">
+                                <div class="form-text">Lower numbers = higher priority</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rule Conditions -->
+                    <div class="mb-4">
+                        <h6>Exclusion Conditions</h6>
+                        <div id="exclusion-conditions-container">
+                            <div class="condition-group border rounded p-3 mb-3" data-condition="0">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3">
+                                        <select class="form-select condition-field" name="conditions[0][field]">
+                                            <option value="">Select field...</option>
+                                            <option value="sender">Sender Email</option>
+                                            <option value="sender_domain">Sender Domain</option>
+                                            <option value="sender_domain_classification">Sender Domain Classification</option>
+                                            <option value="subject">Subject</option>
+                                            <option value="keywords">Keywords (Subject & Attachments)</option>
+                                            <option value="recipients">Recipients</option>
+                                            <option value="recipient_domain">Recipient Domain</option>
+                                            <option value="recipient_domain_classifications">Recipient Domain Classifications</option>
+                                            <option value="domain_risk_score">Domain Risk Score</option>
+                                            <option value="has_suspicious_domains">Has Suspicious Domains</option>
+                                            <option value="has_external_domains">Has External Domains</option>
+                                            <option value="bunit">Business Unit</option>
+                                            <option value="department">Department</option>
+                                            <option value="leaver">Is Leaver</option>
+                                            <option value="termination_date">Termination Date</option>
+                                            <option value="attachments">Attachments</option>
+                                            <option value="policies">Policy Names</option>
+                                            <option value="ml_score">ML Score</option>
+                                            <option value="is_internal_to_external">Internal to External</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select class="form-select condition-operator" name="conditions[0][operator]">
+                                            <option value="equals">Equals</option>
+                                            <option value="contains">Contains</option>
+                                            <option value="starts_with">Starts With</option>
+                                            <option value="ends_with">Ends With</option>
+                                            <option value="matches">Matches Pattern</option>
+                                            <option value="greater_than">Greater Than</option>
+                                            <option value="less_than">Less Than</option>
+                                            <option value="is_true">Is True</option>
+                                            <option value="is_false">Is False</option>
+                                            <option value="is_empty">Is Empty</option>
+                                            <option value="is_not_empty">Is Not Empty</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control condition-value" 
+                                               name="conditions[0][value]" placeholder="Enter value...">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <select class="form-select condition-logic" name="conditions[0][logic]">
+                                            <option value="AND">AND</option>
+                                            <option value="OR">OR</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-1">
+                                         <div class="form-check">
+                                            <input class="form-check-input condition-negate" type="checkbox" 
+                                                   name="conditions[0][negate]" title="Exclude/NOT condition">
+                                            <label class="form-check-label text-danger" title="Exclude this condition">
+                                                <small>NOT</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-outline-primary btn-sm add-exclusion-condition-btn">
+                            <i class="fas fa-plus me-1"></i>Add Condition
+                        </button>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="exclusion_enabled" name="enabled" checked>
+                                <label class="form-check-label" for="exclusion_enabled">
+                                    Enable this exclusion rule
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Create Exclusion Rule
+                        </button>
+                        <button type="button" class="btn btn-outline-info test-exclusion-rule-btn">
+                            <i class="fas fa-vial me-1"></i>Test Rule
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary clear-exclusion-form-btn">
+                            <i class="fas fa-eraser me-1"></i>Clear Form
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Existing Exclusion Rules -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list me-2"></i>Existing Exclusion Rules
+                    <span class="badge bg-secondary ms-2">{{ exclusion_rules|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if exclusion_rules %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Priority</th>
+                                    <th>Name</th>
+                                    <th>Conditions</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rule in exclusion_rules %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-info">{{ rule.priority }}</span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ rule.name }}</strong>
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ rule.conditions_summary }}</small>
+                                    </td>
+                                    <td>
+                                        {% if rule.enabled %}
+                                            <span class="badge bg-success">Enabled</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Disabled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary edit-exclusion-rule-btn" 
+                                                    data-rule-id="{{ rule.id }}"
+                                                    data-rule-name="{{ rule.name }}"
+                                                    data-rule-priority="{{ rule.priority }}"
+                                                    data-rule-enabled="{{ rule.enabled }}"
+                                                    data-rule-conditions="{{ rule.conditions_json }}">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            
+                                            <form method="POST" action="{{ url_for('exclusion_rules') }}" class="d-inline">
+                                                <input type="hidden" name="action" value="toggle">
+                                                <input type="hidden" name="rule_id" value="{{ rule.id }}">
+                                                <input type="hidden" name="enabled" value="{{ not rule.enabled }}">
+                                                <button type="submit" class="btn btn-outline-{{ 'warning' if rule.enabled else 'success' }}">
+                                                    <i class="fas fa-{{ 'pause' if rule.enabled else 'play' }}"></i>
+                                                </button>
+                                            </form>
+                                            
+                                            <form method="POST" action="{{ url_for('exclusion_rules') }}" class="d-inline" 
+                                                  onsubmit="return confirm('Are you sure you want to delete this exclusion rule?')">
+                                                <input type="hidden" name="action" value="delete">
+                                                <input type="hidden" name="rule_id" value="{{ rule.id }}">
+                                                <button type="submit" class="btn btn-outline-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-ban text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-3">No exclusion rules configured</p>
+                        <p class="text-muted">Create your first exclusion rule using the form above.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+    </div> <!-- End Exclusion Rules Tab -->
+</div> <!-- End Tab Content -->
+
+<script>
+// Duplicate the JavaScript functionality for exclusion rules
+document.addEventListener('DOMContentLoaded', function() {
+    // Add exclusion condition functionality
+    const addExclusionConditionBtn = document.querySelector('.add-exclusion-condition-btn');
+    const exclusionConditionsContainer = document.getElementById('exclusion-conditions-container');
+    
+    if (addExclusionConditionBtn && exclusionConditionsContainer) {
+        addExclusionConditionBtn.addEventListener('click', function() {
+            const conditions = exclusionConditionsContainer.querySelectorAll('.condition-group');
+            const newIndex = conditions.length;
+            
+            const newCondition = document.createElement('div');
+            newCondition.className = 'condition-group border rounded p-3 mb-3';
+            newCondition.setAttribute('data-condition', newIndex);
+            
+            newCondition.innerHTML = `
+                <div class="row align-items-center">
+                    <div class="col-md-3">
+                        <select class="form-select condition-field" name="conditions[${newIndex}][field]">
+                            <option value="">Select field...</option>
+                            <option value="sender">Sender Email</option>
+                            <option value="sender_domain">Sender Domain</option>
+                            <option value="sender_domain_classification">Sender Domain Classification</option>
+                            <option value="subject">Subject</option>
+                            <option value="keywords">Keywords (Subject & Attachments)</option>
+                            <option value="recipients">Recipients</option>
+                            <option value="recipient_domain">Recipient Domain</option>
+                            <option value="recipient_domain_classifications">Recipient Domain Classifications</option>
+                            <option value="domain_risk_score">Domain Risk Score</option>
+                            <option value="has_suspicious_domains">Has Suspicious Domains</option>
+                            <option value="has_external_domains">Has External Domains</option>
+                            <option value="bunit">Business Unit</option>
+                            <option value="department">Department</option>
+                            <option value="leaver">Is Leaver</option>
+                            <option value="termination_date">Termination Date</option>
+                            <option value="attachments">Attachments</option>
+                            <option value="policies">Policy Names</option>
+                            <option value="ml_score">ML Score</option>
+                            <option value="is_internal_to_external">Internal to External</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select condition-operator" name="conditions[${newIndex}][operator]">
+                            <option value="equals">Equals</option>
+                            <option value="contains">Contains</option>
+                            <option value="starts_with">Starts With</option>
+                            <option value="ends_with">Ends With</option>
+                            <option value="matches">Matches Pattern</option>
+                            <option value="greater_than">Greater Than</option>
+                            <option value="less_than">Less Than</option>
+                            <option value="is_true">Is True</option>
+                            <option value="is_false">Is False</option>
+                            <option value="is_empty">Is Empty</option>
+                            <option value="is_not_empty">Is Not Empty</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" class="form-control condition-value" 
+                               name="conditions[${newIndex}][value]" placeholder="Enter value...">
+                    </div>
+                    <div class="col-md-2">
+                        <select class="form-select condition-logic" name="conditions[${newIndex}][logic]">
+                            <option value="AND">AND</option>
+                            <option value="OR">OR</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                         <div class="form-check">
+                            <input class="form-check-input condition-negate" type="checkbox" 
+                                   name="conditions[${newIndex}][negate]" title="Exclude/NOT condition">
+                            <label class="form-check-label text-danger" title="Exclude this condition">
+                                <small>NOT</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm remove-condition-btn mt-2">
+                    <i class="fas fa-trash me-1"></i>Remove
+                </button>
+            `;
+            
+            exclusionConditionsContainer.appendChild(newCondition);
+            
+            // Add remove functionality
+            const removeBtn = newCondition.querySelector('.remove-condition-btn');
+            removeBtn.addEventListener('click', function() {
+                newCondition.remove();
+            });
+        });
+    }
+    
+    // Clear exclusion form functionality
+    const clearExclusionFormBtn = document.querySelector('.clear-exclusion-form-btn');
+    if (clearExclusionFormBtn) {
+        clearExclusionFormBtn.addEventListener('click', function() {
+            const form = document.getElementById('exclusionRuleForm');
+            if (form) {
+                form.reset();
+                // Remove extra conditions, keep only the first one
+                const conditions = exclusionConditionsContainer.querySelectorAll('.condition-group');
+                for (let i = 1; i < conditions.length; i++) {
+                    conditions[i].remove();
+                }
+                // Reset the first condition
+                const firstCondition = exclusionConditionsContainer.querySelector('.condition-group');
+                if (firstCondition) {
+                    firstCondition.querySelectorAll('select, input').forEach(input => {
+                        if (input.type === 'checkbox') {
+                            input.checked = false;
+                        } else {
+                            input.value = '';
+                        }
+                    });
+                }
+            }
+        });
+    }
+});
+</script>
+
 {% endblock %}

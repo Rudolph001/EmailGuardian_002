@@ -63,6 +63,15 @@ CREATE TABLE IF NOT EXISTS rules (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS exclusion_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    conditions_json TEXT,
+    priority INTEGER DEFAULT 100,
+    enabled INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS whitelist_domains (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     domain TEXT NOT NULL UNIQUE,
@@ -218,6 +227,8 @@ def init_db():
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_attachments_event_id ON attachments(event_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_policies_event_id ON policies(event_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_exclusion_keywords_enabled ON exclusion_keywords(enabled)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exclusion_rules_enabled ON exclusion_rules(enabled)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_exclusion_rules_priority ON exclusion_rules(priority)")
 
             conn.commit()
 

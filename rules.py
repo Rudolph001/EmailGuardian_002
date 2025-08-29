@@ -160,6 +160,83 @@ def delete_rule(rule_id):
         conn.commit()
         return cursor.rowcount > 0
 
+# ============ EXCLUSION RULES CRUD FUNCTIONS ============
+
+def get_exclusion_rules(enabled_only=True):
+    """Get all exclusion rules with condition summaries"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        if enabled_only:
+            cursor.execute("""
+                SELECT id, name, conditions_json, priority, enabled
+                FROM exclusion_rules 
+                WHERE enabled = 1
+                ORDER BY priority ASC, id ASC
+            """)
+        else:
+            cursor.execute("""
+                SELECT id, name, conditions_json, priority, enabled
+                FROM exclusion_rules 
+                ORDER BY priority ASC, id ASC
+            """)
+
+        exclusion_rules = []
+        for row in cursor.fetchall():
+            rule = dict(row)
+            rule['conditions_summary'] = _generate_condition_summary(rule['conditions_json'])
+            exclusion_rules.append(rule)
+
+        return exclusion_rules
+
+def add_exclusion_rule(name, conditions, priority=100, enabled=True):
+    """Add a new exclusion rule with JSON conditions"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        conditions_json = json.dumps(conditions) if conditions else None
+        cursor.execute("""
+            INSERT INTO exclusion_rules (name, conditions_json, priority, enabled)
+            VALUES (?, ?, ?, ?)
+        """, (name, conditions_json, priority, 1 if enabled else 0))
+        conn.commit()
+        return cursor.lastrowid
+
+def update_exclusion_rule(rule_id, name=None, conditions=None, priority=None, enabled=None):
+    """Update an existing exclusion rule"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        updates = []
+        params = []
+
+        if name is not None:
+            updates.append("name = ?")
+            params.append(name)
+        if conditions is not None:
+            updates.append("conditions_json = ?")
+            params.append(json.dumps(conditions) if conditions else None)
+        if priority is not None:
+            updates.append("priority = ?")
+            params.append(priority)
+        if enabled is not None:
+            updates.append("enabled = ?")
+            params.append(1 if enabled else 0)
+
+        if updates:
+            params.append(rule_id)
+            cursor.execute(f"UPDATE exclusion_rules SET {', '.join(updates)} WHERE id = ?", params)
+            conn.commit()
+            return cursor.rowcount > 0
+
+        return False
+
+def delete_exclusion_rule(rule_id):
+    """Delete an exclusion rule"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM exclusion_rules WHERE id = ?", (rule_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+
 def get_whitelist_domains():
     """Get all whitelisted domains"""
     with get_db() as conn:
@@ -757,6 +834,43 @@ def _evaluate_conditions(conditions, event_data):
     logger.debug(f"Final result for event {event_data['event']['id']}: {final_result}")
     return final_result
 
+def check_exclusion_rules(event, recipients, attachments, policies):
+    """Check if event matches any exclusion rules"""
+    exclusion_rules = get_exclusion_rules(enabled_only=True)
+    
+    if not exclusion_rules:
+        return []
+    
+    logger.debug(f"Checking {len(exclusion_rules)} exclusion rules")
+    
+    # Prepare event data for condition evaluation
+    event_data = {
+        'event': event,
+        'recipients': recipients,
+        'attachments': attachments,
+        'policies': policies
+    }
+    
+    # Check each exclusion rule
+    for rule in exclusion_rules:
+        if not rule['conditions_json']:
+            continue
+            
+        try:
+            conditions = json.loads(rule['conditions_json'])
+            if _evaluate_conditions(conditions, event_data):
+                logger.debug(f"Exclusion rule '{rule['name']}' matched for event {event['id']}")
+                return [{
+                    'rule_id': rule['id'],
+                    'rule_name': rule['name'],
+                    'priority': rule['priority']
+                }]
+        except Exception as e:
+            logger.warning(f"Error evaluating exclusion rule {rule['id']}: {e}")
+            continue
+    
+    return []
+
 def apply_rules_to_event(event_id):
     """Apply rules to a specific event and return matching actions"""
     from models import get_event_detail, update_event_status
@@ -767,10 +881,35 @@ def apply_rules_to_event(event_id):
 
     event = event_data['event']
     recipients = event_data['recipients']
+    attachments = event_data['attachments']
+    policies = event_data['policies']
     actions = []
     trigger_reason = None
 
-    # Check exclusion keywords first - if matched, exclude the event
+    # Check exclusion rules first - if matched, exclude the event
+    exclusion_rule_matches = check_exclusion_rules(event, recipients, attachments, policies)
+    if exclusion_rule_matches:
+        exclusion_rule = exclusion_rule_matches[0]  # Get first matching rule
+        actions.append({
+            'type': 'exclusion_rule',
+            'action': 'exclude',
+            'rule_name': exclusion_rule['rule_name'],
+            'reason': f"Excluded by rule: {exclusion_rule['rule_name']}"
+        })
+        
+        # Mark event as excluded
+        try:
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE events SET trigger_reason = ? WHERE id = ?", 
+                             (f"Excluded by rule: {exclusion_rule['rule_name']}", event_id))
+                conn.commit()
+        except Exception as e:
+            logger.warning(f"Failed to update exclusion rule reason for event {event_id}: {e}")
+        
+        return actions  # Return early - excluded events don't get processed further
+
+    # Check exclusion keywords second - if matched, exclude the event
     exclusion_matches = check_exclusion_keywords(event)
     if exclusion_matches:
         exclusion_terms = [match['term'] for match in exclusion_matches[:3]]  # Show first 3
