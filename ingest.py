@@ -50,9 +50,73 @@ def check_whitelist_during_import(cursor, event_data, recipients):
     # If no recipients, only sender matters
     return sender_whitelisted
 
+def check_exclusion_keywords_during_import(cursor, event_data, attachments):
+    """Check for exclusion keyword matches during import"""
+    import re
+    
+    # Get all enabled exclusion keywords
+    cursor.execute("""
+        SELECT term, is_regex, check_subject, check_attachments 
+        FROM exclusion_keywords 
+        WHERE enabled = 1
+    """)
+    exclusion_keywords = cursor.fetchall()
+    
+    if not exclusion_keywords:
+        return []
+    
+    matches = []
+    subject = (event_data.get('subject') or '').lower()
+    attachments_text = ' '.join(attachments).lower() if attachments else ''
+    
+    for keyword_row in exclusion_keywords:
+        term = keyword_row[0]
+        is_regex = keyword_row[1]
+        check_subject = keyword_row[2]
+        check_attachments = keyword_row[3]
+        
+        try:
+            if is_regex:
+                # Use regex matching
+                pattern = re.compile(term, re.IGNORECASE)
+                
+                # Check subject if enabled
+                if check_subject and subject and pattern.search(subject):
+                    matches.append(term)
+                    continue
+                
+                # Check attachments if enabled
+                if check_attachments and attachments_text and pattern.search(attachments_text):
+                    matches.append(term)
+                    
+            else:
+                # Simple case-insensitive string matching
+                term_lower = term.lower()
+                
+                # Check subject if enabled
+                if check_subject and subject and term_lower in subject:
+                    matches.append(term)
+                    continue
+                
+                # Check attachments if enabled
+                if check_attachments and attachments_text and term_lower in attachments_text:
+                    matches.append(term)
+                    
+        except re.error:
+            # Skip invalid regex patterns
+            continue
+    
+    return list(set(matches))  # Remove duplicates
+
 def check_keywords_during_import(cursor, event_data, attachments):
     """Check for keyword matches during import and return matching keywords"""
     import re
+    
+    # First check if event should be excluded by exclusion keywords
+    exclusion_matches = check_exclusion_keywords_during_import(cursor, event_data, attachments)
+    if exclusion_matches:
+        # Event is excluded, don't check regular keywords
+        return []
     
     # Get all keywords
     cursor.execute("SELECT term, is_regex FROM keywords")
@@ -180,8 +244,22 @@ def insert_batch(conn, batch):
         # Check if event should be whitelisted
         is_whitelisted = check_whitelist_during_import(cursor, event_data, recipients)
         
-        # Check for keyword matches
-        matching_keywords = check_keywords_during_import(cursor, event_data, attachments)
+        # Check for exclusion keyword matches first
+        exclusion_matches = check_exclusion_keywords_during_import(cursor, event_data, attachments)
+        trigger_reason = None
+        
+        if exclusion_matches:
+            # Event is excluded
+            exclusion_terms = exclusion_matches[:3]  # Show first 3
+            if len(exclusion_matches) > 3:
+                exclusion_terms.append(f"+ {len(exclusion_matches) - 3} more")
+            trigger_reason = f"Excluded: {', '.join(exclusion_terms)}"
+        
+        # Check for keyword matches only if not excluded
+        matching_keywords = []
+        if not exclusion_matches:
+            matching_keywords = check_keywords_during_import(cursor, event_data, attachments)
+        
         matching_keywords_str = ', '.join(matching_keywords) if matching_keywords else None
         
         # Insert main event
@@ -189,15 +267,17 @@ def insert_batch(conn, batch):
             INSERT INTO events (
                 _time, sender, subject, time_month, leaver, termination_date,
                 bunit, department, user_response, final_outcome, justifications,
-                is_internal_to_external, ml_score, ml_model_version, is_whitelisted, matching_keywords
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                is_internal_to_external, ml_score, ml_model_version, is_whitelisted, 
+                matching_keywords, trigger_reason
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             event_data['_time'], event_data['sender'], event_data['subject'],
             event_data['time_month'], event_data['leaver'], event_data['termination_date'],
             event_data['bunit'], event_data['department'], event_data['user_response'],
             event_data['final_outcome'], event_data['justifications'],
             event_data['is_internal_to_external'], event_data['ml_score'],
-            event_data['ml_model_version'], 1 if is_whitelisted else 0, matching_keywords_str
+            event_data['ml_model_version'], 1 if is_whitelisted else 0, 
+            matching_keywords_str, trigger_reason
         ))
         
         event_id = cursor.lastrowid

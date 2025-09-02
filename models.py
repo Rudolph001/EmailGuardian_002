@@ -291,7 +291,7 @@ def get_dashboard_stats():
 
         stats = {}
 
-        # High risk events (ml_score > 0.7, not closed, not whitelisted, not follow-up, no trigger_reason)
+        # High risk events (ml_score > 0.7, not closed, not whitelisted, not follow-up, no trigger_reason, not excluded)
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) > 0.7 
@@ -302,7 +302,7 @@ def get_dashboard_stats():
         """)
         stats['high_risk_count'] = cursor.fetchone()[0]
 
-        # Low risk events (ml_score <= 0.3, not closed, not whitelisted, not follow-up, no trigger_reason)  
+        # Low risk events (ml_score <= 0.3, not closed, not whitelisted, not follow-up, no trigger_reason, not excluded)  
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) <= 0.3 
@@ -313,7 +313,7 @@ def get_dashboard_stats():
         """)
         stats['low_risk_count'] = cursor.fetchone()[0]
 
-        # Medium risk events (ml_score > 0.3 and <= 0.7, not closed, not whitelisted, not follow-up, no trigger_reason)  
+        # Medium risk events (ml_score > 0.3 and <= 0.7, not closed, not whitelisted, not follow-up, no trigger_reason, not excluded)  
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) > 0.3 
@@ -493,12 +493,13 @@ def get_high_risk_events(limit=100):
         cursor = conn.cursor()
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
-                   status, is_whitelisted, follow_up
+                   status, is_whitelisted, follow_up, trigger_reason
             FROM events
             WHERE ml_score > 0.7 
             AND is_whitelisted = 0 
             AND status != 'closed'
             AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT trigger_reason LIKE 'Excluded:%')
             ORDER BY ml_score DESC, datetime(_time) DESC
             LIMIT ?
         """, (limit * 2,))  # Get more events to filter through

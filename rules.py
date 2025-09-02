@@ -1318,7 +1318,14 @@ def process_all_events_for_rules_with_progress():
                 processed_count += 1
                 continue
 
-            # Skip automatic keyword processing - keywords only work through rules now
+            # Check exclusion keywords first
+            exclusion_matches = check_exclusion_keywords(event)
+            if exclusion_matches:
+                exclusion_terms = [match['term'] for match in exclusion_matches[:3]]  # Show first 3
+                if len(exclusion_matches) > 3:
+                    exclusion_terms.append(f"+ {len(exclusion_matches) - 3} more")
+                trigger_reason = f"Excluded: {', '.join(exclusion_terms)}"
+                rule_triggered = True
 
             # Fast rule evaluation using preloaded rules
             if not rule_triggered:
