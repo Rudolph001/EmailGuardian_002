@@ -1608,7 +1608,7 @@ function hideTestResults() {
                                                     data-rule-conditions="{{ rule.conditions_json }}">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            
+
                                             <form method="POST" action="{{ url_for('exclusion_rules') }}" class="d-inline">
                                                 <input type="hidden" name="action" value="toggle">
                                                 <input type="hidden" name="rule_id" value="{{ rule.id }}">
@@ -1617,7 +1617,7 @@ function hideTestResults() {
                                                     <i class="fas fa-{{ 'pause' if rule.enabled else 'play' }}"></i>
                                                 </button>
                                             </form>
-                                            
+
                                             <form method="POST" action="{{ url_for('exclusion_rules') }}" class="d-inline" 
                                                   onsubmit="return confirm('Are you sure you want to delete this exclusion rule?')">
                                                 <input type="hidden" name="action" value="delete">
@@ -1654,16 +1654,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add exclusion condition functionality
     const addExclusionConditionBtn = document.querySelector('.add-exclusion-condition-btn');
     const exclusionConditionsContainer = document.getElementById('exclusion-conditions-container');
-    
+
     if (addExclusionConditionBtn && exclusionConditionsContainer) {
         addExclusionConditionBtn.addEventListener('click', function() {
             const conditions = exclusionConditionsContainer.querySelectorAll('.condition-group');
             const newIndex = conditions.length;
-            
+
             const newCondition = document.createElement('div');
             newCondition.className = 'condition-group border rounded p-3 mb-3';
             newCondition.setAttribute('data-condition', newIndex);
-            
+
             newCondition.innerHTML = `
                 <div class="row align-items-center">
                     <div class="col-md-3">
@@ -1729,9 +1729,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     <i class="fas fa-trash me-1"></i>Remove
                 </button>
             `;
-            
+
             exclusionConditionsContainer.appendChild(newCondition);
-            
+
             // Add remove functionality
             const removeBtn = newCondition.querySelector('.remove-condition-btn');
             removeBtn.addEventListener('click', function() {
@@ -1739,7 +1739,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-    
+
     // Clear exclusion form functionality
     const clearExclusionFormBtn = document.querySelector('.clear-exclusion-form-btn');
     if (clearExclusionFormBtn) {

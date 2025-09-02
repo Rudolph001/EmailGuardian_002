@@ -50,6 +50,58 @@ def check_whitelist_during_import(cursor, event_data, recipients):
     # If no recipients, only sender matters
     return sender_whitelisted
 
+def check_keywords_during_import(cursor, event_data, attachments):
+    """Check for keyword matches during import and return matching keywords"""
+    import re
+    
+    # Get all keywords
+    cursor.execute("SELECT term, is_regex FROM keywords")
+    keywords = cursor.fetchall()
+    
+    if not keywords:
+        return []
+    
+    matching_keywords = []
+    subject = (event_data.get('subject') or '').lower()
+    attachments_text = ' '.join(attachments).lower() if attachments else ''
+    
+    for keyword_row in keywords:
+        term = keyword_row[0]
+        is_regex = keyword_row[1]
+        
+        try:
+            if is_regex:
+                # Use regex matching
+                pattern = re.compile(term, re.IGNORECASE)
+                
+                # Check subject
+                if subject and pattern.search(subject):
+                    matching_keywords.append(term)
+                    continue
+                
+                # Check attachments
+                if attachments_text and pattern.search(attachments_text):
+                    matching_keywords.append(term)
+                    
+            else:
+                # Simple case-insensitive string matching
+                term_lower = term.lower()
+                
+                # Check subject
+                if subject and term_lower in subject:
+                    matching_keywords.append(term)
+                    continue
+                
+                # Check attachments
+                if attachments_text and term_lower in attachments_text:
+                    matching_keywords.append(term)
+                    
+        except re.error:
+            # Skip invalid regex patterns
+            continue
+    
+    return list(set(matching_keywords))  # Remove duplicates
+
 logger = logging.getLogger(__name__)
 
 def normalize_row(row):
@@ -128,20 +180,24 @@ def insert_batch(conn, batch):
         # Check if event should be whitelisted
         is_whitelisted = check_whitelist_during_import(cursor, event_data, recipients)
         
+        # Check for keyword matches
+        matching_keywords = check_keywords_during_import(cursor, event_data, attachments)
+        matching_keywords_str = ', '.join(matching_keywords) if matching_keywords else None
+        
         # Insert main event
         cursor.execute("""
             INSERT INTO events (
                 _time, sender, subject, time_month, leaver, termination_date,
                 bunit, department, user_response, final_outcome, justifications,
-                is_internal_to_external, ml_score, ml_model_version, is_whitelisted
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                is_internal_to_external, ml_score, ml_model_version, is_whitelisted, matching_keywords
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             event_data['_time'], event_data['sender'], event_data['subject'],
             event_data['time_month'], event_data['leaver'], event_data['termination_date'],
             event_data['bunit'], event_data['department'], event_data['user_response'],
             event_data['final_outcome'], event_data['justifications'],
             event_data['is_internal_to_external'], event_data['ml_score'],
-            event_data['ml_model_version'], 1 if is_whitelisted else 0
+            event_data['ml_model_version'], 1 if is_whitelisted else 0, matching_keywords_str
         ))
         
         event_id = cursor.lastrowid

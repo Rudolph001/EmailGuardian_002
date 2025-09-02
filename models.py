@@ -203,7 +203,8 @@ def init_db():
                 "ALTER TABLE events ADD COLUMN closure_reason TEXT",
                 "ALTER TABLE events ADD COLUMN closure_notes TEXT",
                 "ALTER TABLE events ADD COLUMN closure_reference TEXT",
-                "ALTER TABLE events ADD COLUMN trigger_reason TEXT"
+                "ALTER TABLE events ADD COLUMN trigger_reason TEXT",
+                "ALTER TABLE events ADD COLUMN matching_keywords TEXT"
             ]:
                 try:
                     cursor.execute(column_def)

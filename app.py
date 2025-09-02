@@ -276,7 +276,7 @@ def events():
                 SELECT e.id, e._time, e.sender, e.subject, e.ml_score, e.is_internal_to_external,
                        e.status, e.is_whitelisted, e.follow_up, e.trigger_reason,
                        e.closure_reason, e.closure_notes, e.closure_reference,
-                       e.email_sent, e.email_sent_date
+                       e.email_sent, e.email_sent_date, e.matching_keywords
                 FROM events e
             """
 

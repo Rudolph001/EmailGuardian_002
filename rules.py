@@ -63,6 +63,7 @@ def _generate_condition_summary(conditions_json):
                 'termination_date': 'Termination Date',
                 'attachments': 'Attachments',
                 'policies': 'Policies',
+                'keywords': 'Matching Keywords',
                 'ml_score': 'ML Score',
                 'is_internal_to_external': 'Internal to External'
             }
@@ -706,27 +707,10 @@ def _get_field_value(field, event_data):
     elif field == 'subject':
         return event['subject'] or ''
     elif field == 'keywords':
-        # For keyword field, search in subject and attachments
-        content_parts = []
-        
-        # Add subject content
-        if event['subject']:
-            content_parts.append(event['subject'])
-        
-        # Add attachment filenames
-        if attachments:
-            for attachment in attachments:
-                if isinstance(attachment, dict) and 'filename' in attachment:
-                    content_parts.append(attachment['filename'])
-                elif hasattr(attachment, 'filename'):
-                    content_parts.append(attachment.filename)
-                else:
-                    content_parts.append(str(attachment))
-        
-        # Return combined content for searching
-        combined_content = ' '.join(content_parts)
-        logger.debug(f"Keywords field returning content: {combined_content}")
-        return combined_content
+        # For keyword field, return the stored matching_keywords
+        matching_keywords = event.get('matching_keywords', '')
+        logger.debug(f"Keywords field returning matching keywords: {matching_keywords}")
+        return matching_keywords or ''
     elif field == 'recipients':
         return ', '.join(recipients)
     elif field == 'recipient_domain':

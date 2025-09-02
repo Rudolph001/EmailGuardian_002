@@ -73,7 +73,7 @@
                 </a>
             </li>
             <li class="nav-item">
-                    <a href="{{ url_for('events', filter='excluded') }}" 
+                    <a href="{{ url_for('events', filter='excluded') }}"
                        class="nav-link {% if filter_type == 'excluded' %}active{% endif %}">
                         <i class="fas fa-ban me-1"></i>Excluded
                     </a>
@@ -346,13 +346,19 @@
                                     <th>Type</th>
                                     {% if request.args.get('filter') == 'rule_triggered' or request.args.get('filter') == 'all' or request.args.get('filter') == 'high_risk' or request.args.get('filter') == 'follow_up' %}
                                     <th>
-                                        <a href="{{ url_for('events', filter=filter_type, sort='trigger_reason', order='desc' if sort_by == 'trigger_reason' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, closure_reason_filter=closure_reason_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('events', filter=filter_type, sort='trigger_reason', order=('asc' if sort_by == 'trigger_reason' and sort_order == 'desc' else 'desc'),
+                                                   q=query, sender_filter=sender_filter, subject_filter=subject_filter,
+                                                   trigger_reason_filter=trigger_reason_filter, keyword_filter=keyword_filter, recipients_filter=recipients_filter,
+                                                   closure_reason_filter=closure_reason_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter,
+                                                   email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter,
+                                                   date_from=date_from, date_to=date_to) }}" class="text-decoration-none text-dark">
                                             Trigger Reason
                                             {% if sort_by == 'trigger_reason' %}
                                                 <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
                                             {% endif %}
                                         </a>
                                     </th>
+                                    <th>Matching Keywords</th>
                                     {% endif %}
                                     {% if request.args.get('filter') == 'closed' %}
                                     <th>
@@ -453,6 +459,13 @@
                                                 {% endif %}
                                             {% else %}
                                                 <span class="text-muted">None</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if event.matching_keywords %}
+                                                <small class="text-primary">{{ event.matching_keywords }}</small>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
                                             {% endif %}
                                         </td>
                                         {% endif %}
