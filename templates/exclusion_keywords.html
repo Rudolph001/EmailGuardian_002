@@ -49,7 +49,11 @@
                                     <div class="mb-3">
                                         <label for="term" class="form-label">Keyword/Pattern</label>
                                         <input type="text" class="form-control" id="term" name="term" required
-                                               placeholder="e.g., unsubscribe, newsletter, promotion">
+                                               placeholder="e.g., invoice, tax invoice, newsletter, unsubscribe">
+                                        <div class="form-text">
+                                            You can use single words (invoice) or multi-word phrases (tax invoice). 
+                                            The system will look for these exact phrases or words contained within the text.
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -106,7 +110,7 @@
                                     <div class="mb-3">
                                         <label for="bulk_terms" class="form-label">Exclusion Keywords</label>
                                         <textarea class="form-control" id="bulk_terms" name="bulk_terms" rows="10"
-                                                  placeholder="Enter one keyword per line, or separate with | (pipe)&#10;Examples:&#10;unsubscribe&#10;newsletter&#10;promotion&#10;marketing"></textarea>
+                                                  placeholder="Enter one keyword per line, or separate with | (pipe)&#10;Examples:&#10;invoice&#10;tax invoice&#10;newsletter&#10;unsubscribe&#10;marketing email"></textarea>
                                         <div class="form-text">Enter one keyword per line, or separate with | (pipe)</div>
                                     </div>
                                 </div>
@@ -203,14 +207,9 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-outline-primary me-1 edit-exclusion-keyword-btn"
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1"
                                             data-bs-toggle="modal" data-bs-target="#editModal{{ keyword.id }}"
-                                            data-keyword-id="{{ keyword.id }}"
-                                            data-keyword-term="{{ keyword.term }}"
-                                            data-keyword-is-regex="{{ 'true' if keyword.is_regex else 'false' }}"
-                                            data-keyword-check-subject="{{ 'true' if keyword.check_subject else 'false' }}"
-                                            data-keyword-check-attachments="{{ 'true' if keyword.check_attachments else 'false' }}"
-                                            data-keyword-enabled="{{ 'true' if keyword.enabled else 'false' }}">
+                                            onclick="populateEditModal({{ keyword.id }}, '{{ keyword.term|replace("'", "\\'") }}', {{ 'true' if keyword.is_regex else 'false' }}, {{ 'true' if keyword.check_subject else 'false' }}, {{ 'true' if keyword.check_attachments else 'false' }}, {{ 'true' if keyword.enabled else 'false' }})">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" style="display: inline;">
@@ -223,65 +222,134 @@
                                     </form>
                                 </td>
                             </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
-                            <!-- Edit Modal -->
-                            <div class="modal fade" id="editModal{{ keyword.id }}" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Edit Exclusion Keyword</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <!-- Single Edit Modal for all keywords -->
+                <div class="modal fade" id="editModal{{ exclusion_keywords[0].id if exclusion_keywords else '1' }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit Exclusion Keyword</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST">
+                                <div class="modal-body">
+                                    <input type="hidden" name="action" value="edit">
+                                    <input type="hidden" name="keyword_id" id="editKeywordId">
+
+                                    <div class="mb-3">
+                                        <label for="editKeywordTerm" class="form-label">Keyword/Pattern</label>
+                                        <input type="text" class="form-control" name="term" id="editKeywordTerm" required>
+                                        <div class="form-text">Examples: "invoice", "tax invoice", "unsubscribe"</div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="is_regex" id="editKeywordIsRegex">
+                                            <label class="form-check-label" for="editKeywordIsRegex">
+                                                Use as Regular Expression
+                                            </label>
                                         </div>
-                                        <form method="POST" action="{{ url_for('exclusion_keywords') }}">
-                                            <input type="hidden" name="action" value="edit">
-                                            <input type="hidden" name="keyword_id" id="editKeywordId">
+                                    </div>
 
-                                            <div class="mb-3">
-                                                <label for="editKeywordTerm" class="form-label">Keyword/Pattern</label>
-                                                <input type="text" class="form-control" name="term" id="editKeywordTerm" required>
-                                            </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Apply to:</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="check_subject" id="editKeywordCheckSubject">
+                                            <label class="form-check-label" for="editKeywordCheckSubject">
+                                                Check Subject Lines
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="check_attachments" id="editKeywordCheckAttachments">
+                                            <label class="form-check-label" for="editKeywordCheckAttachments">
+                                                Check Attachment Names
+                                            </label>
+                                        </div>
+                                    </div>
 
-                                            <div class="mb-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="is_regex" id="editKeywordIsRegex">
-                                                    <label class="form-check-label" for="editKeywordIsRegex">
-                                                        Use as Regular Expression
-                                                    </label>
-                                                </div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <label class="form-label">Apply to:</label>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="check_subject" id="editKeywordCheckSubject" checked>
-                                                    <label class="form-check-label" for="editKeywordCheckSubject">
-                                                        Check Subject Lines
-                                                    </label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="check_attachments" id="editKeywordCheckAttachments" checked>
-                                                    <label class="form-check-label" for="editKeywordCheckAttachments">
-                                                        Check Attachment Names
-                                                    </label>
-                                                </div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="enabled" id="editKeywordEnabled" checked>
-                                                    <label class="form-check-label" for="editKeywordEnabled">
-                                                        Enabled
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                <button type="submit" class="btn btn-primary">Save Changes</button>
-                                            </div>
-                                        </form>
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="enabled" id="editKeywordEnabled">
+                                            <label class="form-check-label" for="editKeywordEnabled">
+                                                Enabled
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% for keyword in exclusion_keywords[1:] %}
+                <!-- Additional edit modals for other keywords -->
+                <div class="modal fade" id="editModal{{ keyword.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit Exclusion Keyword</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
+                            <form method="POST">
+                                <div class="modal-body">
+                                    <input type="hidden" name="action" value="edit">
+                                    <input type="hidden" name="keyword_id" value="{{ keyword.id }}">
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Keyword/Pattern</label>
+                                        <input type="text" class="form-control" name="term" value="{{ keyword.term }}" required>
+                                        <div class="form-text">Examples: "invoice", "tax invoice", "unsubscribe"</div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="is_regex" {{ 'checked' if keyword.is_regex else '' }}>
+                                            <label class="form-check-label">
+                                                Use as Regular Expression
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Apply to:</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="check_subject" {{ 'checked' if keyword.check_subject else '' }}>
+                                            <label class="form-check-label">
+                                                Check Subject Lines
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="check_attachments" {{ 'checked' if keyword.check_attachments else '' }}>
+                                            <label class="form-check-label">
+                                                Check Attachment Names
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="enabled" {{ 'checked' if keyword.enabled else '' }}>
+                                            <label class="form-check-label">
+                                                Enabled
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -299,37 +367,13 @@
 </div>
 
 <script>
-        // Handle bulk import toggle
-        document.getElementById('bulkImportToggle').addEventListener('click', function() {
-            const bulkSection = document.getElementById('bulkImportSection');
-            bulkSection.style.display = bulkSection.style.display === 'none' ? 'block' : 'none';
-        });
-
-        // Handle edit exclusion keyword modal
-        document.addEventListener('DOMContentLoaded', function() {
-            const editButtons = document.querySelectorAll('.edit-exclusion-keyword-btn');
-            const editModal = document.getElementById('editExclusionKeywordModal');
-
-            if (editModal) {
-                editButtons.forEach(function(button) {
-                    button.addEventListener('click', function() {
-                        const keywordId = this.getAttribute('data-keyword-id');
-                        const keywordTerm = this.getAttribute('data-keyword-term');
-                        const keywordIsRegex = this.getAttribute('data-keyword-is-regex') === 'true';
-                        const keywordCheckSubject = this.getAttribute('data-keyword-check-subject') === 'true';
-                        const keywordCheckAttachments = this.getAttribute('data-keyword-check-attachments') === 'true';
-                        const keywordEnabled = this.getAttribute('data-keyword-enabled') === 'true';
-
-                        // Populate modal fields
-                        document.getElementById('editKeywordId').value = keywordId;
-                        document.getElementById('editKeywordTerm').value = keywordTerm;
-                        document.getElementById('editKeywordIsRegex').checked = keywordIsRegex;
-                        document.getElementById('editKeywordCheckSubject').checked = keywordCheckSubject;
-                        document.getElementById('editKeywordCheckAttachments').checked = keywordCheckAttachments;
-                        document.getElementById('editKeywordEnabled').checked = keywordEnabled;
-                    });
-                });
-            }
-        });
+        function populateEditModal(keywordId, keywordTerm, isRegex, checkSubject, checkAttachments, enabled) {
+            document.getElementById('editKeywordId').value = keywordId;
+            document.getElementById('editKeywordTerm').value = keywordTerm;
+            document.getElementById('editKeywordIsRegex').checked = isRegex;
+            document.getElementById('editKeywordCheckSubject').checked = checkSubject;
+            document.getElementById('editKeywordCheckAttachments').checked = checkAttachments;
+            document.getElementById('editKeywordEnabled').checked = enabled;
+        }
     </script>
 {% endblock %}

@@ -23,11 +23,11 @@ def check_exclusion_keywords_during_import(cursor, event_data, attachments):
         return []
     
     matches = []
-    subject = (event_data.get('subject') or '').lower()
-    attachments_text = ' '.join(attachments).lower() if attachments else ''
+    subject = (event_data.get('subject') or '').lower().strip()
+    attachments_text = ' '.join(attachments).lower().strip() if attachments else ''
     
     for keyword_row in exclusion_keywords:
-        term = keyword_row[0]
+        term = keyword_row[0].strip()
         is_regex = keyword_row[1]
         check_subject = keyword_row[2]
         check_attachments = keyword_row[3]
@@ -41,12 +41,25 @@ def check_exclusion_keywords_during_import(cursor, event_data, attachments):
                 if check_attachments and attachments_text and pattern.search(attachments_text):
                     matches.append(term)
             else:
+                # For exact phrase matching, use word boundaries for multi-word terms
                 term_lower = term.lower()
-                if check_subject and subject and term_lower in subject:
-                    matches.append(term)
-                    continue
-                if check_attachments and attachments_text and term_lower in attachments_text:
-                    matches.append(term)
+                
+                # Check if it's a multi-word phrase or single word
+                if ' ' in term_lower:
+                    # Multi-word phrase - look for exact phrase
+                    if check_subject and subject and term_lower in subject:
+                        matches.append(term)
+                        continue
+                    if check_attachments and attachments_text and term_lower in attachments_text:
+                        matches.append(term)
+                else:
+                    # Single word - check with word boundaries to avoid partial matches
+                    word_pattern = r'\b' + re.escape(term_lower) + r'\b'
+                    if check_subject and subject and re.search(word_pattern, subject):
+                        matches.append(term)
+                        continue
+                    if check_attachments and attachments_text and re.search(word_pattern, attachments_text):
+                        matches.append(term)
         except re.error:
             continue
     
@@ -484,7 +497,7 @@ def check_exclusion_keywords(event):
     matches = []
     
     # Check subject for exclusion keyword matches
-    subject = (event['subject'] or '').lower()
+    subject = (event['subject'] or '').lower().strip()
     
     # Get attachments for checking
     attachments = []
@@ -496,13 +509,13 @@ def check_exclusion_keywords(event):
         if event_detail and 'attachments' in event_detail:
             attachments = event_detail['attachments'] or []
             # attachments is already a list of strings (filenames), not dicts
-            attachments_text = ' '.join(attachments).lower()
+            attachments_text = ' '.join(attachments).lower().strip()
     except Exception:
         # If we can't get attachments, just continue with subject checking
         pass
     
     for keyword in exclusion_keywords:
-        term = keyword['term']
+        term = keyword['term'].strip()
         is_regex = keyword['is_regex']
         check_subject = keyword['check_subject']
         check_attachments = keyword['check_attachments']
@@ -514,7 +527,7 @@ def check_exclusion_keywords(event):
                 pattern = re.compile(term, re.IGNORECASE)
                 
                 # Check subject if enabled
-                if check_subject and pattern.search(subject):
+                if check_subject and subject and pattern.search(subject):
                     found_locations.append('Subject')
                 
                 # Check attachments if enabled
@@ -522,15 +535,26 @@ def check_exclusion_keywords(event):
                     found_locations.append('Attachments')
             
             else:
-                # Simple case-insensitive string matching
+                # Enhanced string matching for multi-word phrases
+                term_lower = term.lower()
                 
-                # Check subject if enabled
-                if check_subject and term.lower() in subject:
-                    found_locations.append('Subject')
-                
-                # Check attachments if enabled
-                if check_attachments and attachments_text and term.lower() in attachments_text:
-                    found_locations.append('Attachments')
+                # Check if it's a multi-word phrase or single word
+                if ' ' in term_lower:
+                    # Multi-word phrase - look for exact phrase
+                    if check_subject and subject and term_lower in subject:
+                        found_locations.append('Subject')
+                    
+                    if check_attachments and attachments_text and term_lower in attachments_text:
+                        found_locations.append('Attachments')
+                else:
+                    # Single word - check with word boundaries to avoid partial matches
+                    word_pattern = r'\b' + re.escape(term_lower) + r'\b'
+                    
+                    if check_subject and subject and re.search(word_pattern, subject):
+                        found_locations.append('Subject')
+                    
+                    if check_attachments and attachments_text and re.search(word_pattern, attachments_text):
+                        found_locations.append('Attachments')
             
             # Add matches for each location found
             for location in found_locations:
