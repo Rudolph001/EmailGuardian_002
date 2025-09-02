@@ -7,6 +7,90 @@ from models import get_db
 
 logger = logging.getLogger(__name__)
 
+def check_exclusion_keywords_during_import(cursor, event_data, attachments):
+    """Check for exclusion keyword matches during processing"""
+    import re
+    
+    # Get all enabled exclusion keywords
+    cursor.execute("""
+        SELECT term, is_regex, check_subject, check_attachments 
+        FROM exclusion_keywords 
+        WHERE enabled = 1
+    """)
+    exclusion_keywords = cursor.fetchall()
+    
+    if not exclusion_keywords:
+        return []
+    
+    matches = []
+    subject = (event_data.get('subject') or '').lower()
+    attachments_text = ' '.join(attachments).lower() if attachments else ''
+    
+    for keyword_row in exclusion_keywords:
+        term = keyword_row[0]
+        is_regex = keyword_row[1]
+        check_subject = keyword_row[2]
+        check_attachments = keyword_row[3]
+        
+        try:
+            if is_regex:
+                pattern = re.compile(term, re.IGNORECASE)
+                if check_subject and subject and pattern.search(subject):
+                    matches.append(term)
+                    continue
+                if check_attachments and attachments_text and pattern.search(attachments_text):
+                    matches.append(term)
+            else:
+                term_lower = term.lower()
+                if check_subject and subject and term_lower in subject:
+                    matches.append(term)
+                    continue
+                if check_attachments and attachments_text and term_lower in attachments_text:
+                    matches.append(term)
+        except re.error:
+            continue
+    
+    return list(set(matches))
+
+def check_keywords_during_import(cursor, event_data, attachments):
+    """Check for keyword matches during processing"""
+    import re
+    
+    # Get all keywords
+    cursor.execute("SELECT term, is_regex FROM keywords")
+    keywords = cursor.fetchall()
+    
+    if not keywords:
+        return []
+    
+    matching_keywords = []
+    subject = (event_data.get('subject') or '').lower()
+    attachments_text = ' '.join(attachments).lower() if attachments else ''
+    
+    for keyword_row in keywords:
+        term = keyword_row[0]
+        is_regex = keyword_row[1]
+        
+        try:
+            if is_regex:
+                pattern = re.compile(term, re.IGNORECASE)
+                if subject and pattern.search(subject):
+                    matching_keywords.append(term)
+                    continue
+                if attachments_text and pattern.search(attachments_text):
+                    matching_keywords.append(term)
+            else:
+                term_lower = term.lower()
+                if subject and term_lower in subject:
+                    matching_keywords.append(term)
+                    continue
+                if attachments_text and term_lower in attachments_text:
+                    matching_keywords.append(term)
+        except re.error:
+            continue
+    
+    return list(set(matching_keywords))
+
 def get_rules(enabled_only=True):
     """Get all rules with condition summaries"""
     with get_db() as conn:
@@ -1243,6 +1327,159 @@ def process_all_events_for_rules():
 
     # Use the optimized version
     return process_all_events_for_rules_with_progress()
+
+def process_all_events_for_rules_comprehensive():
+    """Process all events for rules, keywords, exclusions, and whitelist changes"""
+    logger.info("Starting comprehensive processing of all events for management changes...")
+    
+    # Get all enabled rules, exclusions, keywords, and whitelist data
+    rules = get_rules(enabled_only=True)
+    exclusion_rules = get_exclusion_rules(enabled_only=True)
+    keywords = get_keywords()
+    exclusion_keywords = get_exclusion_keywords()
+    whitelist_domains = get_whitelist_domains()
+    whitelist_emails = get_whitelist_emails()
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+
+        # Get all events for reprocessing
+        cursor.execute("""
+            SELECT e.id, e.sender, e.subject, e.bunit, e.department, e.leaver, 
+                   e.termination_date, e.ml_score, e.is_internal_to_external,
+                   GROUP_CONCAT(DISTINCT r.email) as recipients,
+                   GROUP_CONCAT(DISTINCT a.filename) as attachments,
+                   GROUP_CONCAT(DISTINCT p.policy_name) as policies
+            FROM events e
+            LEFT JOIN recipients r ON e.id = r.event_id
+            LEFT JOIN attachments a ON e.id = a.event_id
+            LEFT JOIN policies p ON e.id = p.event_id
+            GROUP BY e.id
+            ORDER BY e.id
+        """)
+
+        events_data = cursor.fetchall()
+
+    total_events = len(events_data)
+    triggered_count = 0
+    batch_size = 100
+    updates = []
+
+    for event_row in events_data:
+        try:
+            event = dict(event_row)
+            event_id = event['id']
+            
+            # Parse multi-value fields
+            recipients = [r.strip() for r in (event['recipients'] or '').split(',') if r.strip()]
+            attachments = [a.strip() for a in (event['attachments'] or '').split(',') if a.strip()]
+            policies = [p.strip() for p in (event['policies'] or '').split(',') if p.strip()]
+
+            trigger_reason = None
+            matching_keywords = []
+            is_whitelisted = False
+
+            # Check whitelist first
+            is_whitelisted = _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails)
+
+            # Check exclusion keywords
+            exclusion_matches = check_exclusion_keywords_during_import(cursor, event, attachments)
+            if exclusion_matches:
+                exclusion_terms = exclusion_matches[:3]
+                if len(exclusion_matches) > 3:
+                    exclusion_terms.append(f"+ {len(exclusion_matches) - 3} more")
+                trigger_reason = f"Excluded: {', '.join(exclusion_terms)}"
+                triggered_count += 1
+
+            # Check regular keywords if not excluded
+            elif not exclusion_matches:
+                matching_keywords = check_keywords_during_import(cursor, event, attachments)
+
+            # Check exclusion rules if not already excluded
+            if not trigger_reason:
+                event_data = {
+                    'event': event,
+                    'recipients': recipients,
+                    'attachments': attachments,
+                    'policies': policies
+                }
+
+                for exclusion_rule in exclusion_rules:
+                    try:
+                        conditions_json = exclusion_rule['conditions_json']
+                        if not conditions_json:
+                            continue
+
+                        conditions = json.loads(conditions_json)
+                        if not conditions:
+                            continue
+
+                        if _evaluate_conditions(conditions, event_data):
+                            trigger_reason = f"Excluded by rule: {exclusion_rule['name']}"
+                            triggered_count += 1
+                            break
+
+                    except Exception as e:
+                        logger.warning(f"Error evaluating exclusion rule {exclusion_rule['id']} for event {event_id}: {e}")
+                        continue
+
+                # Check regular rules if not excluded
+                if not trigger_reason:
+                    for rule in rules:
+                        try:
+                            conditions_json = rule['conditions_json']
+                            if not conditions_json:
+                                continue
+
+                            conditions = json.loads(conditions_json)
+                            if not conditions:
+                                continue
+
+                            if _evaluate_conditions(conditions, event_data):
+                                trigger_reason = f"Rule: {rule['name']}"
+                                triggered_count += 1
+                                break
+
+                        except Exception as e:
+                            logger.warning(f"Error evaluating rule {rule['id']} for event {event_id}: {e}")
+                            continue
+
+            # Prepare updates
+            matching_keywords_str = ', '.join(matching_keywords) if matching_keywords else None
+            updates.append((
+                1 if is_whitelisted else 0,
+                matching_keywords_str,
+                trigger_reason,
+                event_id
+            ))
+
+            # Process batches
+            if len(updates) >= batch_size:
+                cursor.executemany("""
+                    UPDATE events 
+                    SET is_whitelisted = ?, matching_keywords = ?, trigger_reason = ? 
+                    WHERE id = ?
+                """, updates)
+                conn.commit()
+                updates = []
+
+        except Exception as e:
+            logger.error(f"Error processing event {event.get('id', 'unknown')}: {e}")
+            continue
+
+    # Process remaining updates
+    if updates:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.executemany("""
+                UPDATE events 
+                SET is_whitelisted = ?, matching_keywords = ?, trigger_reason = ? 
+                WHERE id = ?
+            """, updates)
+            conn.commit()
+
+    logger.info(f"Completed comprehensive processing of {total_events} events. {triggered_count} events had management rules triggered.")
+    return total_events, triggered_count
 
 def process_all_events_for_rules_with_progress():
     """Process all events to apply rules and set trigger reasons with progress tracking - optimized"""

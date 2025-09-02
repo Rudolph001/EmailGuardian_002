@@ -9,7 +9,7 @@
             <i class="fas fa-ban me-2"></i>Exclusion Keywords Management
         </h1>
         <p class="text-muted mb-4">
-            Define keywords to automatically exclude emails. When any of these keywords are found in subjects or attachments, 
+            Define keywords to automatically exclude emails. When any of these keywords are found in subjects or attachments,
             the emails will be excluded from further processing.
         </p>
     </div>
@@ -48,7 +48,7 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="term" class="form-label">Keyword/Pattern</label>
-                                        <input type="text" class="form-control" id="term" name="term" required 
+                                        <input type="text" class="form-control" id="term" name="term" required
                                                placeholder="e.g., unsubscribe, newsletter, promotion">
                                     </div>
                                 </div>
@@ -105,7 +105,7 @@
                                 <div class="col-md-8">
                                     <div class="mb-3">
                                         <label for="bulk_terms" class="form-label">Exclusion Keywords</label>
-                                        <textarea class="form-control" id="bulk_terms" name="bulk_terms" rows="10" 
+                                        <textarea class="form-control" id="bulk_terms" name="bulk_terms" rows="10"
                                                   placeholder="Enter one keyword per line, or separate with | (pipe)&#10;Examples:&#10;unsubscribe&#10;newsletter&#10;promotion&#10;marketing"></textarea>
                                         <div class="form-text">Enter one keyword per line, or separate with | (pipe)</div>
                                     </div>
@@ -164,7 +164,7 @@
             <div class="card-body">
                 {% if exclusion_keywords %}
                 <div class="table-responsive">
-                    <table class="table table-striped">
+                    <table class="table table-striped exclusion-keywords-table">
                         <thead>
                             <tr>
                                 <th>Keyword/Pattern</th>
@@ -203,7 +203,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-outline-primary me-1 edit-exclusion-keyword-btn" 
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1 edit-exclusion-keyword-btn"
                                             data-bs-toggle="modal" data-bs-target="#editModal{{ keyword.id }}"
                                             data-keyword-id="{{ keyword.id }}"
                                             data-keyword-term="{{ keyword.term }}"
@@ -216,7 +216,7 @@
                                     <form method="POST" style="display: inline;">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="keyword_id" value="{{ keyword.id }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
                                                 onclick="return confirm('Are you sure you want to delete this exclusion keyword?')">
                                             <i class="fas fa-trash"></i>
                                         </button>

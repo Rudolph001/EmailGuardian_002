@@ -96,16 +96,16 @@ def upload():
                 logger.warning(f"Auto-rescoring failed: {e}")
                 flash("Import successful, but risk scoring failed", "warning")
             
-            # Auto-process rules and keywords after import
+            # Auto-process rules, keywords, exclusions and whitelist after import
             try:
-                from rules import process_all_events_for_rules
-                processed_count, triggered_count = process_all_events_for_rules()
+                from rules import process_all_events_for_rules_comprehensive
+                processed_count, triggered_count = process_all_events_for_rules_comprehensive()
                 if triggered_count > 0:
-                    flash(f"Processed {processed_count} events - {triggered_count} triggered by keywords/rules", "info")
+                    flash(f"Processed {processed_count} events - {triggered_count} triggered by rules/keywords/exclusions", "info")
                 else:
-                    logger.info(f"Processed {processed_count} events - no keyword/rule matches found")
+                    logger.info(f"Processed {processed_count} events - no rule/keyword/exclusion matches found")
             except Exception as e:
-                logger.warning(f"Auto-processing rules failed: {e}")
+                logger.warning(f"Auto-processing management rules failed: {e}")
 
             return redirect(url_for("events"))
 
@@ -162,6 +162,18 @@ def events():
         # Get total count and events for the current page
         total_events = 0
         events_list = []
+
+        # Check if any filters are applied (excluding basic pagination)
+        has_filters = (query or sender_filter or subject_filter or trigger_reason_filter or 
+                      keyword_filter or recipients_filter or closure_reason_filter or 
+                      risk_min or risk_max or status_filter or email_sent_filter or 
+                      whitelisted_filter or followup_filter or date_from or date_to)
+
+        # If filters are applied, increase the limit significantly
+        if has_filters:
+            per_page = 1000  # Show many more results when filtering
+        else:
+            per_page = 10  # Normal pagination
 
         # Build WHERE conditions
         where_conditions = []
@@ -1168,9 +1180,9 @@ def process_rules():
             return jsonify({'success': True, 'message': 'Processing started'})
         else:
             # Traditional form submission - process synchronously
-            from rules import process_all_events_for_rules
-            processed_count, triggered_count = process_all_events_for_rules()
-            flash(f"Processed {processed_count} events. {triggered_count} events had rules triggered.", "success")
+            from rules import process_all_events_for_rules_comprehensive
+            processed_count, triggered_count = process_all_events_for_rules_comprehensive()
+            flash(f"Processed {processed_count} events. {triggered_count} events had management rules triggered.", "success")
             return redirect(url_for('index'))
 
     except Exception as e:

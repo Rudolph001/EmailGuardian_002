@@ -350,6 +350,13 @@ def get_dashboard_stats():
         cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1 AND status != 'closed'")
         stats['follow_up_count'] = cursor.fetchone()[0]
 
+        # Excluded events (events with exclusion trigger_reason)
+        cursor.execute("""
+            SELECT COUNT(*) FROM events 
+            WHERE trigger_reason LIKE 'Excluded:%'
+        """)
+        stats['excluded_count'] = cursor.fetchone()[0]
+
         return stats
 
 

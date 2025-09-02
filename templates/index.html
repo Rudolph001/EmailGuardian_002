@@ -190,6 +190,19 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Excluded Events Card -->
+            <div class="col-md-4 mb-4">
+                <div class="card border-secondary">
+                    <div class="card-body text-center">
+                        <i class="fas fa-ban fa-2x text-secondary mb-2"></i>
+                        <h5 class="card-title">Excluded Events</h5>
+                        <h2 class="text-secondary">{{ stats.excluded_count }}</h2>
+                        <p class="card-text">Events excluded by keywords/rules</p>
+                        <a href="{{ url_for('events', filter='excluded') }}" class="btn btn-secondary btn-sm">View Excluded</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

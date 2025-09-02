@@ -61,7 +61,7 @@ code {
 
 /* Enhanced alert styling */
 .alert {
-    border-left: 4px solid;
+    margin-bottom: 1rem;
 }
 
 .alert-success {
@@ -372,4 +372,41 @@ body:not(.modal-open) .modal-backdrop {
 
 .excluded-card .stat-icon {
     color: #e74c3c;
+}
+
+/* Responsive improvements for events table */
+.table-responsive {
+    border: none;
+}
+
+@media (max-width: 1200px) {
+    .container-fluid {
+        padding-left: 5px !important;
+        padding-right: 5px !important;
+    }
+
+    .table th, .table td {
+        padding: 0.5rem 0.25rem;
+        font-size: 0.85rem;
+    }
+
+    .btn-sm {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Make exclusion keywords table and buttons clickable */
+.exclusion-keywords-table .btn {
+    pointer-events: all;
+    cursor: pointer;
+}
+
+.exclusion-keywords-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.exclusion-keywords-table .form-check-input {
+    pointer-events: all;
+    cursor: pointer;
 }
