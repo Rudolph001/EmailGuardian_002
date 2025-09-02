@@ -1252,16 +1252,17 @@ def process_all_events_for_rules_with_progress():
 
     # Get all enabled rules first to avoid repeated queries
     rules = get_rules(enabled_only=True)
-    if not rules:
-        logger.info("No enabled rules found")
-        return 0, 0
-
+    exclusion_rules = get_exclusion_rules(enabled_only=True)
+    
     # Get keywords once
     keywords = get_keywords()
     
     # Get whitelist data once
     whitelist_domains = get_whitelist_domains()
     whitelist_emails = get_whitelist_emails()
+    
+    # Get exclusion keywords once
+    exclusion_keywords = get_exclusion_keywords()
 
     with get_db() as conn:
         cursor = conn.cursor()
@@ -1312,11 +1313,11 @@ def process_all_events_for_rules_with_progress():
             trigger_reason = None
             rule_triggered = False
 
-            # Fast whitelist check using preloaded data
-            if _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails):
-                # Skip whitelisted events
-                processed_count += 1
-                continue
+            # Fast whitelist check using preloaded data - but still process for trigger reasons
+            is_whitelisted = _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails)
+            
+            # Note: Whitelisted events still get processed for trigger reasons, 
+            # they just don't appear in the main dashboard categories
 
             # Check exclusion keywords first
             exclusion_matches = check_exclusion_keywords(event)
@@ -1327,7 +1328,7 @@ def process_all_events_for_rules_with_progress():
                 trigger_reason = f"Excluded: {', '.join(exclusion_terms)}"
                 rule_triggered = True
 
-            # Fast rule evaluation using preloaded rules
+            # Check exclusion rules if not already excluded by keywords
             if not rule_triggered:
                 event_data = {
                     'event': event,
@@ -1336,9 +1337,10 @@ def process_all_events_for_rules_with_progress():
                     'policies': policies
                 }
 
-                for rule in rules:
+                # Check exclusion rules first
+                for exclusion_rule in exclusion_rules:
                     try:
-                        conditions_json = rule['conditions_json']
+                        conditions_json = exclusion_rule['conditions_json']
                         if not conditions_json:
                             continue
 
@@ -1347,13 +1349,34 @@ def process_all_events_for_rules_with_progress():
                             continue
 
                         if _evaluate_conditions(conditions, event_data):
-                            trigger_reason = f"Rule: {rule['name']}"
+                            trigger_reason = f"Excluded by rule: {exclusion_rule['name']}"
                             rule_triggered = True
                             break
 
                     except Exception as e:
-                        logger.warning(f"Error evaluating rule {rule['id']} for event {event_id}: {e}")
+                        logger.warning(f"Error evaluating exclusion rule {exclusion_rule['id']} for event {event_id}: {e}")
                         continue
+
+                # Check regular rules if not excluded
+                if not rule_triggered:
+                    for rule in rules:
+                        try:
+                            conditions_json = rule['conditions_json']
+                            if not conditions_json:
+                                continue
+
+                            conditions = json.loads(conditions_json)
+                            if not conditions:
+                                continue
+
+                            if _evaluate_conditions(conditions, event_data):
+                                trigger_reason = f"Rule: {rule['name']}"
+                                rule_triggered = True
+                                break
+
+                        except Exception as e:
+                            logger.warning(f"Error evaluating rule {rule['id']} for event {event_id}: {e}")
+                            continue
 
             # Batch the database updates
             if trigger_reason:

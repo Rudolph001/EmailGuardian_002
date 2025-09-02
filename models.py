@@ -95,15 +95,6 @@ CREATE TABLE IF NOT EXISTS exclusion_keywords (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     term TEXT NOT NULL UNIQUE,
     is_regex INTEGER DEFAULT 0,
-    applies_to TEXT DEFAULT 'both',
-    description TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS exclusion_keywords (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    term TEXT NOT NULL UNIQUE,
-    is_regex INTEGER DEFAULT 0,
     check_subject INTEGER DEFAULT 1,
     check_attachments INTEGER DEFAULT 1,
     enabled INTEGER DEFAULT 1,
@@ -299,6 +290,7 @@ def get_dashboard_stats():
             AND is_whitelisted = 0 
             AND follow_up = 0
             AND (trigger_reason IS NULL OR trigger_reason = '')
+            AND NOT (trigger_reason LIKE 'Excluded:%')
         """)
         stats['high_risk_count'] = cursor.fetchone()[0]
 
@@ -310,6 +302,7 @@ def get_dashboard_stats():
             AND is_whitelisted = 0 
             AND follow_up = 0
             AND (trigger_reason IS NULL OR trigger_reason = '')
+            AND NOT (trigger_reason LIKE 'Excluded:%')
         """)
         stats['low_risk_count'] = cursor.fetchone()[0]
 
@@ -322,6 +315,7 @@ def get_dashboard_stats():
             AND is_whitelisted = 0 
             AND follow_up = 0
             AND (trigger_reason IS NULL OR trigger_reason = '')
+            AND NOT (trigger_reason LIKE 'Excluded:%')
         """)
         stats['medium_risk_count'] = cursor.fetchone()[0]
 
@@ -336,7 +330,9 @@ def get_dashboard_stats():
         # Rule triggered events (events with trigger_reason set, not closed, not whitelisted, not follow-up, not excluded)
         cursor.execute("""
             SELECT COUNT(*) FROM events 
-            WHERE (trigger_reason IS NOT NULL AND trigger_reason != '' AND trigger_reason NOT LIKE 'Excluded:%') 
+            WHERE trigger_reason IS NOT NULL 
+            AND trigger_reason != '' 
+            AND trigger_reason NOT LIKE 'Excluded:%' 
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
