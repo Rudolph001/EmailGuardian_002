@@ -352,11 +352,6 @@
 </div>
 
 <script>
-        </div>
-    </div>
-</div>
-
-<script>
 // Simple modal cleanup on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Remove any existing modal backdrops that might be stuck
@@ -368,6 +363,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function openEditModal(keywordId, keywordTerm, isRegex, matchType, checkSubject, checkAttachments, enabled) {
+    console.log('Opening edit modal for keyword ID:', keywordId);
+    
     // Populate the form
     document.getElementById('editKeywordId').value = keywordId;
     document.getElementById('editKeywordTerm').value = keywordTerm;
