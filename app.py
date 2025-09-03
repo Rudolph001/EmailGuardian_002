@@ -1563,11 +1563,14 @@ def domain_labels():
                         # Get unlabeled domains
                         cursor.execute("""
                             SELECT DISTINCT email FROM recipients r
-                            WHERE NOT EXISTS (
+                            WHERE email IS NOT NULL 
+                            AND email != ''
+                            AND INSTR(email, '@') > 0
+                            AND NOT EXISTS (
                                 SELECT 1 FROM domain_labels dl 
                                 WHERE dl.domain = LOWER(SUBSTR(r.email, INSTR(r.email, '@') + 1))
                             )
-                            LIMIT 50
+                            LIMIT 100
                         """)
 
                         emails = cursor.fetchall()
@@ -1632,13 +1635,16 @@ def domain_labels():
                 SELECT DISTINCT LOWER(SUBSTR(email, INSTR(email, '@') + 1)) as domain,
                        COUNT(*) as email_count
                 FROM recipients r
-                WHERE NOT EXISTS (
+                WHERE email IS NOT NULL 
+                AND email != ''
+                AND INSTR(email, '@') > 0
+                AND NOT EXISTS (
                     SELECT 1 FROM domain_labels dl 
                     WHERE dl.domain = LOWER(SUBSTR(r.email, INSTR(r.email, '@') + 1))
                 )
                 GROUP BY domain
                 ORDER BY email_count DESC
-                LIMIT 20
+                LIMIT 50
             """)
             unlabeled_domains = cursor.fetchall()
 

@@ -81,8 +81,11 @@ def extract_domain_features(domain, internal_domains=None):
         return np.zeros(15)  # Return zero vector if no domain
     
     if internal_domains is None:
-        from config import INTERNAL_DOMAINS
-        internal_domains = INTERNAL_DOMAINS
+        try:
+            from config import INTERNAL_DOMAINS
+            internal_domains = INTERNAL_DOMAINS
+        except ImportError:
+            internal_domains = set()  # Fallback if config not available
     
     features = []
     
@@ -195,15 +198,19 @@ class DomainClassifier:
             
             # Auto-label some obvious ones
             auto_labels = []
-            from config import INTERNAL_DOMAINS
+            try:
+                from config import INTERNAL_DOMAINS
+            except ImportError:
+                INTERNAL_DOMAINS = set()
             
             for domain in domains:
-                if domain in INTERNAL_DOMAINS:
-                    auto_labels.append((domain, 0, 1.0))  # Internal
-                elif domain in FREE_MAIL_PROVIDERS:
-                    auto_labels.append((domain, 1, 1.0))  # Freemail
-                elif any(tld in domain for tld in SUSPICIOUS_TLDS):
-                    auto_labels.append((domain, 3, 0.8))  # Suspicious (lower confidence)
+                if domain and len(domain) > 0:  # Ensure domain is valid
+                    if domain in INTERNAL_DOMAINS:
+                        auto_labels.append((domain, 0, 1.0))  # Internal
+                    elif domain in FREE_MAIL_PROVIDERS:
+                        auto_labels.append((domain, 1, 1.0))  # Freemail
+                    elif any(tld in domain for tld in SUSPICIOUS_TLDS):
+                        auto_labels.append((domain, 3, 0.8))  # Suspicious (lower confidence)
             
             # Insert auto-labels
             cursor.executemany("""
@@ -229,9 +236,15 @@ class DomainClassifier:
             y = []
             
             for domain, label in labeled_data:
-                features = extract_domain_features(domain)
-                X.append(features)
-                y.append(label)
+                if domain and len(domain) > 0:  # Validate domain
+                    try:
+                        features = extract_domain_features(domain)
+                        if len(features) == 15:  # Ensure we have all features
+                            X.append(features)
+                            y.append(label)
+                    except Exception as e:
+                        logger.warning(f"Error extracting features for domain {domain}: {e}")
+                        continue
             
             return np.array(X), np.array(y)
     
@@ -272,6 +285,8 @@ class DomainClassifier:
             
         except Exception as e:
             logger.error(f"Domain classifier training failed: {e}")
+            import traceback
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return False
     
     def _generate_synthetic_training_data(self):
@@ -279,9 +294,15 @@ class DomainClassifier:
         synthetic_data = []
         
         # Internal domains (from config)
-        from config import INTERNAL_DOMAINS
-        for domain in INTERNAL_DOMAINS:
-            synthetic_data.append((domain, 0))
+        try:
+            from config import INTERNAL_DOMAINS
+            for domain in INTERNAL_DOMAINS:
+                synthetic_data.append((domain, 0))
+        except ImportError:
+            # Add some default internal domains if config is unavailable
+            default_internal = ['company.com', 'organization.org']
+            for domain in default_internal:
+                synthetic_data.append((domain, 0))
         
         # Free email providers
         for domain in list(FREE_MAIL_PROVIDERS)[:20]:  # Limit to 20
