@@ -42,7 +42,7 @@
                             <input type="hidden" name="action" value="add">
 
                             <div class="row">
-                                <div class="col-md-8">
+                                <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="term" class="form-label">Keyword/Pattern *</label>
                                         <input type="text" class="form-control" id="term" name="term" 
@@ -52,20 +52,68 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="is_regex" class="form-label">Type</label>
+                                        <label class="form-label">Match Type</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="match_type" id="matchContains" value="contains" checked>
+                                            <label class="form-check-label" for="matchContains">
+                                                Contains keyword (anywhere in text)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="match_type" id="matchExact" value="exact">
+                                            <label class="form-check-label" for="matchExact">
+                                                Exact keyword match (word boundaries)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="is_regex" name="is_regex">
                                             <label class="form-check-label" for="is_regex">
-                                                Regular Expression
+                                                Use as Regular Expression
+                                            </label>
+                                            <div class="form-text text-warning small">
+                                                Note: Regex overrides match type
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="check_subject" name="check_subject" checked>
+                                            <label class="form-check-label" for="check_subject">
+                                                Check Subject Lines
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="check_attachments" name="check_attachments" checked>
+                                            <label class="form-check-label" for="check_attachments">
+                                                Check Attachment Names
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="enabled" name="enabled" checked>
+                                            <label class="form-check-label" for="enabled">
+                                                Enabled
                                             </label>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="col-md-2 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="fas fa-plus me-2"></i>Add
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-12">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-plus me-2"></i>Add Keyword
                                     </button>
                                 </div>
                             </div>
@@ -157,13 +205,17 @@
                                 <tr>
                                     <th>Type</th>
                                     <th>Term/Pattern</th>
+                                    <th>Match Type</th>
+                                    <th>Subject</th>
+                                    <th>Attachments</th>
+                                    <th>Status</th>
                                     <th>Created</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for keyword in keywords %}
-                                    <tr>
+                                    <tr class="{% if not keyword.enabled %}table-secondary{% endif %}">
                                         <td>
                                             {% if keyword.is_regex %}
                                                 <span class="badge bg-warning">
@@ -177,6 +229,32 @@
                                         </td>
                                         <td>
                                             <code class="bg-dark text-light p-1 rounded">{{ keyword.term }}</code>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">
+                                                {% if keyword.match_type == 'exact' %}Exact{% else %}Contains{% endif %}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if keyword.check_subject %}
+                                                <i class="fas fa-check text-success" title="Checks subject"></i>
+                                            {% else %}
+                                                <i class="fas fa-times text-muted" title="Skips subject"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if keyword.check_attachments %}
+                                                <i class="fas fa-check text-success" title="Checks attachments"></i>
+                                            {% else %}
+                                                <i class="fas fa-times text-muted" title="Skips attachments"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if keyword.enabled %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Disabled</span>
+                                            {% endif %}
                                         </td>
                                         <td>
                                             <small class="text-muted">{{ keyword.created_at }}</small>

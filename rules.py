@@ -390,16 +390,23 @@ def get_keywords():
     """Get all keywords"""
     with get_db() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id, term, is_regex FROM keywords ORDER BY term")
+        cursor.execute("""
+            SELECT id, term, is_regex, match_type, check_subject, check_attachments, enabled 
+            FROM keywords 
+            ORDER BY term
+        """)
         return cursor.fetchall()
 
-def add_keyword(term, is_regex=False):
+def add_keyword(term, is_regex=False, match_type='contains', check_subject=True, check_attachments=True, enabled=True):
     """Add keyword"""
     with get_db() as conn:
         cursor = conn.cursor()
         try:
-            cursor.execute("INSERT INTO keywords (term, is_regex) VALUES (?, ?)", 
-                         (term, 1 if is_regex else 0))
+            cursor.execute("""
+                INSERT INTO keywords (term, is_regex, match_type, check_subject, check_attachments, enabled) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (term, 1 if is_regex else 0, match_type, 1 if check_subject else 0, 
+                  1 if check_attachments else 0, 1 if enabled else 0))
             conn.commit()
             return True
         except sqlite3.IntegrityError:
@@ -668,6 +675,104 @@ def check_keyword_matches(event):
     matches = []
 
     # Ensure event is a dict for consistent access
+    if hasattr(event, '_fields'):  # sqlite3.Row detection
+        event = dict(event)
+
+    # First check if event should be excluded
+    exclusion_matches = check_exclusion_keywords(event)
+    if exclusion_matches:
+        # Event matches exclusion keywords, so exclude it
+        return []
+
+    # Get keywords
+    keywords = get_keywords()
+    
+    if not keywords:
+        logger.debug("No keywords configured")
+        return []
+
+    # Filter to only enabled keywords
+    keywords = [kw for kw in keywords if kw.get('enabled', True)]
+
+    # Extract event details safely
+    event_id = event.get('id', 'unknown')
+    event_subject = (event.get('subject', '') or '').lower().strip()
+    
+    logger.debug(f"Checking {len(keywords)} enabled keywords against event {event_id}")
+
+    # Get attachments for checking
+    attachments = []
+    attachments_text = ''
+    try:
+        attachments_raw = event.get('attachments', '') or ''
+        if attachments_raw:
+            attachments = [att.strip() for att in attachments_raw.split(',') if att.strip()]
+            attachments_text = ' '.join(attachments).lower()
+    except Exception as e:
+        logger.debug(f"Error parsing attachments for event {event_id}: {e}")
+
+    # Check each keyword
+    for keyword in keywords:
+        term = keyword.get('term', '')
+        is_regex = keyword.get('is_regex', False)
+        match_type = keyword.get('match_type', 'contains')
+        check_subject = keyword.get('check_subject', True)
+        check_attachments = keyword.get('check_attachments', True)
+        found_locations = []
+        
+        try:
+            if is_regex:
+                # Use regex matching
+                pattern = re.compile(term, re.IGNORECASE)
+                
+                # Check subject if enabled
+                if check_subject and event_subject and pattern.search(event_subject):
+                    found_locations.append('Subject')
+                
+                # Check attachments if enabled
+                if check_attachments and attachments_text and pattern.search(attachments_text):
+                    found_locations.append('Attachments')
+            
+            else:
+                term_lower = term.lower()
+                
+                if match_type == 'exact':
+                    # Exact match using word boundaries
+                    word_pattern = r'\b' + re.escape(term_lower) + r'\b'
+                    
+                    if check_subject and event_subject and re.search(word_pattern, event_subject):
+                        found_locations.append('Subject')
+                    
+                    if check_attachments and attachments_text and re.search(word_pattern, attachments_text):
+                        found_locations.append('Attachments')
+                else:
+                    # Contains match (default behavior)
+                    if check_subject and event_subject and term_lower in event_subject:
+                        found_locations.append('Subject')
+                    
+                    if check_attachments and attachments_text and term_lower in attachments_text:
+                        found_locations.append('Attachments')
+            
+            # Add matches for each location found
+            for location in found_locations:
+                matches.append({
+                    'term': term,
+                    'is_regex': is_regex,
+                    'location': location
+                })
+        
+        except re.error:
+            # Skip invalid regex patterns
+            continue
+    
+    return matches
+
+def check_keyword_matches_old(event):
+    """DEPRECATED - Old version kept for compatibility"""
+    import re
+    matches = []
+
+    # Ensure event is a dict for consistent access  
     if hasattr(event, '_fields'):  # sqlite3.Row detection
         event = dict(event)
 

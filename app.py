@@ -947,9 +947,13 @@ def keywords():
             if action == "add":
                 term = request.form.get("term", "").strip()
                 is_regex = request.form.get("is_regex") == "on"
+                match_type = request.form.get("match_type", "contains")
+                check_subject = request.form.get("check_subject") == "on"
+                check_attachments = request.form.get("check_attachments") == "on"
+                enabled = request.form.get("enabled") == "on"
 
                 if term:
-                    if add_keyword(term, is_regex):
+                    if add_keyword(term, is_regex, match_type, check_subject, check_attachments, enabled):
                         flash(f"Keyword '{term}' added", "success")
                     else:
                         flash(f"Keyword '{term}' already exists", "warning")
@@ -973,7 +977,7 @@ def keywords():
 
                         for term in lines:
                             try:
-                                result = add_keyword(term, bulk_is_regex)
+                                result = add_keyword(term, bulk_is_regex, 'contains', True, True, True)
                                 if result:
                                     added_count += 1
                                 else:
