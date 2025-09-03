@@ -487,6 +487,10 @@ def check_exclusion_keywords(event):
     """Check if event matches any exclusion keywords in subject and/or attachments"""
     import re
     
+    # Ensure event is a dict for consistent access
+    if hasattr(event, '_fields'):  # sqlite3.Row detection
+        event = dict(event)
+    
     # Get exclusion keywords
     exclusion_keywords = get_exclusion_keywords()
     
@@ -499,7 +503,7 @@ def check_exclusion_keywords(event):
     matches = []
     
     # Check subject for exclusion keyword matches
-    subject = (event['subject'] or '').lower().strip()
+    subject = (event.get('subject') or '').lower().strip()
     
     # Get attachments for checking
     attachments = []
@@ -575,12 +579,16 @@ def check_whitelist_matches(event, recipients):
     """Check if event matches whitelist entries - requires ALL recipients to be whitelisted"""
     matches = []
 
+    # Ensure event is a dict for consistent access
+    if hasattr(event, '_fields'):  # sqlite3.Row detection
+        event = dict(event)
+
     # Get whitelist data
     domains = get_whitelist_domains()
     emails = get_whitelist_emails()
 
     # Check sender domain
-    sender_domain = event['sender'].split('@')[-1].lower() if '@' in event['sender'] else ''
+    sender_domain = event.get('sender', '').split('@')[-1].lower() if '@' in event.get('sender', '') else ''
     sender_whitelisted = False
 
     for domain in domains:
@@ -595,7 +603,7 @@ def check_whitelist_matches(event, recipients):
 
     # Check sender email if domain not whitelisted
     if not sender_whitelisted:
-        sender_email = event['sender'].lower()
+        sender_email = event.get('sender', '').lower()
         for email in emails:
             if sender_email == email['email'].lower():
                 matches.append({
@@ -659,6 +667,10 @@ def check_keyword_matches(event):
     import re
     matches = []
 
+    # Ensure event is a dict for consistent access
+    if hasattr(event, '_fields'):  # sqlite3.Row detection
+        event = dict(event)
+
     # First check if event should be excluded
     exclusion_matches = check_exclusion_keywords(event)
     if exclusion_matches:
@@ -672,9 +684,9 @@ def check_keyword_matches(event):
         logger.debug("No keywords configured")
         return []
 
-    # Handle both dict and sqlite3.Row objects
-    event_id = event['id'] if hasattr(event, '__getitem__') else getattr(event, 'id', 'unknown')
-    event_subject = event['subject'] if hasattr(event, '__getitem__') else getattr(event, 'subject', '')
+    # Extract event details safely
+    event_id = event.get('id', 'unknown')
+    event_subject = event.get('subject', '')
     
     logger.debug(f"Checking {len(keywords)} keywords against event {event_id}")
 
