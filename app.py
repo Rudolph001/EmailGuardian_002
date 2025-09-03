@@ -95,7 +95,7 @@ def upload():
             except Exception as e:
                 logger.warning(f"Auto-rescoring failed: {e}")
                 flash("Import successful, but risk scoring failed", "warning")
-            
+
             # Auto-process rules, keywords, exclusions and whitelist after import
             try:
                 from rules import process_all_events_for_rules_comprehensive
@@ -304,7 +304,7 @@ def events():
             if needs_recipients_join:
                 count_query += " JOIN recipients r ON e.id = r.event_id"
             count_query += f" WHERE {where_clause}"
-            
+
             cursor.execute(count_query, where_params)
             total_events = cursor.fetchone()[0]
 
@@ -324,7 +324,7 @@ def events():
 
         # Get closure reasons for the close modal
         closure_reasons = get_closure_reasons()
-        
+
         # Get triggered keywords for the dropdown filter
         from models import get_triggered_keywords
         triggered_keywords = get_triggered_keywords()
@@ -393,7 +393,7 @@ def event_detail(event_id):
             # Debug: Check what keywords are configured
             configured_keywords = get_keywords()
             logger.debug(f"Configured keywords: {[(k['term'], k['is_regex']) for k in configured_keywords]}")
-            
+
             keyword_matches = check_keyword_matches(event_data['event'])
             logger.debug(f"Found {len(keyword_matches)} keyword matches for event {event_id}")
             logger.debug(f"Keyword matches details: {keyword_matches}")
@@ -1269,7 +1269,11 @@ def update_event_status(event_id):
 
     # Handle different redirect destinations
     if redirect_to == "events":
-        return redirect(url_for("events", filter=current_filter))
+        # Preserve the current filter when redirecting back to events
+        if current_filter and current_filter != "all":
+            return redirect(url_for("events", filter=current_filter))
+        else:
+            return redirect(url_for("events"))
     else:
         return redirect(url_for("event_detail", event_id=event_id))
 
@@ -1380,7 +1384,11 @@ def batch_update_events():
         logger.error(f"Batch update failed: {e}")
         flash(f"Batch update failed: {str(e)}", "error")
 
-    return redirect(url_for("events", filter=current_filter))
+    # Preserve the current filter when redirecting back to events
+    if current_filter and current_filter != "all":
+        return redirect(url_for("events", filter=current_filter))
+    else:
+        return redirect(url_for("events"))
 
 @app.route("/domain_labels", methods=["GET", "POST"])
 def domain_labels():
