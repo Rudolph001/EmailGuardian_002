@@ -282,31 +282,29 @@ def get_dashboard_stats():
 
         stats = {}
 
-        # High risk events (ml_score > 0.7, not closed, not whitelisted, not follow-up, no trigger_reason, not excluded)
+        # High risk events (ml_score > 0.7, not closed, not whitelisted, not follow-up, not excluded)
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) > 0.7 
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
-            AND (trigger_reason IS NULL OR trigger_reason = '')
             AND NOT (trigger_reason LIKE 'Excluded:%')
         """)
         stats['high_risk_count'] = cursor.fetchone()[0]
 
-        # Low risk events (ml_score <= 0.3, not closed, not whitelisted, not follow-up, no trigger_reason, not excluded)  
+        # Low risk events (ml_score <= 0.3, not closed, not whitelisted, not follow-up, not excluded)  
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) <= 0.3 
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
-            AND (trigger_reason IS NULL OR trigger_reason = '')
             AND NOT (trigger_reason LIKE 'Excluded:%')
         """)
         stats['low_risk_count'] = cursor.fetchone()[0]
 
-        # Medium risk events (ml_score > 0.3 and <= 0.7, not closed, not whitelisted, not follow-up, no trigger_reason, not excluded)  
+        # Medium risk events (ml_score > 0.3 and <= 0.7, not closed, not whitelisted, not follow-up, not excluded)  
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) > 0.3 
@@ -314,7 +312,6 @@ def get_dashboard_stats():
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
-            AND (trigger_reason IS NULL OR trigger_reason = '')
             AND NOT (trigger_reason LIKE 'Excluded:%')
         """)
         stats['medium_risk_count'] = cursor.fetchone()[0]
@@ -327,7 +324,7 @@ def get_dashboard_stats():
         cursor.execute("SELECT COUNT(*) FROM events WHERE status = 'closed'")
         stats['closed_count'] = cursor.fetchone()[0]
 
-        # Rule triggered events (events with trigger_reason set, not closed, not whitelisted, not follow-up, not excluded)
+        # Rule triggered events (events with non-excluded trigger_reason set, not closed, not whitelisted, not follow-up)
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE trigger_reason IS NOT NULL 
