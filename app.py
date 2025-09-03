@@ -188,11 +188,11 @@ def events():
         elif filter_type == "closed":
             where_conditions.append("status = 'closed'")
         elif filter_type == "high_risk":
-            where_conditions.append("ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '') AND NOT (trigger_reason LIKE 'Excluded:%')")
+            where_conditions.append("CAST(ml_score AS REAL) > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))")
         elif filter_type == "low_risk":
-            where_conditions.append("CAST(ml_score AS REAL) <= 0.3 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '') AND NOT (trigger_reason LIKE 'Excluded:%')")
+            where_conditions.append("CAST(ml_score AS REAL) <= 0.3 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))")
         elif filter_type == "medium_risk":
-            where_conditions.append("CAST(ml_score AS REAL) > 0.3 AND CAST(ml_score AS REAL) <= 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '') AND NOT (trigger_reason LIKE 'Excluded:%')")
+            where_conditions.append("CAST(ml_score AS REAL) > 0.3 AND CAST(ml_score AS REAL) <= 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))")
         elif filter_type == "rule_triggered":
             where_conditions.append("status != 'closed' AND is_whitelisted = 0 AND follow_up = 0 AND trigger_reason IS NOT NULL AND trigger_reason != ''")
         elif filter_type == "excluded":

@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS keywords (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     term TEXT NOT NULL UNIQUE,
     is_regex INTEGER DEFAULT 0,
+    match_type TEXT DEFAULT 'all',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -195,7 +196,8 @@ def init_db():
                 "ALTER TABLE events ADD COLUMN closure_notes TEXT",
                 "ALTER TABLE events ADD COLUMN closure_reference TEXT",
                 "ALTER TABLE events ADD COLUMN trigger_reason TEXT",
-                "ALTER TABLE events ADD COLUMN matching_keywords TEXT"
+                "ALTER TABLE events ADD COLUMN matching_keywords TEXT",
+                "ALTER TABLE keywords ADD COLUMN match_type TEXT DEFAULT 'all'"
             ]:
                 try:
                     cursor.execute(column_def)
@@ -282,29 +284,29 @@ def get_dashboard_stats():
 
         stats = {}
 
-        # High risk events (ml_score > 0.7, not closed, not whitelisted, not follow-up, no trigger_reason)
+        # High risk events (ml_score > 0.7, not closed, not whitelisted, not follow-up, no rule/keyword trigger_reason)
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) > 0.7 
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
-            AND (trigger_reason IS NULL OR trigger_reason = '')
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))
         """)
         stats['high_risk_count'] = cursor.fetchone()[0]
 
-        # Low risk events (ml_score <= 0.3, not closed, not whitelisted, not follow-up, no trigger_reason)  
+        # Low risk events (ml_score <= 0.3, not closed, not whitelisted, not follow-up, no rule/keyword trigger_reason)  
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) <= 0.3 
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
-            AND (trigger_reason IS NULL OR trigger_reason = '')
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))
         """)
         stats['low_risk_count'] = cursor.fetchone()[0]
 
-        # Medium risk events (ml_score > 0.3 and <= 0.7, not closed, not whitelisted, not follow-up, no trigger_reason)  
+        # Medium risk events (ml_score > 0.3 and <= 0.7, not closed, not whitelisted, not follow-up, no rule/keyword trigger_reason)  
         cursor.execute("""
             SELECT COUNT(*) FROM events 
             WHERE CAST(ml_score AS REAL) > 0.3 
@@ -312,7 +314,7 @@ def get_dashboard_stats():
             AND status != 'closed' 
             AND is_whitelisted = 0 
             AND follow_up = 0
-            AND (trigger_reason IS NULL OR trigger_reason = '')
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))
         """)
         stats['medium_risk_count'] = cursor.fetchone()[0]
 
@@ -605,6 +607,68 @@ def get_rule_triggered_events(limit=100):
             continue
 
     return triggered_events
+
+def get_medium_risk_events(limit=100, offset=0):
+    """Get medium risk events that haven't been processed by rules"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up, trigger_reason,
+                   closure_reason, closure_notes, closure_reference,
+                   email_sent, email_sent_date
+            FROM events
+            WHERE CAST(ml_score AS REAL) > 0.3 AND CAST(ml_score AS REAL) <= 0.7 
+            AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))
+            ORDER BY ml_score DESC, datetime(_time) DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        return cursor.fetchall()
+
+def get_medium_risk_events_count():
+    """Get count of medium risk events that haven't been processed by rules"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM events
+            WHERE CAST(ml_score AS REAL) > 0.3 AND CAST(ml_score AS REAL) <= 0.7 
+            AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))
+        """)
+        return cursor.fetchone()[0]
+
+def get_low_risk_events(limit=100, offset=0):
+    """Get low risk events that haven't been processed by rules"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
+                   status, is_whitelisted, follow_up, trigger_reason,
+                   closure_reason, closure_notes, closure_reference,
+                   email_sent, email_sent_date
+            FROM events
+            WHERE CAST(ml_score AS REAL) <= 0.3 
+            AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))
+            ORDER BY ml_score DESC, datetime(_time) DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+        return cursor.fetchall()
+
+def get_low_risk_events_count():
+    """Get count of low risk events that haven't been processed by rules"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM events
+            WHERE CAST(ml_score AS REAL) <= 0.3 
+            AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))
+        """)
+        return cursor.fetchone()[0]
 
 def get_remaining_events(limit=100):
     """Get events that are not in Rule Triggered or High Risk categories"""
@@ -1004,8 +1068,8 @@ def get_high_risk_events(limit=100, offset=0):
                    closure_reason, closure_notes, closure_reference,
                    email_sent, email_sent_date
             FROM events
-            WHERE ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
-            AND (trigger_reason IS NULL OR trigger_reason = '')
+            WHERE CAST(ml_score AS REAL) > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))
             ORDER BY ml_score DESC, datetime(_time) DESC
             LIMIT ? OFFSET ?
         """, (limit, offset))
@@ -1019,8 +1083,8 @@ def get_high_risk_events_count():
         cursor.execute("""
             SELECT COUNT(*)
             FROM events
-            WHERE ml_score > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
-            AND (trigger_reason IS NULL OR trigger_reason = '')
+            WHERE CAST(ml_score AS REAL) > 0.7 AND status != 'closed' AND is_whitelisted = 0 AND follow_up = 0
+            AND (trigger_reason IS NULL OR trigger_reason = '' OR NOT (trigger_reason LIKE 'Rule:%' OR trigger_reason LIKE 'Keywords:%'))
         """)
         return cursor.fetchone()[0]
 
