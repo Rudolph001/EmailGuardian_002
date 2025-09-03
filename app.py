@@ -363,6 +363,19 @@ def events():
         return render_template("events.html", events=[], query="", page=1, per_page=10, 
                              total_events=0, total_pages=0, has_prev=False, has_next=False, filter_type="all")
 
+@app.route("/admin/reprocess_keywords", methods=["POST"])
+def reprocess_keywords():
+    """Reprocess all events to populate matching_keywords field"""
+    try:
+        from rules import process_all_events_for_rules_comprehensive
+        processed_count, triggered_count = process_all_events_for_rules_comprehensive()
+        flash(f"Reprocessed {processed_count} events - {triggered_count} triggered by rules/keywords", "success")
+        return redirect(url_for("events"))
+    except Exception as e:
+        logger.error(f"Error reprocessing keywords: {e}")
+        flash(f"Error reprocessing keywords: {e}", "danger")
+        return redirect(url_for("events"))
+
 @app.route("/event/<int:event_id>")
 def event_detail(event_id):
     """Event detail page"""

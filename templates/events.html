@@ -358,7 +358,14 @@
                                             {% endif %}
                                         </a>
                                     </th>
-                                    <th>Matching Keywords</th>
+                                    <th>
+                                        <a href="{{ url_for('events', filter=filter_type, sort='matching_keywords', order='desc' if sort_by == 'matching_keywords' and sort_order == 'asc' else 'asc', q=query, sender_filter=sender_filter, subject_filter=subject_filter, risk_min=risk_min, risk_max=risk_max, status_filter=status_filter, trigger_reason_filter=trigger_reason_filter, recipients_filter=recipients_filter, keyword_filter=keyword_filter, email_sent_filter=email_sent_filter, whitelisted_filter=whitelisted_filter, followup_filter=followup_filter, date_from=date_from, date_to=date_to) }}" class="text-decoration-none">
+                                            Matching Keywords
+                                            {% if sort_by == 'matching_keywords' %}
+                                                <i class="fas fa-sort-{{ 'up' if sort_order == 'asc' else 'down' }} ms-1"></i>
+                                            {% endif %}
+                                        </a>
+                                    </th>
                                     {% endif %}
                                     {% if request.args.get('filter') == 'closed' %}
                                     <th>
