@@ -265,7 +265,7 @@
                 </div>
 
                 <!-- Single Edit Modal for all keywords -->
-                <div class="modal fade" id="editKeywordModal" tabindex="-1" style="z-index: 1060 !important;">
+                <div class="modal fade" id="editKeywordModal" tabindex="-1">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
@@ -339,9 +339,14 @@
                         </div>
                     </div>
                 </div>
-                        </tbody>
-                    </table>
-                </div>
+                
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
                 {% else %}
                 <div class="text-center text-muted">
                     <i class="fas fa-ban fa-3x mb-3"></i>
@@ -355,89 +360,37 @@
 </div>
 
 <script>
-// Force clean any modal state on page load
+// Simple modal cleanup on page load
 document.addEventListener('DOMContentLoaded', function() {
-    forceCleanModal();
+    // Remove any existing modal backdrops that might be stuck
+    const stuckBackdrops = document.querySelectorAll('.modal-backdrop');
+    stuckBackdrops.forEach(backdrop => backdrop.remove());
+    
+    // Reset body class if needed
+    document.body.classList.remove('modal-open');
 });
 
-// Helper function to completely clean modal state
-function forceCleanModal() {
-    // Remove all modal backdrops
-    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
-        backdrop.remove();
-    });
-
-    // Reset body styles
-    document.body.classList.remove('modal-open');
-    document.body.style.overflow = '';
-    document.body.style.paddingRight = '';
-    document.body.style.removeProperty('padding-right');
-
-    // Remove any modal-related classes or attributes
-    document.documentElement.style.overflow = '';
-    document.documentElement.style.paddingRight = '';
-}
-
 function openEditModal(keywordId, keywordTerm, isRegex, matchType, checkSubject, checkAttachments, enabled) {
-    // Force clean any existing modal state
-    forceCleanModal();
+    // Populate the form
+    document.getElementById('editKeywordId').value = keywordId;
+    document.getElementById('editKeywordTerm').value = keywordTerm;
+    document.getElementById('editKeywordIsRegex').checked = isRegex;
     
-    // Close any existing modals
-    const existingModals = document.querySelectorAll('.modal.show');
-    existingModals.forEach(modal => {
-        const instance = bootstrap.Modal.getInstance(modal);
-        if (instance) {
-            instance.dispose();
-        }
-    });
+    // Set match type radio buttons
+    if (matchType === 'exact') {
+        document.getElementById('editMatchExact').checked = true;
+    } else {
+        document.getElementById('editMatchContains').checked = true;
+    }
     
-    // Wait a bit for cleanup
-    setTimeout(() => {
-        // Populate the form
-        document.getElementById('editKeywordId').value = keywordId;
-        document.getElementById('editKeywordTerm').value = keywordTerm;
-        document.getElementById('editKeywordIsRegex').checked = isRegex;
-        
-        // Set match type radio buttons
-        if (matchType === 'exact') {
-            document.getElementById('editMatchExact').checked = true;
-        } else {
-            document.getElementById('editMatchContains').checked = true;
-        }
-        
-        document.getElementById('editKeywordCheckSubject').checked = checkSubject;
-        document.getElementById('editKeywordCheckAttachments').checked = checkAttachments;
-        document.getElementById('editKeywordEnabled').checked = enabled;
-        
-        // Show the modal
-        const modalElement = document.getElementById('editKeywordModal');
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: 'static',
-            keyboard: true,
-            focus: true
-        });
-        
-        modal.show();
-        
-        // Add custom close handlers
-        const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
-        closeButtons.forEach(btn => {
-            btn.addEventListener('click', function() {
-                modal.hide();
-                forceCleanModal();
-            }, { once: true });
-        });
-
-        // Handle modal hidden event
-        modalElement.addEventListener('hidden.bs.modal', function() {
-            const modalInstance = bootstrap.Modal.getInstance(modalElement);
-            if (modalInstance) {
-                modalInstance.dispose();
-            }
-            forceCleanModal();
-        }, { once: true });
-        
-    }, 50);
+    document.getElementById('editKeywordCheckSubject').checked = checkSubject;
+    document.getElementById('editKeywordCheckAttachments').checked = checkAttachments;
+    document.getElementById('editKeywordEnabled').checked = enabled;
+    
+    // Show the modal using standard Bootstrap method
+    const modalElement = document.getElementById('editKeywordModal');
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
 }
 </script>
 {% endblock %}
