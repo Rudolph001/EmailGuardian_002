@@ -1211,6 +1211,7 @@ def process_rules_progress():
 def update_event_status(event_id):
     """Update event status"""
     redirect_to = request.form.get("redirect_to", "event_detail")
+    current_filter = request.form.get("current_filter", "all")
     try:
         from models import update_event_status as update_status
         action = request.form.get("action")
@@ -1268,7 +1269,7 @@ def update_event_status(event_id):
 
     # Handle different redirect destinations
     if redirect_to == "events":
-        return redirect(url_for("events"))
+        return redirect(url_for("events", filter=current_filter))
     else:
         return redirect(url_for("event_detail", event_id=event_id))
 
@@ -1301,16 +1302,17 @@ def batch_update_events():
         event_ids_str = request.form.get("event_ids", "")
         action = request.form.get("action")
         redirect_to = request.form.get("redirect_to", "events")
+        current_filter = request.form.get("current_filter", "all")
 
         if not event_ids_str or not action:
             flash("Invalid batch update request", "error")
-            return redirect(url_for("events"))
+            return redirect(url_for("events", filter=current_filter))
 
         event_ids = [int(id.strip()) for id in event_ids_str.split(",") if id.strip()]
 
         if not event_ids:
             flash("No events selected for batch update", "error")
-            return redirect(url_for("events"))
+            return redirect(url_for("events", filter=current_filter))
 
         from models import update_event_status as update_status
         from datetime import datetime
@@ -1378,7 +1380,7 @@ def batch_update_events():
         logger.error(f"Batch update failed: {e}")
         flash(f"Batch update failed: {str(e)}", "error")
 
-    return redirect(url_for("events"))
+    return redirect(url_for("events", filter=current_filter))
 
 @app.route("/domain_labels", methods=["GET", "POST"])
 def domain_labels():

@@ -504,6 +504,7 @@
                                                         <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" class="d-inline">
                                                             <input type="hidden" name="action" value="follow_up">
                                                             <input type="hidden" name="redirect_to" value="events">
+                                                            <input type="hidden" name="current_filter" value="{{ filter_type }}">
                                                             <button type="submit" class="btn btn-sm btn-warning" title="Mark for Follow-up">
                                                                 <i class="fas fa-flag"></i>
                                                             </button>
@@ -514,6 +515,7 @@
                                                         <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" class="d-inline">
                                                             <input type="hidden" name="action" value="whitelist">
                                                             <input type="hidden" name="redirect_to" value="events">
+                                                            <input type="hidden" name="current_filter" value="{{ filter_type }}">
                                                             <button type="submit" class="btn btn-sm btn-success" title="Whitelist">
                                                                 <i class="fas fa-check-circle"></i>
                                                             </button>
@@ -523,6 +525,7 @@
                                                     <form method="POST" action="{{ url_for('update_event_status', event_id=event.id) }}" class="d-inline">
                                                         <input type="hidden" name="action" value="clear">
                                                         <input type="hidden" name="redirect_to" value="events">
+                                                        <input type="hidden" name="current_filter" value="{{ filter_type }}">
                                                         <button type="submit" class="btn btn-sm btn-secondary" title="Clear">
                                                             <i class="fas fa-times"></i>
                                                         </button>
@@ -546,6 +549,7 @@
                                                                   id="markSentForm{{ event.id }}" style="display: none;">
                                                                 <input type="hidden" name="action" value="mark_email_sent">
                                                                 <input type="hidden" name="redirect_to" value="events">
+                                                                <input type="hidden" name="current_filter" value="{{ filter_type }}">
                                                             </form>
                                                         {% else %}
                                                             <!-- Show email sent status -->
@@ -696,6 +700,7 @@
             <form id="close_event_form" method="POST">
                 <input type="hidden" name="action" value="close">
                 <input type="hidden" name="redirect_to" value="events">
+                <input type="hidden" name="current_filter" value="{{ filter_type }}">
                 <input type="hidden" id="close_event_id" name="event_id">
 
                 <div class="modal-body">
@@ -746,6 +751,7 @@
             <form id="bulk_close_form" method="POST" action="{{ url_for('batch_update_events') }}">
                 <input type="hidden" name="action" value="close">
                 <input type="hidden" name="redirect_to" value="events">
+                <input type="hidden" name="current_filter" value="{{ filter_type }}">
                 <input type="hidden" id="bulk_event_ids" name="event_ids">
 
                 <div class="modal-body">
@@ -784,6 +790,7 @@
     <input type="hidden" name="action" id="bulk_action">
     <input type="hidden" name="event_ids" id="bulk_event_ids_field">
     <input type="hidden" name="redirect_to" value="events">
+    <input type="hidden" name="current_filter" value="{{ filter_type }}">
 </form>
 
 <script>
