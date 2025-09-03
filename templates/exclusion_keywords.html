@@ -246,7 +246,7 @@
                                 </td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-outline-primary me-1"
-                                            onclick="openEditModal({{ keyword.id }}, '{{ keyword.term|replace("'", "\\'") }}', {{ 'true' if keyword.is_regex else 'false' }}, '{{ keyword.match_type or 'contains' }}', {{ 'true' if keyword.check_subject else 'false' }}, {{ 'true' if keyword.check_attachments else 'false' }}, {{ 'true' if keyword.enabled else 'false' }})"
+                                            onclick="openEditModal({{ keyword.id }}, '{{ keyword.term|replace("'", "\\'") }}', {{ 'true' if keyword.is_regex else 'false' }}, '{{ keyword.match_type or 'contains' }}', {{ 'true' if keyword.check_subject else 'false' }}, {{ 'true' if keyword.check_attachments else 'false' }}, {{ 'true' if keyword.enabled else 'false' }})">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" style="display: inline;">
