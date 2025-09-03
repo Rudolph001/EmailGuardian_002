@@ -518,7 +518,7 @@ def check_exclusion_keywords(event):
     
     try:
         from models import get_event_detail
-        event_detail = get_event_detail(event['id'])
+        event_detail = get_event_detail(event.get('id'))
         if event_detail and 'attachments' in event_detail:
             attachments = event_detail['attachments'] or []
             # attachments is already a list of strings (filenames), not dicts
@@ -927,11 +927,12 @@ def _get_field_value(field, event_data):
         event = dict(event)
 
     if field == 'sender':
-        return event['sender']
+        return event.get('sender', '')
     elif field == 'sender_domain':
-        return event['sender'].split('@')[1] if '@' in event['sender'] else ''
+        sender = event.get('sender', '')
+        return sender.split('@')[1] if '@' in sender else ''
     elif field == 'subject':
-        return event['subject'] or ''
+        return event.get('subject', '') or ''
     elif field == 'keywords':
         # For keyword field, return the stored matching_keywords
         matching_keywords = event.get('matching_keywords', '')
@@ -961,7 +962,7 @@ def _get_field_value(field, event_data):
             if not domain_classifier.model:
                 domain_classifier.load_model()
             if domain_classifier.model:
-                sender_domain = extract_domain(event['sender'])
+                sender_domain = extract_domain(event.get('sender', ''))
                 if sender_domain:
                     classification = domain_classifier.classify_domain(sender_domain)
                     result = classification.get('label', 'unknown')
@@ -1012,22 +1013,22 @@ def _get_field_value(field, event_data):
         except Exception:
             return False
     elif field == 'bunit':
-        return event['bunit'] or ''
+        return event.get('bunit', '') or ''
     elif field == 'department':
-        return event['department'] or ''
+        return event.get('department', '') or ''
     elif field == 'leaver':
         # Convert to boolean: 1 = True, 0 = False
-        return bool(event['leaver'] == 1)
+        return bool(event.get('leaver', 0) == 1)
     elif field == 'termination_date':
-        return event['termination_date'] or ''
+        return event.get('termination_date', '') or ''
     elif field == 'attachments':
         return ', '.join(attachments)
     elif field == 'policies':
         return ', '.join(policies)
     elif field == 'ml_score':
-        return event['ml_score'] or 0.0
+        return event.get('ml_score', 0) or 0.0
     elif field == 'is_internal_to_external':
-        return bool(event['is_internal_to_external'])
+        return bool(event.get('is_internal_to_external', 0))
 
     return ''
 
@@ -1516,13 +1517,18 @@ def process_all_events_for_rules_comprehensive():
 
     for event_row in events_data:
         try:
-            event = dict(event_row)
-            event_id = event['id']
+            # Convert sqlite3.Row to dict immediately for consistent access
+            if hasattr(event_row, '_fields'):  # sqlite3.Row detection
+                event = dict(event_row)
+            else:
+                event = event_row
+            
+            event_id = event.get('id')
             
             # Parse multi-value fields
-            recipients = [r.strip() for r in (event['recipients'] or '').split(',') if r.strip()]
-            attachments = [a.strip() for a in (event['attachments'] or '').split(',') if a.strip()]
-            policies = [p.strip() for p in (event['policies'] or '').split(',') if p.strip()]
+            recipients = [r.strip() for r in (event.get('recipients', '') or '').split(',') if r.strip()]
+            attachments = [a.strip() for a in (event.get('attachments', '') or '').split(',') if a.strip()]
+            policies = [p.strip() for p in (event.get('policies', '') or '').split(',') if p.strip()]
 
             trigger_reason = None
             matching_keywords = []
@@ -1530,10 +1536,6 @@ def process_all_events_for_rules_comprehensive():
 
             # Check whitelist first
             is_whitelisted = _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails)
-
-            # Convert sqlite3.Row to dict for proper access
-            if hasattr(event, '_fields'):  # sqlite3.Row detection
-                event = dict(event)
 
             # Check exclusion keywords (using fresh connection)
             try:
@@ -1710,7 +1712,7 @@ def process_all_events_for_rules_with_progress():
     for event_row in events_data:
         try:
             event = dict(event_row)
-            event_id = event['id']
+            event_id = event.get('id')
             
             # Parse multi-value fields
             recipients = [r.strip() for r in (event['recipients'] or '').split(',') if r.strip()]
@@ -1825,7 +1827,7 @@ def _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails
     """Fast whitelist check using preloaded data"""
     try:
         # Check sender domain
-        sender_domain = event['sender'].split('@')[-1].lower() if '@' in event['sender'] else ''
+        sender_domain = event.get('sender', '').split('@')[-1].lower() if '@' in event.get('sender', '') else ''
         sender_whitelisted = False
 
         for domain in whitelist_domains:
@@ -1834,7 +1836,7 @@ def _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails
                 break
 
         if not sender_whitelisted:
-            sender_email = event['sender'].lower()
+            sender_email = event.get('sender', '').lower()
             for email in whitelist_emails:
                 if sender_email == email['email'].lower():
                     sender_whitelisted = True
@@ -1875,7 +1877,7 @@ def _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails
 def _fast_keyword_check(event, keywords):
     """Fast keyword check using preloaded keywords"""
     try:
-        subject = (event['subject'] or '').lower()
+        subject = (event.get('subject', '') or '').lower()
         
         for keyword in keywords:
             term = keyword['term']
