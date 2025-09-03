@@ -279,7 +279,7 @@
 
                                     <div class="mb-3">
                                         <label for="editKeywordTerm" class="form-label">Keyword/Pattern</label>
-                                        <input type="text" class="form-control" name="term" id="editKeywordTerm" required style="background-color: white; color: black;">
+                                        <input type="text" class="form-control" name="term" id="editKeywordTerm" required>
                                         <div class="form-text">Examples: "invoice", "tax invoice", "unsubscribe"</div>
                                     </div>
 
@@ -352,42 +352,71 @@
 </div>
 
 <style>
-#editKeywordModal input[type="text"],
-#editKeywordModal input[type="radio"],
-#editKeywordModal input[type="checkbox"],
-#editKeywordModal button {
+/* Force enable all modal form elements */
+#editKeywordModal * {
+    pointer-events: auto !important;
+}
+
+#editKeywordModal input,
+#editKeywordModal button,
+#editKeywordModal select,
+#editKeywordModal textarea {
     pointer-events: auto !important;
     opacity: 1 !important;
-    background-color: white !important;
-    color: black !important;
+    cursor: pointer !important;
 }
 
+#editKeywordModal input[type="text"],
 #editKeywordModal .form-control {
-    background-color: white !important;
-    border-color: #ced4da !important;
-    color: black !important;
+    background-color: #ffffff !important;
+    border: 1px solid #ced4da !important;
+    color: #212529 !important;
+    cursor: text !important;
 }
 
-#editKeywordModal .form-control:focus {
-    background-color: white !important;
-    border-color: #86b7fe !important;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
-    color: black !important;
+#editKeywordModal input[type="text"]:disabled,
+#editKeywordModal .form-control:disabled {
+    background-color: #ffffff !important;
+    border: 1px solid #ced4da !important;
+    color: #212529 !important;
+    opacity: 1 !important;
+    cursor: text !important;
+    pointer-events: auto !important;
+}
+
+#editKeywordModal input[type="radio"],
+#editKeywordModal input[type="checkbox"] {
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    cursor: pointer !important;
 }
 
 #editKeywordModal .btn {
     pointer-events: auto !important;
     opacity: 1 !important;
+    cursor: pointer !important;
 }
 
 #editKeywordModal .form-check-input {
     background-color: white !important;
     border-color: #adb5bd !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
 }
 
 #editKeywordModal .form-check-input:checked {
     background-color: #0d6efd !important;
     border-color: #0d6efd !important;
+}
+
+/* Override any disabled styles */
+#editKeywordModal input:disabled,
+#editKeywordModal button:disabled {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    background-color: white !important;
+    color: black !important;
 }
 </style>
 
@@ -405,20 +434,37 @@ document.addEventListener('DOMContentLoaded', function() {
 function openEditModal(keywordId, keywordTerm, isRegex, matchType, checkSubject, checkAttachments, enabled) {
     console.log('Opening edit modal for keyword ID:', keywordId);
     
-    // Small delay to ensure modal is ready
-    setTimeout(() => {
-        // Enable all form elements first
-        const formElements = document.querySelectorAll('#editKeywordModal input, #editKeywordModal button');
-        formElements.forEach(element => {
-            element.disabled = false;
-            element.style.pointerEvents = 'auto';
-            element.style.opacity = '1';
+    // Show the modal first
+    const modalElement = document.getElementById('editKeywordModal');
+    const modal = new bootstrap.Modal(modalElement);
+    modal.show();
+    
+    // Wait for modal to be fully shown
+    modalElement.addEventListener('shown.bs.modal', function() {
+        console.log('Modal fully shown, enabling form elements');
+        
+        // Aggressively enable ALL form elements
+        const allElements = modalElement.querySelectorAll('*');
+        allElements.forEach(element => {
+            if (element.tagName === 'INPUT' || element.tagName === 'BUTTON' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA') {
+                element.disabled = false;
+                element.removeAttribute('disabled');
+                element.style.pointerEvents = 'auto';
+                element.style.opacity = '1';
+                element.style.cursor = element.type === 'text' ? 'text' : 'pointer';
+                element.style.backgroundColor = 'white';
+                element.style.color = 'black';
+            }
         });
         
         // Populate the form
         document.getElementById('editKeywordId').value = keywordId;
-        document.getElementById('editKeywordTerm').value = keywordTerm;
-        document.getElementById('editKeywordTerm').focus();
+        const termInput = document.getElementById('editKeywordTerm');
+        termInput.value = keywordTerm;
+        termInput.disabled = false;
+        termInput.removeAttribute('disabled');
+        termInput.focus();
+        
         document.getElementById('editKeywordIsRegex').checked = isRegex;
         
         // Set match type radio buttons
@@ -432,12 +478,8 @@ function openEditModal(keywordId, keywordTerm, isRegex, matchType, checkSubject,
         document.getElementById('editKeywordCheckAttachments').checked = checkAttachments;
         document.getElementById('editKeywordEnabled').checked = enabled;
         
-    }, 100);
-    
-    // Show the modal using standard Bootstrap method
-    const modalElement = document.getElementById('editKeywordModal');
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
+        console.log('Form populated and enabled');
+    }, { once: true });
 }
 </script>
 {% endblock %}
