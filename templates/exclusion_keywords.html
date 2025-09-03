@@ -352,33 +352,57 @@
 </div>
 
 <style>
-/* Force enable all modal form elements */
-#editKeywordModal * {
+/* AGGRESSIVE form element enabling */
+#editKeywordModal {
+    z-index: 1055 !important;
+}
+
+#editKeywordModal *,
+#editKeywordModal *:before,
+#editKeywordModal *:after {
     pointer-events: auto !important;
+    user-select: auto !important;
 }
 
 #editKeywordModal input,
 #editKeywordModal button,
 #editKeywordModal select,
-#editKeywordModal textarea {
+#editKeywordModal textarea,
+#editKeywordModal label {
     pointer-events: auto !important;
     opacity: 1 !important;
     cursor: pointer !important;
+    user-select: auto !important;
+    -webkit-user-select: auto !important;
+    -moz-user-select: auto !important;
+    -ms-user-select: auto !important;
 }
 
 #editKeywordModal input[type="text"],
 #editKeywordModal .form-control {
     background-color: #ffffff !important;
-    border: 1px solid #ced4da !important;
-    color: #212529 !important;
+    border: 1px solid #007bff !important;
+    color: #000000 !important;
     cursor: text !important;
+    pointer-events: auto !important;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    outline: none !important;
+}
+
+#editKeywordModal input[type="text"]:focus,
+#editKeywordModal .form-control:focus {
+    background-color: #ffffff !important;
+    border: 2px solid #007bff !important;
+    color: #000000 !important;
+    box-shadow: 0 0 5px rgba(0,123,255,0.5) !important;
 }
 
 #editKeywordModal input[type="text"]:disabled,
 #editKeywordModal .form-control:disabled {
     background-color: #ffffff !important;
-    border: 1px solid #ced4da !important;
-    color: #212529 !important;
+    border: 1px solid #007bff !important;
+    color: #000000 !important;
     opacity: 1 !important;
     cursor: text !important;
     pointer-events: auto !important;
@@ -389,34 +413,50 @@
     pointer-events: auto !important;
     opacity: 1 !important;
     cursor: pointer !important;
+    transform: scale(1.2) !important;
+}
+
+#editKeywordModal .form-check-label {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    user-select: none !important;
 }
 
 #editKeywordModal .btn {
     pointer-events: auto !important;
     opacity: 1 !important;
     cursor: pointer !important;
+    border: 2px solid !important;
 }
 
 #editKeywordModal .form-check-input {
     background-color: white !important;
-    border-color: #adb5bd !important;
+    border: 2px solid #adb5bd !important;
     pointer-events: auto !important;
     cursor: pointer !important;
 }
 
 #editKeywordModal .form-check-input:checked {
-    background-color: #0d6efd !important;
-    border-color: #0d6efd !important;
+    background-color: #007bff !important;
+    border-color: #007bff !important;
 }
 
-/* Override any disabled styles */
+/* Remove any overlay interference */
+#editKeywordModal .modal-backdrop {
+    z-index: 1040 !important;
+}
+
+/* Override ALL disabled states */
 #editKeywordModal input:disabled,
-#editKeywordModal button:disabled {
+#editKeywordModal button:disabled,
+#editKeywordModal select:disabled,
+#editKeywordModal textarea:disabled {
     opacity: 1 !important;
     pointer-events: auto !important;
     cursor: pointer !important;
     background-color: white !important;
     color: black !important;
+    border: 1px solid #007bff !important;
 }
 </style>
 
@@ -436,34 +476,75 @@ function openEditModal(keywordId, keywordTerm, isRegex, matchType, checkSubject,
     
     // Show the modal first
     const modalElement = document.getElementById('editKeywordModal');
-    const modal = new bootstrap.Modal(modalElement);
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: true,
+        keyboard: true,
+        focus: true
+    });
     modal.show();
     
-    // Wait for modal to be fully shown
-    modalElement.addEventListener('shown.bs.modal', function() {
-        console.log('Modal fully shown, enabling form elements');
+    // Multiple attempts to enable the form
+    const enableForm = () => {
+        console.log('Attempting to enable form elements...');
+        
+        // Remove any backdrop interference
+        document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+            backdrop.style.zIndex = '1040';
+        });
+        
+        // Set modal z-index higher
+        modalElement.style.zIndex = '1055';
+        modalElement.style.display = 'block';
         
         // Aggressively enable ALL form elements
-        const allElements = modalElement.querySelectorAll('*');
-        allElements.forEach(element => {
-            if (element.tagName === 'INPUT' || element.tagName === 'BUTTON' || element.tagName === 'SELECT' || element.tagName === 'TEXTAREA') {
-                element.disabled = false;
-                element.removeAttribute('disabled');
-                element.style.pointerEvents = 'auto';
-                element.style.opacity = '1';
-                element.style.cursor = element.type === 'text' ? 'text' : 'pointer';
-                element.style.backgroundColor = 'white';
-                element.style.color = 'black';
+        const allInputs = modalElement.querySelectorAll('input, button, select, textarea');
+        console.log(`Found ${allInputs.length} form elements to enable`);
+        
+        allInputs.forEach((element, index) => {
+            console.log(`Enabling element ${index}: ${element.tagName} ${element.type || ''} ${element.id || ''}`);
+            
+            // Remove all possible disabled states
+            element.disabled = false;
+            element.removeAttribute('disabled');
+            element.removeAttribute('readonly');
+            
+            // Force styles
+            element.style.pointerEvents = 'auto !important';
+            element.style.opacity = '1 !important';
+            element.style.cursor = element.type === 'text' ? 'text' : 'pointer';
+            element.style.backgroundColor = 'white !important';
+            element.style.color = 'black !important';
+            element.style.border = '1px solid #ced4da';
+            
+            // Remove any event listeners that might block interaction
+            element.style.userSelect = 'auto';
+            element.tabIndex = element.type === 'hidden' ? -1 : 0;
+            
+            // Add click handler for debugging
+            if (element.type !== 'hidden') {
+                element.addEventListener('click', function(e) {
+                    console.log(`Clicked on: ${element.tagName} ${element.id || element.type}`);
+                    e.stopPropagation();
+                }, { passive: false });
             }
         });
         
         // Populate the form
         document.getElementById('editKeywordId').value = keywordId;
+        
         const termInput = document.getElementById('editKeywordTerm');
         termInput.value = keywordTerm;
         termInput.disabled = false;
         termInput.removeAttribute('disabled');
-        termInput.focus();
+        termInput.removeAttribute('readonly');
+        termInput.style.backgroundColor = 'white !important';
+        termInput.style.color = 'black !important';
+        
+        // Force focus after a delay
+        setTimeout(() => {
+            termInput.focus();
+            termInput.select();
+        }, 200);
         
         document.getElementById('editKeywordIsRegex').checked = isRegex;
         
@@ -479,7 +560,19 @@ function openEditModal(keywordId, keywordTerm, isRegex, matchType, checkSubject,
         document.getElementById('editKeywordEnabled').checked = enabled;
         
         console.log('Form populated and enabled');
+    };
+    
+    // Try enabling immediately
+    setTimeout(enableForm, 50);
+    
+    // Try again when modal is shown
+    modalElement.addEventListener('shown.bs.modal', function() {
+        console.log('Modal fully shown, re-enabling form elements');
+        setTimeout(enableForm, 100);
     }, { once: true });
+    
+    // And try once more after a longer delay
+    setTimeout(enableForm, 500);
 }
 </script>
 {% endblock %}
