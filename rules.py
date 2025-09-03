@@ -1367,6 +1367,13 @@ def process_all_events_for_rules_comprehensive():
     with get_db() as conn:
         cursor = conn.cursor()
 
+        # Clear existing trigger reasons and matching keywords to allow reprocessing
+        cursor.execute("""
+            UPDATE events 
+            SET trigger_reason = NULL, matching_keywords = NULL, is_whitelisted = 0
+        """)
+        conn.commit()
+
         # Get all events for reprocessing
         cursor.execute("""
             SELECT e.id, e.sender, e.subject, e.bunit, e.department, e.leaver, 
@@ -1528,6 +1535,14 @@ def process_all_events_for_rules_with_progress():
     with get_db() as conn:
         cursor = conn.cursor()
 
+        # Clear existing trigger reasons for non-closed events to allow reprocessing
+        cursor.execute("""
+            UPDATE events 
+            SET trigger_reason = NULL, matching_keywords = NULL 
+            WHERE status != 'closed'
+        """)
+        conn.commit()
+
         # Get events with all related data in one query for better performance
         cursor.execute("""
             SELECT e.id, e.sender, e.subject, e.bunit, e.department, e.leaver, 
@@ -1539,8 +1554,7 @@ def process_all_events_for_rules_with_progress():
             LEFT JOIN recipients r ON e.id = r.event_id
             LEFT JOIN attachments a ON e.id = a.event_id
             LEFT JOIN policies p ON e.id = p.event_id
-            WHERE (e.trigger_reason IS NULL OR e.trigger_reason = '') 
-            AND e.status != 'closed' 
+            WHERE e.status != 'closed' 
             AND e.is_whitelisted = 0 
             AND e.follow_up = 0
             GROUP BY e.id
