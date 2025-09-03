@@ -950,7 +950,7 @@ def _get_field_value(field, event_data):
         # Get domain risk score for this event
         try:
             from domain_ml import classify_event_domains, get_domain_risk_score
-            domain_classifications = classify_event_domains(event['id'])
+            domain_classifications = classify_event_domains(event.get('id'))
             return get_domain_risk_score(domain_classifications)
         except Exception:
             return 0.0
@@ -994,7 +994,7 @@ def _get_field_value(field, event_data):
         # Check if any domains are classified as suspicious
         try:
             from domain_ml import classify_event_domains
-            domain_classifications = classify_event_domains(event['id'])
+            domain_classifications = classify_event_domains(event.get('id'))
             for classification in domain_classifications:
                 if classification.get('label') == 'suspicious':
                     return True
@@ -1005,7 +1005,7 @@ def _get_field_value(field, event_data):
         # Check if any domains are not internal
         try:
             from domain_ml import classify_event_domains
-            domain_classifications = classify_event_domains(event['id'])
+            domain_classifications = classify_event_domains(event.get('id'))
             for classification in domain_classifications:
                 if classification.get('label') != 'internal':
                     return True
@@ -1089,7 +1089,7 @@ def check_exclusion_rules(event, recipients, attachments, policies):
         try:
             conditions = json.loads(rule_dict['conditions_json'])
             if _evaluate_conditions(conditions, event_data):
-                logger.debug(f"Exclusion rule '{rule_dict['name']}' matched for event {event['id']}")
+                logger.debug(f"Exclusion rule '{rule_dict['name']}' matched for event {event.get('id')}")
                 return [{
                     'rule_id': rule_dict['id'],
                     'rule_name': rule_dict['name'],
@@ -1715,9 +1715,9 @@ def process_all_events_for_rules_with_progress():
             event_id = event.get('id')
             
             # Parse multi-value fields
-            recipients = [r.strip() for r in (event['recipients'] or '').split(',') if r.strip()]
-            attachments = [a.strip() for a in (event['attachments'] or '').split(',') if a.strip()]
-            policies = [p.strip() for p in (event['policies'] or '').split(',') if p.strip()]
+            recipients = [r.strip() for r in (event.get('recipients', '') or '').split(',') if r.strip()]
+            attachments = [a.strip() for a in (event.get('attachments', '') or '').split(',') if a.strip()]
+            policies = [p.strip() for p in (event.get('policies', '') or '').split(',') if p.strip()]
 
             trigger_reason = None
             rule_triggered = False
