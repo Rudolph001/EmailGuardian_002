@@ -1414,18 +1414,32 @@ def process_all_events_for_rules_comprehensive():
             # Check whitelist first
             is_whitelisted = _fast_whitelist_check(event, recipients, whitelist_domains, whitelist_emails)
 
-            # Check exclusion keywords
-            exclusion_matches = check_exclusion_keywords_during_import(cursor, event, attachments)
-            if exclusion_matches:
-                exclusion_terms = exclusion_matches[:3]
-                if len(exclusion_matches) > 3:
-                    exclusion_terms.append(f"+ {len(exclusion_matches) - 3} more")
-                trigger_reason = f"Excluded: {', '.join(exclusion_terms)}"
-                triggered_count += 1
+            # Convert sqlite3.Row to dict for proper access
+            if hasattr(event, '_fields'):  # sqlite3.Row detection
+                event = dict(event)
+
+            # Check exclusion keywords (using fresh connection)
+            try:
+                exclusion_matches = check_exclusion_keywords(event)
+                if exclusion_matches:
+                    exclusion_terms = [match['term'] for match in exclusion_matches[:3]]
+                    if len(exclusion_matches) > 3:
+                        exclusion_terms.append(f"+ {len(exclusion_matches) - 3} more")
+                    trigger_reason = f"Excluded: {', '.join(exclusion_terms)}"
+                    triggered_count += 1
+            except Exception as e:
+                logger.warning(f"Error checking exclusion keywords for event {event_id}: {e}")
+                exclusion_matches = []
 
             # Check regular keywords if not excluded
-            elif not exclusion_matches:
-                matching_keywords = check_keywords_during_import(cursor, event, attachments)
+            if not exclusion_matches and not trigger_reason:
+                try:
+                    keyword_matches = check_keyword_matches(event)
+                    if keyword_matches:
+                        matching_keywords = [match['term'] for match in keyword_matches]
+                except Exception as e:
+                    logger.warning(f"Error checking keywords for event {event_id}: {e}")
+                    matching_keywords = []
 
             # Check exclusion rules if not already excluded
             if not trigger_reason:
