@@ -345,7 +345,7 @@ def get_dashboard_stats():
         """)
         stats['excluded_count'] = cursor.fetchone()[0]
 
-        # Follow-up events (regardless of other status)
+        # Follow-up events
         cursor.execute("SELECT COUNT(*) FROM events WHERE follow_up = 1 AND status != 'closed'")
         stats['follow_up_count'] = cursor.fetchone()[0]
 
@@ -555,13 +555,13 @@ def get_rule_triggered_events(limit=100):
             ORDER BY datetime(_time) DESC
             LIMIT ?
         """, (limit,))
-        
+
         triggered_events_with_reason = cursor.fetchall()
-        
+
         # If we have enough events with trigger_reason, return them
         if len(triggered_events_with_reason) >= limit:
             return [dict(event) for event in triggered_events_with_reason]
-        
+
         # Otherwise, also check recent events that might need keyword/rule checking
         cursor.execute("""
             SELECT id, _time, sender, subject, ml_score, is_internal_to_external,
@@ -582,7 +582,7 @@ def get_rule_triggered_events(limit=100):
     for event in all_events:
         if len(triggered_events) >= limit:
             break
-            
+
         try:
             # Convert to dict so we can add trigger_reason
             event_dict = dict(event)
@@ -1122,7 +1122,7 @@ def get_rule_triggered_events_count():
 def get_triggered_keywords():
     """Get list of all keywords that have triggered in events"""
     import re
-    
+
     with get_db() as conn:
         cursor = conn.cursor()
         # Get all unique trigger_reason values that start with "Keywords:"
@@ -1132,15 +1132,15 @@ def get_triggered_keywords():
             WHERE trigger_reason LIKE 'Keywords:%' 
             ORDER BY trigger_reason
         """)
-        
+
         triggered_keywords = set()
-        
+
         for row in cursor.fetchall():
             trigger_reason = row[0]
             if trigger_reason and trigger_reason.startswith('Keywords: '):
                 # Extract keywords from "Keywords: keyword1, keyword2, + 2 more" format
                 keywords_part = trigger_reason[10:]  # Remove "Keywords: " prefix
-                
+
                 # Split by comma and clean up each keyword
                 parts = keywords_part.split(', ')
                 for part in parts:
@@ -1148,5 +1148,5 @@ def get_triggered_keywords():
                     # Skip "X more" entries
                     if not (part.startswith('+') and part.endswith('more')):
                         triggered_keywords.add(part)
-        
+
         return sorted(list(triggered_keywords))
