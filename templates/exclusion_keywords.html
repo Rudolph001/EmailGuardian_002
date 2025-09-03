@@ -246,8 +246,7 @@
                                 </td>
                                 <td>
                                     <button type="button" class="btn btn-sm btn-outline-primary me-1"
-                                            data-bs-toggle="modal" data-bs-target="#editModal{{ keyword.id }}"
-                                            onclick="populateEditModal({{ keyword.id }}, '{{ keyword.term|replace("'", "\\'") }}', {{ 'true' if keyword.is_regex else 'false' }}, '{{ keyword.match_type or 'contains' }}', {{ 'true' if keyword.check_subject else 'false' }}, {{ 'true' if keyword.check_attachments else 'false' }}, {{ 'true' if keyword.enabled else 'false' }})">
+                                            onclick="openEditModal({{ keyword.id }}, '{{ keyword.term|replace("'", "\\'") }}', {{ 'true' if keyword.is_regex else 'false' }}, '{{ keyword.match_type or 'contains' }}', {{ 'true' if keyword.check_subject else 'false' }}, {{ 'true' if keyword.check_attachments else 'false' }}, {{ 'true' if keyword.enabled else 'false' }})"
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" style="display: inline;">
@@ -266,7 +265,7 @@
                 </div>
 
                 <!-- Single Edit Modal for all keywords -->
-                <div class="modal fade" id="editModal{{ exclusion_keywords[0].id if exclusion_keywords else '1' }}" tabindex="-1">
+                <div class="modal fade" id="editKeywordModal" tabindex="-1" style="z-index: 1060 !important;">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
@@ -340,83 +339,6 @@
                         </div>
                     </div>
                 </div>
-                {% for keyword in exclusion_keywords[1:] %}
-                <!-- Additional edit modals for other keywords -->
-                <div class="modal fade" id="editModal{{ keyword.id }}" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Edit Exclusion Keyword</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <form method="POST">
-                                <div class="modal-body">
-                                    <input type="hidden" name="action" value="edit">
-                                    <input type="hidden" name="keyword_id" value="{{ keyword.id }}">
-
-                                    <div class="mb-3">
-                                        <label class="form-label">Keyword/Pattern</label>
-                                        <input type="text" class="form-control" name="term" value="{{ keyword.term }}" required>
-                                        <div class="form-text">Examples: "invoice", "tax invoice", "unsubscribe"</div>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label class="form-label">Match Type</label>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="match_type" value="contains" {{ 'checked' if (keyword.match_type or 'contains') == 'contains' else '' }}>
-                                            <label class="form-check-label">
-                                                Contains keyword (anywhere in text)
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="radio" name="match_type" value="exact" {{ 'checked' if keyword.match_type == 'exact' else '' }}>
-                                            <label class="form-check-label">
-                                                Exact keyword match (word boundaries)
-                                            </label>
-                                        </div>
-                                        <div class="form-check mt-2">
-                                            <input class="form-check-input" type="checkbox" name="is_regex" {{ 'checked' if keyword.is_regex else '' }}>
-                                            <label class="form-check-label">
-                                                Use as Regular Expression
-                                            </label>
-                                            <div class="form-text text-warning">Note: Regex overrides match type</div>
-                                        </div>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label class="form-label">Apply to:</label>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="check_subject" {{ 'checked' if keyword.check_subject else '' }}>
-                                            <label class="form-check-label">
-                                                Check Subject Lines
-                                            </label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="check_attachments" {{ 'checked' if keyword.check_attachments else '' }}>
-                                            <label class="form-check-label">
-                                                Check Attachment Names
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="enabled" {{ 'checked' if keyword.enabled else '' }}>
-                                            <label class="form-check-label">
-                                                Enabled
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
@@ -433,21 +355,89 @@
 </div>
 
 <script>
-        function populateEditModal(keywordId, keywordTerm, isRegex, matchType, checkSubject, checkAttachments, enabled) {
-            document.getElementById('editKeywordId').value = keywordId;
-            document.getElementById('editKeywordTerm').value = keywordTerm;
-            document.getElementById('editKeywordIsRegex').checked = isRegex;
-            
-            // Set match type radio buttons
-            if (matchType === 'exact') {
-                document.getElementById('editMatchExact').checked = true;
-            } else {
-                document.getElementById('editMatchContains').checked = true;
-            }
-            
-            document.getElementById('editKeywordCheckSubject').checked = checkSubject;
-            document.getElementById('editKeywordCheckAttachments').checked = checkAttachments;
-            document.getElementById('editKeywordEnabled').checked = enabled;
+// Force clean any modal state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    forceCleanModal();
+});
+
+// Helper function to completely clean modal state
+function forceCleanModal() {
+    // Remove all modal backdrops
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+        backdrop.remove();
+    });
+
+    // Reset body styles
+    document.body.classList.remove('modal-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+    document.body.style.removeProperty('padding-right');
+
+    // Remove any modal-related classes or attributes
+    document.documentElement.style.overflow = '';
+    document.documentElement.style.paddingRight = '';
+}
+
+function openEditModal(keywordId, keywordTerm, isRegex, matchType, checkSubject, checkAttachments, enabled) {
+    // Force clean any existing modal state
+    forceCleanModal();
+    
+    // Close any existing modals
+    const existingModals = document.querySelectorAll('.modal.show');
+    existingModals.forEach(modal => {
+        const instance = bootstrap.Modal.getInstance(modal);
+        if (instance) {
+            instance.dispose();
         }
-    </script>
+    });
+    
+    // Wait a bit for cleanup
+    setTimeout(() => {
+        // Populate the form
+        document.getElementById('editKeywordId').value = keywordId;
+        document.getElementById('editKeywordTerm').value = keywordTerm;
+        document.getElementById('editKeywordIsRegex').checked = isRegex;
+        
+        // Set match type radio buttons
+        if (matchType === 'exact') {
+            document.getElementById('editMatchExact').checked = true;
+        } else {
+            document.getElementById('editMatchContains').checked = true;
+        }
+        
+        document.getElementById('editKeywordCheckSubject').checked = checkSubject;
+        document.getElementById('editKeywordCheckAttachments').checked = checkAttachments;
+        document.getElementById('editKeywordEnabled').checked = enabled;
+        
+        // Show the modal
+        const modalElement = document.getElementById('editKeywordModal');
+        const modal = new bootstrap.Modal(modalElement, {
+            backdrop: 'static',
+            keyboard: true,
+            focus: true
+        });
+        
+        modal.show();
+        
+        // Add custom close handlers
+        const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"], .btn-close');
+        closeButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                modal.hide();
+                forceCleanModal();
+            }, { once: true });
+        });
+
+        // Handle modal hidden event
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) {
+                modalInstance.dispose();
+            }
+            forceCleanModal();
+        }, { once: true });
+        
+    }, 50);
+}
+</script>
 {% endblock %}
