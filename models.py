@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS exclusion_keywords (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     term TEXT NOT NULL UNIQUE,
     is_regex INTEGER DEFAULT 0,
+    match_type TEXT DEFAULT 'contains',
     check_subject INTEGER DEFAULT 1,
     check_attachments INTEGER DEFAULT 1,
     enabled INTEGER DEFAULT 1,
@@ -197,7 +198,8 @@ def init_db():
                 "ALTER TABLE events ADD COLUMN closure_reference TEXT",
                 "ALTER TABLE events ADD COLUMN trigger_reason TEXT",
                 "ALTER TABLE events ADD COLUMN matching_keywords TEXT",
-                "ALTER TABLE keywords ADD COLUMN match_type TEXT DEFAULT 'all'"
+                "ALTER TABLE keywords ADD COLUMN match_type TEXT DEFAULT 'all'",
+                "ALTER TABLE exclusion_keywords ADD COLUMN match_type TEXT DEFAULT 'contains'"
             ]:
                 try:
                     cursor.execute(column_def)

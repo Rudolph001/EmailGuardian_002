@@ -58,12 +58,25 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label class="form-label">Options</label>
+                                        <label class="form-label">Match Type</label>
                                         <div class="form-check">
+                                            <input class="form-check-input" type="radio" id="match_contains" name="match_type" value="contains" checked>
+                                            <label class="form-check-label" for="match_contains">
+                                                Contains keyword (anywhere in text)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" id="match_exact" name="match_type" value="exact">
+                                            <label class="form-check-label" for="match_exact">
+                                                Exact keyword match (word boundaries)
+                                            </label>
+                                        </div>
+                                        <div class="form-check mt-2">
                                             <input class="form-check-input" type="checkbox" id="is_regex" name="is_regex">
                                             <label class="form-check-label" for="is_regex">
                                                 Use as Regular Expression
                                             </label>
+                                            <div class="form-text text-warning">Note: Regex overrides match type</div>
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="check_subject" name="check_subject" checked>
@@ -118,10 +131,23 @@
                                     <div class="mb-3">
                                         <label class="form-label">Bulk Import Options</label>
                                         <div class="form-check">
+                                            <input class="form-check-input" type="radio" id="bulk_match_contains" name="bulk_match_type" value="contains" checked>
+                                            <label class="form-check-label" for="bulk_match_contains">
+                                                All as Contains match
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" id="bulk_match_exact" name="bulk_match_type" value="exact">
+                                            <label class="form-check-label" for="bulk_match_exact">
+                                                All as Exact match
+                                            </label>
+                                        </div>
+                                        <div class="form-check mt-2">
                                             <input class="form-check-input" type="checkbox" id="bulk_is_regex" name="bulk_is_regex">
                                             <label class="form-check-label" for="bulk_is_regex">
                                                 All as Regular Expressions
                                             </label>
+                                            <div class="form-text text-warning">Note: Regex overrides match type</div>
                                         </div>
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" id="bulk_check_subject" name="bulk_check_subject" checked>
@@ -173,6 +199,7 @@
                             <tr>
                                 <th>Keyword/Pattern</th>
                                 <th>Type</th>
+                                <th>Match Type</th>
                                 <th>Checks</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -189,6 +216,17 @@
                                         <span class="badge bg-info">Regex</span>
                                     {% else %}
                                         <span class="badge bg-secondary">Text</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if keyword.is_regex %}
+                                        <span class="badge bg-light text-dark">N/A</span>
+                                    {% else %}
+                                        {% if keyword.match_type == 'exact' %}
+                                            <span class="badge bg-primary">Exact</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Contains</span>
+                                        {% endif %}
                                     {% endif %}
                                 </td>
                                 <td>
@@ -209,7 +247,7 @@
                                 <td>
                                     <button type="button" class="btn btn-sm btn-outline-primary me-1"
                                             data-bs-toggle="modal" data-bs-target="#editModal{{ keyword.id }}"
-                                            onclick="populateEditModal({{ keyword.id }}, '{{ keyword.term|replace("'", "\\'") }}', {{ 'true' if keyword.is_regex else 'false' }}, {{ 'true' if keyword.check_subject else 'false' }}, {{ 'true' if keyword.check_attachments else 'false' }}, {{ 'true' if keyword.enabled else 'false' }})">
+                                            onclick="populateEditModal({{ keyword.id }}, '{{ keyword.term|replace("'", "\\'") }}', {{ 'true' if keyword.is_regex else 'false' }}, '{{ keyword.match_type or 'contains' }}', {{ 'true' if keyword.check_subject else 'false' }}, {{ 'true' if keyword.check_attachments else 'false' }}, {{ 'true' if keyword.enabled else 'false' }})">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <form method="POST" style="display: inline;">
@@ -247,11 +285,25 @@
                                     </div>
 
                                     <div class="mb-3">
+                                        <label class="form-label">Match Type</label>
                                         <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="match_type" value="contains" id="editMatchContains">
+                                            <label class="form-check-label" for="editMatchContains">
+                                                Contains keyword (anywhere in text)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="match_type" value="exact" id="editMatchExact">
+                                            <label class="form-check-label" for="editMatchExact">
+                                                Exact keyword match (word boundaries)
+                                            </label>
+                                        </div>
+                                        <div class="form-check mt-2">
                                             <input class="form-check-input" type="checkbox" name="is_regex" id="editKeywordIsRegex">
                                             <label class="form-check-label" for="editKeywordIsRegex">
                                                 Use as Regular Expression
                                             </label>
+                                            <div class="form-text text-warning">Note: Regex overrides match type</div>
                                         </div>
                                     </div>
 
@@ -309,11 +361,25 @@
                                     </div>
 
                                     <div class="mb-3">
+                                        <label class="form-label">Match Type</label>
                                         <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="match_type" value="contains" {{ 'checked' if (keyword.match_type or 'contains') == 'contains' else '' }}>
+                                            <label class="form-check-label">
+                                                Contains keyword (anywhere in text)
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="match_type" value="exact" {{ 'checked' if keyword.match_type == 'exact' else '' }}>
+                                            <label class="form-check-label">
+                                                Exact keyword match (word boundaries)
+                                            </label>
+                                        </div>
+                                        <div class="form-check mt-2">
                                             <input class="form-check-input" type="checkbox" name="is_regex" {{ 'checked' if keyword.is_regex else '' }}>
                                             <label class="form-check-label">
                                                 Use as Regular Expression
                                             </label>
+                                            <div class="form-text text-warning">Note: Regex overrides match type</div>
                                         </div>
                                     </div>
 
@@ -367,10 +433,18 @@
 </div>
 
 <script>
-        function populateEditModal(keywordId, keywordTerm, isRegex, checkSubject, checkAttachments, enabled) {
+        function populateEditModal(keywordId, keywordTerm, isRegex, matchType, checkSubject, checkAttachments, enabled) {
             document.getElementById('editKeywordId').value = keywordId;
             document.getElementById('editKeywordTerm').value = keywordTerm;
             document.getElementById('editKeywordIsRegex').checked = isRegex;
+            
+            // Set match type radio buttons
+            if (matchType === 'exact') {
+                document.getElementById('editMatchExact').checked = true;
+            } else {
+                document.getElementById('editMatchContains').checked = true;
+            }
+            
             document.getElementById('editKeywordCheckSubject').checked = checkSubject;
             document.getElementById('editKeywordCheckAttachments').checked = checkAttachments;
             document.getElementById('editKeywordEnabled').checked = enabled;

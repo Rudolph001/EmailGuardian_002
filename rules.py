@@ -13,7 +13,7 @@ def check_exclusion_keywords_during_import(cursor, event_data, attachments):
     
     # Get all enabled exclusion keywords
     cursor.execute("""
-        SELECT term, is_regex, check_subject, check_attachments 
+        SELECT term, is_regex, match_type, check_subject, check_attachments 
         FROM exclusion_keywords 
         WHERE enabled = 1
     """)
@@ -29,8 +29,9 @@ def check_exclusion_keywords_during_import(cursor, event_data, attachments):
     for keyword_row in exclusion_keywords:
         term = keyword_row[0].strip()
         is_regex = keyword_row[1]
-        check_subject = keyword_row[2]
-        check_attachments = keyword_row[3]
+        match_type = keyword_row[2] if len(keyword_row) > 2 else 'contains'
+        check_subject = keyword_row[3] if len(keyword_row) > 3 else keyword_row[2]
+        check_attachments = keyword_row[4] if len(keyword_row) > 4 else keyword_row[3]
         
         try:
             if is_regex:
@@ -41,24 +42,22 @@ def check_exclusion_keywords_during_import(cursor, event_data, attachments):
                 if check_attachments and attachments_text and pattern.search(attachments_text):
                     matches.append(term)
             else:
-                # For exact phrase matching, use word boundaries for multi-word terms
                 term_lower = term.lower()
                 
-                # Check if it's a multi-word phrase or single word
-                if ' ' in term_lower:
-                    # Multi-word phrase - look for exact phrase
-                    if check_subject and subject and term_lower in subject:
-                        matches.append(term)
-                        continue
-                    if check_attachments and attachments_text and term_lower in attachments_text:
-                        matches.append(term)
-                else:
-                    # Single word - check with word boundaries to avoid partial matches
+                if match_type == 'exact':
+                    # Exact match using word boundaries
                     word_pattern = r'\b' + re.escape(term_lower) + r'\b'
                     if check_subject and subject and re.search(word_pattern, subject):
                         matches.append(term)
                         continue
                     if check_attachments and attachments_text and re.search(word_pattern, attachments_text):
+                        matches.append(term)
+                else:
+                    # Contains match (default behavior)
+                    if check_subject and subject and term_lower in subject:
+                        matches.append(term)
+                        continue
+                    if check_attachments and attachments_text and term_lower in attachments_text:
                         matches.append(term)
         except re.error:
             continue
@@ -419,28 +418,28 @@ def get_exclusion_keywords():
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT id, term, is_regex, check_subject, check_attachments, enabled 
+            SELECT id, term, is_regex, match_type, check_subject, check_attachments, enabled 
             FROM exclusion_keywords 
             ORDER BY term
         """)
         return cursor.fetchall()
 
-def add_exclusion_keyword(term, is_regex=False, check_subject=True, check_attachments=True, enabled=True):
+def add_exclusion_keyword(term, is_regex=False, match_type='contains', check_subject=True, check_attachments=True, enabled=True):
     """Add exclusion keyword"""
     with get_db() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute("""
-                INSERT INTO exclusion_keywords (term, is_regex, check_subject, check_attachments, enabled) 
-                VALUES (?, ?, ?, ?, ?)
-            """, (term, 1 if is_regex else 0, 1 if check_subject else 0, 
+                INSERT INTO exclusion_keywords (term, is_regex, match_type, check_subject, check_attachments, enabled) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (term, 1 if is_regex else 0, match_type, 1 if check_subject else 0, 
                   1 if check_attachments else 0, 1 if enabled else 0))
             conn.commit()
             return True
         except sqlite3.IntegrityError:
             return False
 
-def update_exclusion_keyword(keyword_id, term=None, is_regex=None, check_subject=None, 
+def update_exclusion_keyword(keyword_id, term=None, is_regex=None, match_type=None, check_subject=None, 
                            check_attachments=None, enabled=None):
     """Update exclusion keyword"""
     with get_db() as conn:
@@ -455,6 +454,9 @@ def update_exclusion_keyword(keyword_id, term=None, is_regex=None, check_subject
         if is_regex is not None:
             updates.append("is_regex = ?")
             params.append(1 if is_regex else 0)
+        if match_type is not None:
+            updates.append("match_type = ?")
+            params.append(match_type)
         if check_subject is not None:
             updates.append("check_subject = ?")
             params.append(1 if check_subject else 0)
@@ -517,6 +519,7 @@ def check_exclusion_keywords(event):
     for keyword in exclusion_keywords:
         term = keyword['term'].strip()
         is_regex = keyword['is_regex']
+        match_type = keyword.get('match_type', 'contains')
         check_subject = keyword['check_subject']
         check_attachments = keyword['check_attachments']
         found_locations = []
@@ -535,25 +538,23 @@ def check_exclusion_keywords(event):
                     found_locations.append('Attachments')
             
             else:
-                # Enhanced string matching for multi-word phrases
                 term_lower = term.lower()
                 
-                # Check if it's a multi-word phrase or single word
-                if ' ' in term_lower:
-                    # Multi-word phrase - look for exact phrase
-                    if check_subject and subject and term_lower in subject:
-                        found_locations.append('Subject')
-                    
-                    if check_attachments and attachments_text and term_lower in attachments_text:
-                        found_locations.append('Attachments')
-                else:
-                    # Single word - check with word boundaries to avoid partial matches
+                if match_type == 'exact':
+                    # Exact match using word boundaries
                     word_pattern = r'\b' + re.escape(term_lower) + r'\b'
                     
                     if check_subject and subject and re.search(word_pattern, subject):
                         found_locations.append('Subject')
                     
                     if check_attachments and attachments_text and re.search(word_pattern, attachments_text):
+                        found_locations.append('Attachments')
+                else:
+                    # Contains match (default behavior)
+                    if check_subject and subject and term_lower in subject:
+                        found_locations.append('Subject')
+                    
+                    if check_attachments and attachments_text and term_lower in attachments_text:
                         found_locations.append('Attachments')
             
             # Add matches for each location found

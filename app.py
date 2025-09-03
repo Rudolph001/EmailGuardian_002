@@ -817,6 +817,7 @@ def exclusion_keywords():
             if action == "add":
                 term = request.form.get("term", "").strip()
                 is_regex = request.form.get("is_regex") == "on"
+                match_type = request.form.get("match_type", "contains") # Get match_type
                 check_subject = request.form.get("check_subject") == "on"
                 check_attachments = request.form.get("check_attachments") == "on"
                 enabled = request.form.get("enabled") == "on"
@@ -825,7 +826,7 @@ def exclusion_keywords():
                     flash("Must check at least Subject or Attachments", "error")
                 elif term:
                     from rules import add_exclusion_keyword
-                    if add_exclusion_keyword(term, is_regex, check_subject, check_attachments, enabled):
+                    if add_exclusion_keyword(term, is_regex, match_type, check_subject, check_attachments, enabled): # Pass match_type
                         flash(f"Exclusion keyword '{term}' added", "success")
                     else:
                         flash(f"Exclusion keyword '{term}' already exists", "warning")
@@ -840,6 +841,7 @@ def exclusion_keywords():
                 keyword_id = int(keyword_id_str)
                 term = request.form.get("term", "").strip()
                 is_regex = request.form.get("is_regex") == "on"
+                match_type = request.form.get("match_type", "contains") # Get match_type
                 check_subject = request.form.get("check_subject") == "on"
                 check_attachments = request.form.get("check_attachments") == "on"
                 enabled = request.form.get("enabled") == "on"
@@ -848,7 +850,7 @@ def exclusion_keywords():
                     flash("Must check at least Subject or Attachments", "error")
                 else:
                     from rules import update_exclusion_keyword
-                    if update_exclusion_keyword(keyword_id, term, is_regex, check_subject, check_attachments, enabled):
+                    if update_exclusion_keyword(keyword_id, term, is_regex, match_type, check_subject, check_attachments, enabled): # Pass match_type
                         flash(f"Exclusion keyword updated", "success")
                     else:
                         flash("Failed to update exclusion keyword", "error")
@@ -856,6 +858,7 @@ def exclusion_keywords():
             elif action == "bulk_add":
                 bulk_terms = request.form.get("bulk_terms", "").strip()
                 bulk_is_regex = request.form.get("bulk_is_regex") == "on"
+                bulk_match_type = request.form.get("bulk_match_type", "contains") # Get bulk_match_type
                 bulk_check_subject = request.form.get("bulk_check_subject") == "on"
                 bulk_check_attachments = request.form.get("bulk_check_attachments") == "on"
                 skip_duplicates = request.form.get("skip_duplicates") == "on"
@@ -875,7 +878,7 @@ def exclusion_keywords():
 
                         for term in lines:
                             try:
-                                result = add_exclusion_keyword(term, bulk_is_regex, bulk_check_subject, bulk_check_attachments, True)
+                                result = add_exclusion_keyword(term, bulk_is_regex, bulk_match_type, bulk_check_subject, bulk_check_attachments, True) # Pass bulk_match_type
                                 if result:
                                     added_count += 1
                                 else:
